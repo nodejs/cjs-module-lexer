@@ -372,12 +372,12 @@ function tryParseObjectDefineOrKeys (keys) {
         }
         // `if (` IDENTIFIER$2 `!==` ( `'default'` | `"default"` ) `)`
         else if (ch === 33/*!*/) {
-          if (!source.startsWith('==', pos + 1, pos + 3)) break;
+          if (!source.startsWith('==', pos + 1)) break;
           pos += 3;
           ch = commentWhitespace();
           if (ch !== 34/*"*/ && ch !== 39/*'*/) break;
           const quot = ch;
-          if (!source.startsWith('default', pos + 1, pos + 8)) break;
+          if (!source.startsWith('default', pos + 1)) break;
           pos += 8;
           ch = commentWhitespace();
           if (ch !== quot) break;
