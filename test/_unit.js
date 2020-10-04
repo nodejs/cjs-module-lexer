@@ -428,6 +428,25 @@ suite('Lexer', () => {
     assert.equal(reexports[1], './another');
   });
 
+
+  test('Requires', () => {
+    const source = `
+      const a = require("module/a");
+      const b = require("./module-b.js");
+    `;
+    const { exports, reexports, requires } = parse(source);
+    assert.equal(requires.length, 2);
+
+    assert.deepEqual(requires[0], { s: 26, e: 34 });
+    assert.equal(source.slice(requires[0].s, requires[0].e), `module/a`);
+
+    assert.deepEqual(requires[1], { s: 63, e: 76 });
+    assert.equal(source.slice(requires[1].s, requires[1].e), `./module-b.js`);
+
+    assert.equal(exports.length, 0);
+    assert.equal(reexports.length, 0);
+  });
+
   test('Single parse cases', () => {
     parse(`'asdf'`);
     parse(`/asdf/`);
