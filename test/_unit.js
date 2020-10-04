@@ -17,7 +17,7 @@ suite('Lexer', () => {
   beforeEach(async () => await loadParser());
 
   test('TypeScript reexports', () => {
-    var { exports, reexports } = parse(`
+    var { exports, reexports, requires } = parse(`
       "use strict";
       function __export(m) {
           for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
@@ -35,6 +35,12 @@ suite('Lexer', () => {
     assert.equal(reexports[1], 'external2');
     assert.equal(reexports[2], 'external3');
     assert.equal(reexports[3], 'external4');
+
+    assert.equal(requires.length, 4);
+    assert.deepEqual(requires[0], { s: 229, e: 238 });
+    assert.deepEqual(requires[1], { s: 273, e: 282 });
+    assert.deepEqual(requires[2], { s: 315, e: 324 });
+    assert.deepEqual(requires[3], { s: 364, e: 373 });
   });
 
   test('Rollup Babel reexports', () => {
