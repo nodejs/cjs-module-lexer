@@ -11,7 +11,8 @@ let openTokenDepth,
   starExportMap,
   lastStarExportSpecifier,
   _exports,
-  reexports;
+  reexports,
+  requires;
 
 function resetState () {
   openTokenDepth = 0;
@@ -28,6 +29,7 @@ function resetState () {
 
   _exports = new Set();
   reexports = new Set();
+  requires = [];
 }
 
 const strictReserved = new Set(['implements', 'interface', 'let', 'package', 'private', 'protected', 'public', 'static', 'yield', 'enum']);
@@ -42,7 +44,7 @@ module.exports = function parseCJS (source, name = '@') {
     e.loc = pos;
     throw e;
   }
-  const result = { exports: [..._exports], reexports: [...reexports] };
+  const result = { exports: [..._exports], reexports: [...reexports], requires };
   resetState();
   return result;
 }
@@ -645,6 +647,7 @@ function tryParseRequire (directStarExport) {
         const reexportEnd = pos++;
         ch = commentWhitespace();
         if (ch === 41/*)*/) {
+          requires.push({ s: reexportStart, e: reexportEnd });
           if (directStarExport) {
             reexports.add(source.slice(reexportStart, reexportEnd));
           }
@@ -659,6 +662,7 @@ function tryParseRequire (directStarExport) {
         const reexportEnd = pos++;
         ch = commentWhitespace();
         if (ch === 41/*)*/) {
+          requires.push({ s: reexportStart, e: reexportEnd });
           if (directStarExport) {
             reexports.add(source.slice(reexportStart, reexportEnd));
           }
