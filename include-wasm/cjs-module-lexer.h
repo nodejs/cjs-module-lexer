@@ -166,8 +166,14 @@ bool parseCJS (
   void (*addRequire)(const uint16_t* start, const uint16_t* end)
 );
 
+enum RequireType {
+  Import,
+  ExportAssign,
+  ExportStar
+};
+
 void tryBacktrackAddStarExportBinding (uint16_t* pos);
-bool tryParseRequire (bool directStarExport);
+bool tryParseRequire (enum RequireType requireType);
 void tryParseLiteralExports ();
 bool readExportsOrModuleDotExports (uint16_t ch);
 void tryParseModuleExportsDotAssign ();

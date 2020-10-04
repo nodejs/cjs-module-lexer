@@ -21,6 +21,8 @@ uint16_t* end;
 uint16_t* templateStack;
 uint16_t** openTokenPosStack;
 StarExportBinding* starExportStack;
+uint16_t* reexportAssignStart;
+uint16_t* reexportAssignEnd;
 bool nextBraceIsClass;
 
 uint16_t* lastReexportStart;
@@ -65,6 +67,8 @@ bool parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const 
   openTokenPosStack = &openTokenPosStack_[0];
   starExportStack = &starExportStack_[0];
   nextBraceIsClass = false;
+  reexportAssignStart = NULL;
+  reexportAssignEnd = NULL;
 
   pos = (uint16_t*)(source - 1);
   uint16_t ch = '\0';
@@ -97,7 +101,7 @@ bool parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const 
           continue;
         case 'r': {
           uint16_t* startPos = pos;
-          if (tryParseRequire(false) && keywordStart(startPos))
+          if (tryParseRequire(Import) && keywordStart(startPos))
             tryBacktrackAddStarExportBinding(startPos - 1);
           lastTokenPos = pos;
           continue;
@@ -110,7 +114,7 @@ bool parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const 
             if (*pos == '(') {
               openTokenPosStack[openTokenDepth++] = lastTokenPos;
               if (*(++pos) == 'r')
-                tryParseRequire(true);
+                tryParseRequire(ExportStar);
             }
           }
           lastTokenPos = pos;
@@ -219,6 +223,9 @@ bool parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const 
 
   if (templateDepth != UINT16_MAX || openTokenDepth || has_error)
     return false;
+
+  if (reexportAssignStart)
+    addReexport(reexportAssignStart, reexportAssignEnd);
 
   // success
   return true;
@@ -650,14 +657,14 @@ void tryParseExportsDotAssign (bool assign) {
 
         // require('...')
         if (ch == 'r')
-          tryParseRequire(true);
+          tryParseRequire(ExportAssign);
       }
     }
   }
   pos = revertPos;
 }
 
-bool tryParseRequire (bool directStarExport) {
+bool tryParseRequire (enum RequireType requireType) {
   // require('...')
   if (str_eq6(pos + 1, 'e', 'q', 'u', 'i', 'r', 'e')) {
     pos += 7;
@@ -673,14 +680,19 @@ bool tryParseRequire (bool directStarExport) {
         ch = commentWhitespace();
         if (ch == ')') {
           addRequire(reexportStart, reexportEnd);
-          if (directStarExport) {
-            addReexport(reexportStart, reexportEnd);
+          switch (requireType) {
+            case ExportStar:
+              addReexport(reexportStart, reexportEnd);
+              return true;
+            case ExportAssign:
+              reexportAssignStart = reexportStart;
+              reexportAssignEnd = reexportEnd;
+              return true;
+            default:
+              starExportStack->specifier_start = reexportStart;
+              starExportStack->specifier_end = reexportEnd;
+              return true;
           }
-          else {
-            starExportStack->specifier_start = reexportStart;
-            starExportStack->specifier_end = reexportEnd;
-          }
-          return true;
         }
       }
       else if (ch == '"') {
@@ -689,12 +701,18 @@ bool tryParseRequire (bool directStarExport) {
         ch = commentWhitespace();
         if (ch == ')') {
           addRequire(reexportStart, reexportEnd);
-          if (directStarExport) {
-            addReexport(reexportStart, reexportEnd);
-          }
-          else {
-            starExportStack->specifier_start = reexportStart;
-            starExportStack->specifier_end = reexportEnd;
+          switch (requireType) {
+            case ExportStar:
+              addReexport(reexportStart, reexportEnd);
+              return true;
+            case ExportAssign:
+              reexportAssignStart = reexportStart;
+              reexportAssignEnd = reexportEnd;
+              return true;
+            default:
+              starExportStack->specifier_start = reexportStart;
+              starExportStack->specifier_end = reexportEnd;
+              return true;
           }
           return true;
         }
