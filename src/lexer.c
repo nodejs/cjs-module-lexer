@@ -679,7 +679,7 @@ bool tryParseRequire (enum RequireType requireType) {
         uint16_t* reexportEnd = pos++;
         ch = commentWhitespace();
         if (ch == ')') {
-          addRequire(reexportStart, reexportEnd);
+          addRequire(reexportStart - 1, reexportEnd + 1);
           switch (requireType) {
             case ExportStar:
               addReexport(reexportStart, reexportEnd);
@@ -700,7 +700,7 @@ bool tryParseRequire (enum RequireType requireType) {
         uint16_t* reexportEnd = pos++;
         ch = commentWhitespace();
         if (ch == ')') {
-          addRequire(reexportStart, reexportEnd);
+          addRequire(reexportStart - 1, reexportEnd + 1);
           switch (requireType) {
             case ExportStar:
               addReexport(reexportStart, reexportEnd);

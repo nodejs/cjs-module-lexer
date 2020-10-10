@@ -656,7 +656,7 @@ function tryParseRequire (requireType) {
         const reexportEnd = pos++;
         ch = commentWhitespace();
         if (ch === 41/*)*/) {
-          requires.push({ s: reexportStart, e: reexportEnd });
+          requires.push({ s: reexportStart - 1, e: reexportEnd + 1 });
           switch (requireType) {
             case ExportAssign:
               lastExportsAssignSpecifier = source.slice(reexportStart, reexportEnd);
@@ -675,7 +675,7 @@ function tryParseRequire (requireType) {
         const reexportEnd = pos++;
         ch = commentWhitespace();
         if (ch === 41/*)*/) {
-          requires.push({ s: reexportStart, e: reexportEnd });
+          requires.push({ s: reexportStart - 1, e: reexportEnd + 1 });
           switch (requireType) {
             case ExportAssign:
               lastExportsAssignSpecifier = source.slice(reexportStart, reexportEnd);

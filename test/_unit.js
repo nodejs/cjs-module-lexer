@@ -37,10 +37,10 @@ suite('Lexer', () => {
     assert.equal(reexports[3], 'external4');
 
     assert.equal(requires.length, 4);
-    assert.deepEqual(requires[0], { s: 229, e: 238 });
-    assert.deepEqual(requires[1], { s: 273, e: 282 });
-    assert.deepEqual(requires[2], { s: 315, e: 324 });
-    assert.deepEqual(requires[3], { s: 364, e: 373 });
+    assert.deepEqual(requires[0], { s: 228, e: 239 });
+    assert.deepEqual(requires[1], { s: 272, e: 283 });
+    assert.deepEqual(requires[2], { s: 314, e: 325 });
+    assert.deepEqual(requires[3], { s: 363, e: 374 });
   });
 
   test('Rollup Babel reexports', () => {
@@ -442,11 +442,11 @@ suite('Lexer', () => {
     const { exports, reexports, requires } = parse(source);
     assert.equal(requires.length, 2);
 
-    assert.deepEqual(requires[0], { s: 26, e: 34 });
-    assert.equal(source.slice(requires[0].s, requires[0].e), `module/a`);
+    assert.deepEqual(requires[0], { s: 25, e: 35 });
+    assert.equal(source.slice(requires[0].s, requires[0].e), `"module/a"`);
 
-    assert.deepEqual(requires[1], { s: 63, e: 76 });
-    assert.equal(source.slice(requires[1].s, requires[1].e), `./module-b.js`);
+    assert.deepEqual(requires[1], { s: 62, e: 77 });
+    assert.equal(source.slice(requires[1].s, requires[1].e), `"./module-b.js"`);
 
     assert.equal(exports.length, 0);
     assert.equal(reexports.length, 0);
