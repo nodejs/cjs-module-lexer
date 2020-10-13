@@ -8,7 +8,7 @@ export function parse (source, name = '@') {
   if (!wasm)
     throw new Error('Not initialized');
 
-  const len = source.length + 1 + (source.length + 1) % 2;
+  const len = source.length + 1;
 
   // need 2 bytes per code point plus analysis space so we double again
   const extraMem = (wasm.__heap_base.value || wasm.__heap_base) + len * 4 - wasm.memory.buffer.byteLength;
