@@ -34,14 +34,14 @@ export function parse (source, name = '@') {
 }
 
 function copyBE (src, outBuf16) {
-  const len = src.length / 2;
+  const len = src.length;
   let i = 0;
   while (i < len) {
     const ch1 = src.charCodeAt(i * 2 + 1);
-    outBuf16[i] = (ch1 & 0xff) << 8 | (ch1 & 0xff0) >> 8;
+    outBuf16[i * 2] = (ch1 & 0xff) << 8 | (ch1 & 0xff0) >> 8;
     const ch2 = src.charCodeAt(i * 2);
-    outBuf16[i + 1] = (ch2 & 0xff) << 8 | (ch2 & 0xff0) >> 8;
-    i++;
+    outBuf16[i * 2 + 1] = (ch2 & 0xff) << 8 | (ch2 & 0xff0) >> 8;
+    i += 2;
   }
 }
 
