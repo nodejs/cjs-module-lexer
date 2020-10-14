@@ -21,7 +21,7 @@ export function parse (source, name = '@') {
   if (!wasm.parseCJS(addr, source.length, 0, 0))
     throw Object.assign(new Error(`Parse error ${name}${wasm.e()}:${source.slice(0, wasm.e()).split('\n').length}:${wasm.e() - source.lastIndexOf('\n', wasm.e() - 1)}`), { idx: wasm.e() });
 
-  let exports = new Set(), reexports = new Set();
+  let exports = new Set(), reexports = new Set(), requires = [];
   while (wasm.rre())
     reexports.add(source.slice(wasm.res(), wasm.ree()));
   while (wasm.re()) {
@@ -29,8 +29,10 @@ export function parse (source, name = '@') {
     if (!strictReserved.has(exptStr))
       exports.add(exptStr);
   }
+  while (wasm.rrq())
+    requires.push({ s: wasm.rqs(), e: wasm.rqe() });
 
-  return { exports: [...exports], reexports: [...reexports] };
+  return { exports: [...exports], reexports: [...reexports], requires };
 }
 
 function copyBE (src, outBuf16) {

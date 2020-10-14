@@ -30,6 +30,9 @@ Slice* export_write_head = NULL;
 Slice* first_reexport = NULL;
 Slice* reexport_read_head = NULL;
 Slice* reexport_write_head = NULL;
+Slice* first_require = NULL;
+Slice* require_read_head = NULL;
+Slice* require_write_head = NULL;
 void* analysis_base;
 void* analysis_head;
 
@@ -48,6 +51,9 @@ const uint16_t* sa (uint32_t utf16Len) {
   first_reexport = NULL;
   reexport_write_head = NULL;
   reexport_read_head = NULL;
+  first_require = NULL;
+  require_write_head = NULL;
+  require_read_head = NULL;
   return source;
 }
 
@@ -72,6 +78,14 @@ uint32_t res () {
 uint32_t ree () {
   return reexport_read_head->end - source;
 }
+// getRequireStart
+uint32_t rqs () {
+  return require_read_head->start - source;
+}
+// getRequireEnd
+uint32_t rqe () {
+  return require_read_head->end - source;
+}
 // readExport
 bool re () {
   if (export_read_head == NULL)
@@ -89,6 +103,16 @@ bool rre () {
   else
     reexport_read_head = reexport_read_head->next;
   if (reexport_read_head == NULL)
+    return false;
+  return true;
+}
+// readRequire
+bool rrq () {
+  if (require_read_head == NULL)
+    require_read_head = first_require;
+  else
+    require_read_head = require_read_head->next;
+  if (require_read_head == NULL)
     return false;
   return true;
 }
@@ -119,9 +143,28 @@ void _addReexport (const uint16_t* start, const uint16_t* end) {
   reexport->end = end;
   reexport->next = NULL;
 }
+void _addRequire (const uint16_t* start, const uint16_t* end) {
+  Slice* require = (Slice*)(analysis_head);
+  analysis_head = analysis_head + sizeof(Slice);
+  if (require_write_head == NULL)
+    first_require = require;
+  else
+    require_write_head->next = require;
+  require_write_head = require;
+  require->start = start;
+  require->end = end;
+  require->next = NULL;
+}
 void (*addExport)(const uint16_t*, const uint16_t*) = &_addExport;
 void (*addReexport)(const uint16_t*, const uint16_t*) = &_addReexport;
-bool parseCJS (uint16_t* source, uint32_t sourceLen, void (*addExport)(const uint16_t* start, const uint16_t* end), void (*addReexport)(const uint16_t* start, const uint16_t* end));
+void (*addRequire)(const uint16_t*, const uint16_t*) = &_addRequire;
+bool parseCJS (
+  uint16_t* source,
+  uint32_t sourceLen,
+  void (*addExport)(const uint16_t* start, const uint16_t* end),
+  void (*addReexport)(const uint16_t* start, const uint16_t* end),
+  void (*addRequire)(const uint16_t* start, const uint16_t* end)
+);
 
 enum RequireType {
   Import,

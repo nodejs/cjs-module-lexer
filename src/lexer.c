@@ -43,15 +43,18 @@ const StarExportBinding* STAR_EXPORT_STACK_END = &starExportStack_[MAX_STAR_EXPO
 
 void (*addExport)(const uint16_t*, const uint16_t*);
 void (*addReexport)(const uint16_t*, const uint16_t*);
+void (*addRequire)(const uint16_t*, const uint16_t*);
 
 // Note: parsing is based on the _assumption_ that the source is already valid
-bool parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const uint16_t*, const uint16_t*), void (*_addReexport)(const uint16_t*, const uint16_t*)) {
+bool parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const uint16_t*, const uint16_t*), void (*_addReexport)(const uint16_t*, const uint16_t*), void (*_addRequire)(const uint16_t*, const uint16_t*)) {
   source = _source;
   sourceLen = _sourceLen;
   if (_addExport)
     addExport = _addExport;
   if (_addReexport)
     addReexport = _addReexport;
+  if (_addRequire)
+    addRequire = _addRequire;
 
   templateStackDepth = 0;
   openTokenDepth = 0;
@@ -676,6 +679,7 @@ bool tryParseRequire (enum RequireType requireType) {
         uint16_t* reexportEnd = pos++;
         ch = commentWhitespace();
         if (ch == ')') {
+          addRequire(reexportStart - 1, reexportEnd + 1);
           switch (requireType) {
             case ExportStar:
               addReexport(reexportStart, reexportEnd);
@@ -696,6 +700,7 @@ bool tryParseRequire (enum RequireType requireType) {
         uint16_t* reexportEnd = pos++;
         ch = commentWhitespace();
         if (ch == ')') {
+          addRequire(reexportStart - 1, reexportEnd + 1);
           switch (requireType) {
             case ExportStar:
               addReexport(reexportStart, reexportEnd);

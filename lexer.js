@@ -12,7 +12,8 @@ let openTokenDepth,
   lastStarExportSpecifier,
   lastExportsAssignSpecifier,
   _exports,
-  reexports;
+  reexports,
+  requires;
 
 function resetState () {
   openTokenDepth = 0;
@@ -30,6 +31,7 @@ function resetState () {
 
   _exports = new Set();
   reexports = new Set();
+  requires = [];
 }
 
 // RequireType
@@ -51,7 +53,7 @@ module.exports = function parseCJS (source, name = '@') {
   }
   if (lastExportsAssignSpecifier)
     reexports.add(lastExportsAssignSpecifier);
-  const result = { exports: [..._exports], reexports: [...reexports] };
+  const result = { exports: [..._exports], reexports: [...reexports], requires };
   resetState();
   return result;
 }
@@ -654,6 +656,7 @@ function tryParseRequire (requireType) {
         const reexportEnd = pos++;
         ch = commentWhitespace();
         if (ch === 41/*)*/) {
+          requires.push({ s: reexportStart - 1, e: reexportEnd + 1 });
           switch (requireType) {
             case ExportAssign:
               lastExportsAssignSpecifier = source.slice(reexportStart, reexportEnd);
@@ -672,6 +675,7 @@ function tryParseRequire (requireType) {
         const reexportEnd = pos++;
         ch = commentWhitespace();
         if (ch === 41/*)*/) {
+          requires.push({ s: reexportStart - 1, e: reexportEnd + 1 });
           switch (requireType) {
             case ExportAssign:
               lastExportsAssignSpecifier = source.slice(reexportStart, reexportEnd);
