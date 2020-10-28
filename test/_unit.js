@@ -660,4 +660,19 @@ function x() {
     assert.ok(exports[0] === 'a');
     assert.ok(exports[1] === 'b');
   });
+
+  test('Yield ambiguity case', () => {
+    var { exports, reexports } = parse(`
+      function* fn() {
+        yield / "/ //" /*
+      }
+      /*/
+      }
+      
+      module.exports.foo = 2;
+      
+      // */
+    `);
+    assert.equal(exports.length, 1);
+  });
 });

@@ -1126,9 +1126,6 @@ function isExpressionKeyword (pos) {
         case 105/*i*/:
           // void
           return readPrecedingKeyword(pos - 2, 'vo');
-        case 108/*l*/:
-          // yield
-          return readPrecedingKeyword(pos - 2, 'yie');
         default:
           return false;
       }

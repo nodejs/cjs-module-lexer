@@ -1214,9 +1214,6 @@ bool isExpressionKeyword (uint16_t* pos) {
         case 'i':
           // void
           return readPrecedingKeyword2(pos - 2, 'v', 'o');
-        case 'l':
-          // yield
-          return readPrecedingKeyword3(pos - 2, 'y', 'i', 'e');
         default:
           return false;
       }
