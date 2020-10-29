@@ -1214,7 +1214,7 @@ function isExpressionPunctuator (ch) {
 
 function isExpressionTerminator (curPos) {
   // detects:
-  // => ; ) finally catch else
+  // => ; ) finally catch else void
   // as all of these followed by a { will indicate a statement brace
   switch (source.charCodeAt(curPos)) {
     case 62/*>*/:
@@ -1228,6 +1228,8 @@ function isExpressionTerminator (curPos) {
       return source.startsWith('finall', curPos - 6);
     case 101/*e*/:
       return source.startsWith('els', curPos - 3);
+    case 100/*d*/:
+      return source.startsWith('voi', curPos - 3);
   }
   return false;
 }

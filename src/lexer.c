@@ -1302,7 +1302,7 @@ bool isExpressionPunctuator (uint16_t ch) {
 
 bool isExpressionTerminator (uint16_t* curPos) {
   // detects:
-  // > ; ) -1 finally catch
+  // > ; ) -1 finally catch void
   // as all of these followed by a { will indicate a statement brace
   switch (*curPos) {
     case '>':
@@ -1316,6 +1316,8 @@ bool isExpressionTerminator (uint16_t* curPos) {
       return readPrecedingKeyword6(curPos - 1, 'f', 'i', 'n', 'a', 'l', 'l');
     case 'e':
       return readPrecedingKeyword3(curPos - 1, 'e', 'l', 's');
+    case 'd':
+      return readPrecedingKeyword3(curPos - 1, 'v', 'o', 'i');
   }
   return false;
 }

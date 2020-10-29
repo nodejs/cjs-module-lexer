@@ -645,6 +645,21 @@ function x() {
     assert.ok(parse(source));
   });
 
+  test('Void case', () => {
+    var { exports } = parse(`
+      void {
+        x: []
+      } / "/ //" /*
+
+      /*/
+
+      module.exports.foo = 2;
+
+      // */
+    `);
+    assert.equal(exports.length, 0);
+  });
+
   test('Template string expression ambiguity', () => {
     const source = `
       \`$\`
