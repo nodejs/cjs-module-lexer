@@ -128,7 +128,7 @@ Spacing between tokens is taken to be any ECMA-262 whitespace, ECMA-262 block co
 
 #### Named Exports Parsing
 
-The basic matching rules for named exports are `exports.name` and `exports['name']`. This matching is done without scope analysis and regardless of the expression position:
+The basic matching rules for named exports are `exports.name`, `exports['name']` or `Object.defineProperty(exports, 'name', ...)`. This matching is done without scope analysis and regardless of the expression position:
 
 ```js
 // DETECTS EXPORTS: a, b
