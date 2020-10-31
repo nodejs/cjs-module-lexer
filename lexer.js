@@ -318,6 +318,9 @@ function tryParseObjectDefineOrKeys (keys) {
             if (ch !== 102/*f*/) break;
             if (!source.startsWith('unction', pos + 1)) break;
             pos += 8;
+            let lastPos = pos;
+            ch = commentWhitespace();
+            if (ch !== 40 && (lastPos === pos || !identifier())) break;
             ch = commentWhitespace();
           }
           if (ch !== 40/*(*/) break;

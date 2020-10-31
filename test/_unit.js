@@ -54,7 +54,7 @@ suite('Lexer', () => {
       });
 
       Object.defineProperty(exports, "c", {
-        get: function () {
+        get: function get () {
           return q['p' ];
         }
       });
@@ -68,6 +68,12 @@ suite('Lexer', () => {
       Object.defineProperty(exports, 'e', {
         get () {
           return external;
+        }
+      });
+
+      Object.defineProperty(exports, "f", {
+        get: functionget () {
+          return q['p' ];
         }
       });
     `);

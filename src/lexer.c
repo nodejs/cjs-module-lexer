@@ -330,6 +330,9 @@ void tryParseObjectDefineOrKeys (bool keys) {
             if (ch != 'f') break;
             if (!str_eq7(pos + 1, 'u', 'n', 'c', 't', 'i', 'o', 'n')) break;
             pos += 8;
+            uint16_t* lastPos = pos;
+            ch = commentWhitespace();
+            if (ch != '(' && (lastPos == pos || !identifier(ch))) break;
             ch = commentWhitespace();
           }
           if (ch != '(') break;
