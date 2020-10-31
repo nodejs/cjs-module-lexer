@@ -272,29 +272,118 @@ void tryParseObjectDefineOrKeys (bool keys) {
     pos++;
     ch = commentWhitespace();
     if (ch == 'd' && str_eq13(pos + 1, 'e', 'f', 'i', 'n', 'e', 'P', 'r', 'o', 'p', 'e', 'r', 't', 'y')) {
-      pos += 14;
-      revertPos = pos - 1;
-      ch = commentWhitespace();
-      if (ch != '(') {
-        pos = revertPos;
-        return;
-      }
-      pos++;
-      ch = commentWhitespace();
-      if (readExportsOrModuleDotExports(ch)) {
+      while (true) {
+        pos += 14;
+        revertPos = pos - 1;
         ch = commentWhitespace();
-        if (ch == ',') {
+        if (ch != '(') break;
+        pos++;
+        ch = commentWhitespace();
+        if (!readExportsOrModuleDotExports(ch)) break;
+        ch = commentWhitespace();
+        if (ch != ',') break;
+        pos++;
+        ch = commentWhitespace();
+        if (ch != '\'' && ch != '"') break;
+        uint16_t quot = ch;
+        uint16_t* exportStart = ++pos;
+        if (!identifier(*pos) || *pos != quot) break;
+        uint16_t* exportEnd = pos;
+        pos++;
+        ch = commentWhitespace();
+        if (ch != ',') break;
+        pos++;
+        ch = commentWhitespace();
+        if (ch != '{') break;
+        pos++;
+        ch = commentWhitespace();
+        if (ch == 'e') {
+          if (!str_eq9(pos + 1, 'n', 'u', 'm', 'e', 'r', 'a', 'b', 'l', 'e')) break;
+          pos += 10;
+          ch = commentWhitespace();
+          if (ch != ':') break;
           pos++;
           ch = commentWhitespace();
-          if (ch == '\'' || ch == '"') {
-            uint16_t* exportPos = ++pos;
-            if (identifier(*pos) && *pos == ch) {
-              // revert for "("
-              if (pos - exportPos == 10 && str_eq10(exportPos, '_', '_', 'e', 's', 'M', 'o', 'd', 'u', 'l', 'e'))
-                addExport(exportPos, pos);
-            }
-          }
+          if (ch != 't' || !str_eq3(pos + 1, 'r', 'u', 'e')) break;
+          pos += 4;
+          ch = commentWhitespace();
+          if (ch != 44) break;
+          pos++;
+          ch = commentWhitespace();
         }
+        if (ch == 'v') {
+          if (!str_eq4(pos + 1, 'a', 'l', 'u', 'e')) break;
+          pos += 5;
+          ch = commentWhitespace();
+          if (ch != ':') break;
+          pos++;
+          addExport(exportStart, exportEnd);
+          break;
+        }
+        else if (ch == 'g') {
+          if (!str_eq2(pos + 1, 'e', 't')) break;
+          pos += 3;
+          ch = commentWhitespace();
+          if (ch == ':') {
+            pos++;
+            ch = commentWhitespace();
+            if (ch != 'f') break;
+            if (!str_eq7(pos + 1, 'u', 'n', 'c', 't', 'i', 'o', 'n')) break;
+            pos += 8;
+            ch = commentWhitespace();
+          }
+          if (ch != '(') break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch != ')') break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch != '{') break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch != 'r') break;
+          if (!str_eq5(pos + 1, 'e', 't', 'u', 'r', 'n')) break;
+          pos += 6;
+          ch = commentWhitespace();
+          if (!identifier(ch)) break;
+          ch = commentWhitespace();
+          if (ch == '.') {
+            pos++;
+            ch = commentWhitespace();
+            if (!identifier(ch)) break;
+            ch = commentWhitespace();
+          }
+          else if (ch == '[') {
+            pos++;
+            ch = commentWhitespace();
+            if (ch == '\'') singleQuoteString();
+            else if (ch == '"') doubleQuoteString();
+            else break;
+            pos++;
+            ch = commentWhitespace();
+            if (ch != ']') break;
+            pos++;
+            ch = commentWhitespace();
+          }
+          if (ch == ';') {
+            pos++;
+            ch = commentWhitespace();
+          }
+          if (ch != '}') break;
+          if (ch == ',') {
+            pos++;
+            ch = commentWhitespace();
+          }
+          pos++;
+          ch = commentWhitespace();
+          if (ch != '}') break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch != ')') break;
+          addExport(exportStart, exportEnd);
+          return;
+        }
+        break;
       }
     }
     else if (keys && ch == 'k' && str_eq3(pos + 1, 'e', 'y', 's')) {
