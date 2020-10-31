@@ -1736,7 +1736,24 @@
           local.get 0
           i32.const 16
           i32.add
+          local.tee 0
           i32.store offset=20508
+          block  ;; label = @4
+            call 35
+            local.tee 4
+            i32.const 40
+            i32.eq
+            br_if 0 (;@4;)
+            local.get 0
+            i32.const 0
+            i32.load offset=20508
+            i32.eq
+            br_if 3 (;@1;)
+            local.get 4
+            call 41
+            i32.eqz
+            br_if 3 (;@1;)
+          end
           call 35
           local.set 0
         end
@@ -1816,9 +1833,8 @@
               i32.store offset=20508
               call 35
               call 41
-              i32.eqz
-              br_if 4 (;@1;)
-              br 1 (;@4;)
+              br_if 1 (;@4;)
+              br 4 (;@1;)
             end
             i32.const 0
             i32.const 0

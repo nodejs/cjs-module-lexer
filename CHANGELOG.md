@@ -1,3 +1,6 @@
+0.5.2
+- Support named getter functions (https://github.com/guybedford/cjs-module-lexer/pull/26)
+
 0.5.1:
 - Feature: Implement specific reexport getter forms (https://github.com/guybedford/cjs-module-lexer/pull/25)
 
