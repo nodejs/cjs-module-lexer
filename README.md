@@ -160,8 +160,6 @@ It will in turn underclassify in cases where the identifiers are renamed:
 })(exports);
 ```
 
-#### Exports Getters
-
 `Object.defineProperty` is detected for any usage of the `__esModule` export, as well as the specific value and getter forms:
 
 ```js
