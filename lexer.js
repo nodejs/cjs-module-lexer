@@ -275,10 +275,8 @@ function tryParseObjectDefineOrKeys (keys) {
         if (ch !== 39/*'*/ && ch !== 34/*"*/) break;
         let quot = ch;
         const exportPos = ++pos;
-        if (!identifier() || source.charCodeAt(pos) !== ch) break;
-        // revert for "("
+        if (!identifier() || source.charCodeAt(pos) !== quot) break;
         const expt = source.slice(exportPos, pos);
-        if (source.charCodeAt(pos) !== quot) break;
         pos++;
         ch = commentWhitespace();
         if (ch !== 44/*,*/) break;
@@ -360,13 +358,13 @@ function tryParseObjectDefineOrKeys (keys) {
             ch = commentWhitespace();
           }
           if (ch !== 125/*}*/) break;
-          addExport(expt);
           pos++;
           ch = commentWhitespace();
           if (ch !== 125/*}*/) break;
           pos++;
           ch = commentWhitespace();
           if (ch !== 41/*)*/) break;
+          addExport(expt);
           return;
         }
         break;

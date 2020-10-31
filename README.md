@@ -90,6 +90,7 @@ EXPORTS_DEFINE: `Object` `.` `defineProperty `(` IDENTIFIER_STRING `, {`
     `value:` |
     `get:` `function`? `()` {` return IDENTIFIER (`.` IDENTIFIER | `[` IDENTIFIER_STRING `]`)? `;`? `}`
   )
+  `})`
 
 EXPORTS_LITERAL: MODULE_EXPORTS `=` `{` (EXPORTS_LITERAL_PROP | EXPORTS_SPREAD) `,`)+ `}`
 
@@ -187,20 +188,35 @@ Object.defineProperty(exports, 'd', { value: 'd' });
 Object.defineProperty(exports, '__esModule', { value: true });
 ```
 
-Dynamic getter functions that do not return a direct identifier or member expression are not detected:
+Other getter structurs or not return a direct identifier or member expression are not detected:
 
 ```js
 // DETECTS: NO EXPORTS
 Object.defineProperty(exports, 'a', {
+  enumerable: false,
+  get () {
+    return p;
+  }
+});
+Object.defineProperty(exports, 'b', {
+  configurable: true,
+  get () {
+    return p;
+  }
+});
+Object.defineProperty(exports, 'c', {
+  get: () => p
+});
+Object.defineProperty(exports, 'd', {
   enumerable: true,
   get: function () {
     return dynamic();
   }
 });
-Object.defineProperty(exports, 'b', {
+Object.defineProperty(exports, 'e', {
   enumerable: true,
   get () {
-    return 'nope';
+    return 'str';
   }
 });
 ```
