@@ -160,7 +160,7 @@ It will in turn underclassify in cases where the identifiers are renamed:
 })(exports);
 ```
 
-`Object.defineProperty` is detected for any usage of the `__esModule` export, as well as the specific value and getter forms:
+`Object.defineProperty` is detected for specifically value and getter forms returning an identifier or member expression:
 
 ```js
 // DETECTS: a, b, c, d, __esModule
@@ -186,7 +186,7 @@ Object.defineProperty(exports, 'd', { value: 'd' });
 Object.defineProperty(exports, '__esModule', { value: true });
 ```
 
-Other getter structurs or not return a direct identifier or member expression are not detected:
+Alternative object definition structures or getter function bodies are not detected:
 
 ```js
 // DETECTS: NO EXPORTS
