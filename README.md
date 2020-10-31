@@ -88,7 +88,7 @@ EXPORTS_DEFINE: `Object` `.` `defineProperty `(` IDENTIFIER_STRING `, {`
   (`enumerable: true,`)?
   (
     `value:` |
-    `get` `: function`? `()` {` return IDENTIFIER (`.` IDENTIFIER | `[` IDENTIFIER_STRING `]`)? `;`? `}`
+    `get` (`: function` IDENTIFIER? )?  `()` {` return IDENTIFIER (`.` IDENTIFIER | `[` IDENTIFIER_STRING `]`)? `;`? `}`
   )
   `})`
 
