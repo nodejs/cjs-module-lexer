@@ -37,6 +37,40 @@ suite('Lexer', () => {
     assert.equal(reexports[3], 'external4');
   });
 
+  test('Rollup Babel reexport getter', () => {
+    var { exports } = parse(`
+      Object.defineProperty(exports, 'a', {
+        enumerable: true,
+        get: function () {
+          return q.p;
+        }
+      });
+
+      Object.defineProperty(exports, 'b', {
+        enumerable: false,
+        get: function () {
+          return q.p;
+        }
+      });
+
+      Object.defineProperty(exports, "c", {
+        get: function () {
+          return q['p' ];
+        }
+      });
+
+      Object.defineProperty(exports, 'd', {
+        get: function () {
+          return __ns.val;
+        }
+      });
+    `);
+    assert.equal(exports.length, 3);
+    assert.equal(exports[0], 'a');
+    assert.equal(exports[1], 'c');
+    assert.equal(exports[2], 'd');
+  });
+
   test('Rollup Babel reexports', () => {
     var { exports, reexports } = parse(`
       "use strict";
@@ -447,14 +481,17 @@ suite('Lexer', () => {
     assert.equal(exports[1], 'Tokenizer');
   });
 
-  test('defineProperty', () => {
+  test('defineProperty value', () => {
     const { exports } = parse(`
-      Object.defineProperty(exports, 'namedExport', { value: true });
+      Object.defineProperty(exports, 'namedExport', { enumerable: false, value: true });
       Object.defineProperty(module.exports, 'thing', { value: true });
+      Object.defineProperty(exports, "other", { enumerable: true, value: true });
       Object.defineProperty(exports, "__esModule", { value: true });
     `);
-    assert.equal(exports.length, 1);
-    assert.equal(exports[0], '__esModule');
+    assert.equal(exports.length, 3);
+    assert.equal(exports[0], 'thing');
+    assert.equal(exports[1], 'other');
+    assert.equal(exports[2], '__esModule');
   });
 
   test('module assign', () => {

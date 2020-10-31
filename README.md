@@ -70,31 +70,34 @@ STRING_LITERAL: A `"` or `'` bounded ECMA-262 string literal.
 
 IDENTIFIER_STRING: ( `"` IDENTIFIER `"` | `'` IDENTIFIER `'` )
 
-COMMENT_SPACE: Any ECMA-262 whitespace, ECMA-262 block comment or ECMA-262 line comment
-
-MODULE_EXPORTS: `module` COMMENT_SPACE `.` COMMENT_SPACE `exports`
+MODULE_EXPORTS: `module` `.` `exports`
 
 EXPORTS_IDENTIFIER: MODULE_EXPORTS_IDENTIFIER | `exports`
 
-EXPORTS_DOT_ASSIGN: EXPORTS_IDENTIFIER COMMENT_SPACE `.` COMMENT_SPACE IDENTIFIER COMMENT_SPACE `=`
+EXPORTS_DOT_ASSIGN: EXPORTS_IDENTIFIER `.` IDENTIFIER `=`
 
-EXPORTS_LITERAL_COMPUTED_ASSIGN: EXPORTS_IDENTIFIER COMMENT_SPACE `[` COMMENT_SPACE IDENTIFIER_STRING COMMENT_SPACE `]` COMMENT_SPACE `=`
+EXPORTS_LITERAL_COMPUTED_ASSIGN: EXPORTS_IDENTIFIER `[` IDENTIFIER_STRING `]` `=`
 
-EXPORTS_LITERAL_PROP: (IDENTIFIER (COMMENT_SPACE `:` COMMENT_SPACE IDENTIFIER)?) | (IDENTIFIER_STRING COMMENT_SPACE `:` COMMENT_SPACE IDENTIFIER)
+EXPORTS_LITERAL_PROP: (IDENTIFIER  `:` IDENTIFIER)?) | (IDENTIFIER_STRING `:` IDENTIFIER)
 
-EXPORTS_SPREAD: `...` COMMENT_SPACE (IDENTIFIER | REQUIRE)
+EXPORTS_SPREAD: `...` (IDENTIFIER | REQUIRE)
 
 EXPORTS_MEMBER: EXPORTS_DOT_ASSIGN | EXPORTS_LITERAL_COMPUTED_ASSIGN
 
-ES_MODULE_DEFINE: `Object` COMMENT_SPACE `.` COMMENT_SPACE `defineProperty COMMENT_SPACE `(` COMMENT_SPACE `__esModule` COMMENT_SPACE `,` COMMENT_SPACE IDENTIFIER_STRING
+EXPORTS_DEFINE: `Object` `.` `defineProperty `(` IDENTIFIER_STRING `, {`
+  (`enumerable: true,`)?
+  (
+    `value:` |
+    `get:` `function`? `()` {` return IDENTIFIER (`.` IDENTIFIER | `[` IDENTIFIER_STRING `]`)? `;`? `}`
+  )
 
-EXPORTS_LITERAL: MODULE_EXPORTS COMMENT_SPACE `=` COMMENT_SPACE `{` COMMENT_SPACE (EXPORTS_LITERAL_PROP | EXPORTS_SPREAD) COMMENT_SPACE `,` COMMENT_SPACE)+ `}`
+EXPORTS_LITERAL: MODULE_EXPORTS `=` `{` (EXPORTS_LITERAL_PROP | EXPORTS_SPREAD) `,`)+ `}`
 
-REQUIRE: `require` COMMENT_SPACE `(` COMMENT_SPACE STRING_LITERAL COMMENT_SPACE `)`
+REQUIRE: `require` `(` STRING_LITERAL `)`
 
 EXPORTS_ASSIGN: (`var` | `const` | `let`) IDENTIFIER `=` REQUIRE
 
-MODULE_EXPORTS_ASSIGN: MODULE_EXPORTS COMMENT_SPACE `=` COMMENT_SPACE REQUIRE
+MODULE_EXPORTS_ASSIGN: MODULE_EXPORTS `=` REQUIRE
 
 EXPORT_STAR: (`__export` | `__exportStar`) `(` REQUIRE
 
@@ -113,9 +116,9 @@ EXPORT_STAR_LIB: `Object.keys(` IDENTIFIER$1 `).forEach(function (` IDENTIFIER$2
   `})`
 ```
 
-* The returned export names are taken to be the combination of:
-  1. `IDENTIFIER` and `IDENTIFIER_STRING` slots for all `EXPORTS_MEMBER` and `EXPORTS_LITERAL` matches.
-  2. `__esModule` if there is an `ES_MODULE_DEFINE` match.
+Spacing between tokens is taken to be any ECMA-262 whitespace, ECMA-262 block comment or ECMA-262 line comment.
+
+* The returned export names are taken to be the combination of the `IDENTIFIER` and `IDENTIFIER_STRING` slots for all `EXPORTS_MEMBER`, `EXPORTS_LITERAL` and `EXPORTS_DEFINE` matches.
 * The reexport specifiers are taken to be the the combination of:
   1. The `REQUIRE` matches of the last matched of either `MODULE_EXPORTS_ASSIGN` or `EXPORTS_LITERAL`.
   2. All _top-level_ `EXPORT_STAR` `REQUIRE` matches and `EXPORTS_ASSIGN` matches whose `IDENTIFIER` also matches the first `IDENTIFIER` in `EXPORT_STAR_LIB`.
@@ -124,7 +127,7 @@ EXPORT_STAR_LIB: `Object.keys(` IDENTIFIER$1 `).forEach(function (` IDENTIFIER$2
 
 #### Named Exports Parsing
 
-The basic matching rules for named exports are `exports.name`, `exports['name']` or `Object.defineProperty(exports, 'name', ...)`. This matching is done without scope analysis and regardless of the expression position:
+The basic matching rules for named exports are `exports.name` and `exports['name']`. This matching is done without scope analysis and regardless of the expression position:
 
 ```js
 // DETECTS EXPORTS: a, b
@@ -156,17 +159,53 @@ It will in turn underclassify in cases where the identifiers are renamed:
 })(exports);
 ```
 
-#### __esModule Detection
+#### Exports Getters
 
-In addition, `__esModule` is detected as an export when set by `Object.defineProperty`:
+`Object.defineProperty` is detected for any usage of the `__esModule` export, as well as the specific value and getter forms:
 
 ```js
-// DETECTS: __esModule
-Object.defineProperty(exports, 'a', { value: 'a' });
+// DETECTS: a, b, c, d, __esModule
+Object.defineProperty(exports, 'a', {
+  enumerable: true,
+  get: function () {
+    return q.p;
+  }
+});
+Object.defineProperty(exports, 'b', {
+  enumerable: true,
+  get: function () {
+    return q['p'];
+  }
+});
+Object.defineProperty(exports, 'c', {
+  enumerable: true,
+  get () {
+    return b;
+  }
+});
+Object.defineProperty(exports, 'd', { value: 'd' });
 Object.defineProperty(exports, '__esModule', { value: true });
 ```
 
-No other named exports are detected for `defineProperty` calls in order not to trigger getters or non-enumerable properties unnecessarily.
+Dynamic getter functions that do not return a direct identifier or member expression are not detected:
+
+```js
+// DETECTS: NO EXPORTS
+Object.defineProperty(exports, 'a', {
+  enumerable: true,
+  get: function () {
+    return dynamic();
+  }
+});
+Object.defineProperty(exports, 'b', {
+  enumerable: true,
+  get () {
+    return 'nope';
+  }
+});
+```
+
+`Object.defineProperties` is also not supported.
 
 #### Exports Object Assignment
 
