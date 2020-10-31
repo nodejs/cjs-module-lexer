@@ -1,3 +1,6 @@
+0.5.1:
+- Feature: Implement specific reexport getter forms (https://github.com/guybedford/cjs-module-lexer/pull/25)
+
 0.5.0
 - Breaking Change: No longer emit Object.defineProperty exports (https://github.com/guybedford/cjs-module-lexer/pull/24)
 - Doc: Update link to WASI SDK (https://github.com/guybedford/cjs-module-lexer/pull/19)
