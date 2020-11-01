@@ -10,7 +10,7 @@ async function loadParser () {
     parse = m.parse;
   }
   else {
-    parse = require('../lexer.js');
+    parse = require('../lexer.js').parse;
   }
 }
 
@@ -31,7 +31,7 @@ suite('Samples', () => {
   const selfSource = fs.readFileSync(process.cwd() + '/lexer.js').toString();
   test('Self test', async () => {
     const { exports } = parse(selfSource);
-    assert.deepStrictEqual(exports, []);
+    assert.deepStrictEqual(exports, ['init', 'parse']);
   });
 
   files.forEach(({ file, code }) => {

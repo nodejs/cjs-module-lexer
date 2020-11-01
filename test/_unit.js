@@ -9,7 +9,7 @@ async function loadParser () {
     parse = m.parse;
   }
   else {
-    parse = require('../lexer.js');
+    parse = require('../lexer.js').parse;
   }
 }
 
