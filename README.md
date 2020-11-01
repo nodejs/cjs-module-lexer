@@ -19,7 +19,7 @@ npm install cjs-module-lexer
 For use in CommonJS:
 
 ```js
-const { parse, init } = require('cjs-module-lexer');
+const { parse } = require('cjs-module-lexer');
 
 // `init` return a promise for parity with the ESM API, but you do not have to call it
 
