@@ -16,6 +16,28 @@ async function loadParser () {
 suite('Lexer', () => {
   beforeEach(async () => await loadParser());
 
+  test('Getter opt-outs', () => {
+    var { exports } = parse(`
+      Object.defineProperty(exports, 'a', {
+        enumerable: true,
+        get: function () {
+          return q.p;
+        }
+      });
+
+      if (false) {
+        Object.defineProperty(exports, 'a', {
+          enumerable: false,
+          get: function () {
+            return dynamic();
+          }
+        });
+      }
+    `);
+
+    assert.equal(exports.length, 0);
+  });
+
   test('TypeScript reexports', () => {
     var { exports, reexports } = parse(`
       "use strict";

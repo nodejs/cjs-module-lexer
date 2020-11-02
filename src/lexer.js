@@ -18,15 +18,18 @@ export function parse (source, name = '@') {
   const addr = wasm.sa(len);
   (isLE ? copyLE : copyBE)(source, new Uint16Array(wasm.memory.buffer, addr, len));
 
-  if (!wasm.parseCJS(addr, source.length, 0, 0))
+  if (!wasm.parseCJS(addr, source.length, 0, 0, 0))
     throw Object.assign(new Error(`Parse error ${name}${wasm.e()}:${source.slice(0, wasm.e()).split('\n').length}:${wasm.e() - source.lastIndexOf('\n', wasm.e() - 1)}`), { idx: wasm.e() });
 
-  let exports = new Set(), reexports = new Set();
+  let exports = new Set(), reexports = new Set(), unsafeGetters = new Set();
+  
   while (wasm.rre())
     reexports.add(source.slice(wasm.res(), wasm.ree()));
+  while (wasm.ru())
+    unsafeGetters.add(source.slice(wasm.us(), wasm.ue()));
   while (wasm.re()) {
     let exptStr = source.slice(wasm.es(), wasm.ee());
-    if (!strictReserved.has(exptStr))
+    if (!strictReserved.has(exptStr) && !unsafeGetters.has(exptStr))
       exports.add(exptStr);
   }
 

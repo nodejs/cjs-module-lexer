@@ -41,16 +41,19 @@ const StarExportBinding* STAR_EXPORT_STACK_END = &starExportStack_[MAX_STAR_EXPO
 
 void (*addExport)(const uint16_t*, const uint16_t*);
 void (*addReexport)(const uint16_t*, const uint16_t*);
+void (*addUnsafeGetter)(const uint16_t*, const uint16_t*);
 void (*clearReexports)();
 
 // Note: parsing is based on the _assumption_ that the source is already valid
-bool parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const uint16_t*, const uint16_t*), void (*_addReexport)(const uint16_t*, const uint16_t*), void (*_clearReexports)()) {
+bool parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const uint16_t*, const uint16_t*), void (*_addReexport)(const uint16_t*, const uint16_t*), void (*_addUnsafeGetter)(const uint16_t*, const uint16_t*), void (*_clearReexports)()) {
   source = _source;
   sourceLen = _sourceLen;
   if (_addExport)
     addExport = _addExport;
   if (_addReexport)
     addReexport = _addReexport;
+  if (_addUnsafeGetter)
+    addUnsafeGetter = _addUnsafeGetter;
 
   templateStackDepth = 0;
   openTokenDepth = 0;
@@ -272,6 +275,8 @@ void tryParseObjectDefineOrKeys (bool keys) {
     pos++;
     ch = commentWhitespace();
     if (ch == 'd' && str_eq13(pos + 1, 'e', 'f', 'i', 'n', 'e', 'P', 'r', 'o', 'p', 'e', 'r', 't', 'y')) {
+      uint16_t* exportStart = 0;
+      uint16_t* exportEnd = 0;
       while (true) {
         pos += 14;
         revertPos = pos - 1;
@@ -286,9 +291,9 @@ void tryParseObjectDefineOrKeys (bool keys) {
         ch = commentWhitespace();
         if (ch != '\'' && ch != '"') break;
         uint16_t quot = ch;
-        uint16_t* exportStart = ++pos;
+        exportStart = ++pos;
         if (!identifier(*pos) || *pos != quot) break;
-        uint16_t* exportEnd = pos;
+        exportEnd = pos;
         pos++;
         ch = commentWhitespace();
         if (ch != ',') break;
@@ -316,9 +321,9 @@ void tryParseObjectDefineOrKeys (bool keys) {
           pos += 5;
           ch = commentWhitespace();
           if (ch != ':') break;
-          pos++;
           addExport(exportStart, exportEnd);
-          break;
+          pos = revertPos;
+          return;
         }
         else if (ch == 'g') {
           if (!str_eq2(pos + 1, 'e', 't')) break;
@@ -387,6 +392,9 @@ void tryParseObjectDefineOrKeys (bool keys) {
           return;
         }
         break;
+      }
+      if (exportEnd > 0) {
+        addUnsafeGetter(exportStart, exportEnd);
       }
     }
     else if (keys && ch == 'k' && str_eq3(pos + 1, 'e', 'y', 's')) {
