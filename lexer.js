@@ -11,6 +11,7 @@ let openTokenDepth,
   starExportMap,
   lastStarExportSpecifier,
   _exports,
+  unsafeGetters,
   reexports;
 
 function resetState () {
@@ -27,6 +28,7 @@ function resetState () {
   lastStarExportSpecifier = null;
 
   _exports = new Set();
+  unsafeGetters = new Set();
   reexports = new Set();
 }
 
@@ -47,7 +49,7 @@ function parseCJS (source, name = '@') {
     e.loc = pos;
     throw e;
   }
-  const result = { exports: [..._exports], reexports: [...reexports] };
+  const result = { exports: [..._exports].filter(expt => !unsafeGetters.has(expt)), reexports: [...reexports] };
   resetState();
   return result;
 }
@@ -260,6 +262,7 @@ function tryParseObjectDefineOrKeys (keys) {
     pos++;
     ch = commentWhitespace();
     if (ch === 100/*d*/ && source.startsWith('efineProperty', pos + 1)) {
+      let expt;
       while (true) {
         pos += 14;
         revertPos = pos - 1;
@@ -276,7 +279,7 @@ function tryParseObjectDefineOrKeys (keys) {
         let quot = ch;
         const exportPos = ++pos;
         if (!identifier() || source.charCodeAt(pos) !== quot) break;
-        const expt = source.slice(exportPos, pos);
+        expt = source.slice(exportPos, pos);
         pos++;
         ch = commentWhitespace();
         if (ch !== 44/*,*/) break;
@@ -304,9 +307,9 @@ function tryParseObjectDefineOrKeys (keys) {
           pos += 5;
           ch = commentWhitespace();
           if (ch !== 58/*:*/) break;
-          pos++;
           addExport(expt);
-          break;
+          pos = revertPos;
+          return;
         }
         else if (ch === 103/*g*/) {
           if (!source.startsWith('et', pos + 1)) break;
@@ -371,6 +374,9 @@ function tryParseObjectDefineOrKeys (keys) {
           return;
         }
         break;
+      }
+      if (expt) {
+        unsafeGetters.add(expt);
       }
     }
     else if (keys && ch === 107/*k*/ && source.startsWith('eys', pos + 1)) {

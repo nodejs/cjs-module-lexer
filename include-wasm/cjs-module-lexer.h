@@ -30,6 +30,9 @@ Slice* export_write_head = NULL;
 Slice* first_reexport = NULL;
 Slice* reexport_read_head = NULL;
 Slice* reexport_write_head = NULL;
+Slice* first_unsafe_getter = NULL;
+Slice* unsafe_getter_read_head = NULL;
+Slice* unsafe_getter_write_head = NULL;
 void* analysis_base;
 void* analysis_head;
 
@@ -48,6 +51,9 @@ const uint16_t* sa (uint32_t utf16Len) {
   first_reexport = NULL;
   reexport_write_head = NULL;
   reexport_read_head = NULL;
+  first_unsafe_getter = NULL;
+  unsafe_getter_write_head = NULL;
+  unsafe_getter_read_head = NULL;
   return source;
 }
 
@@ -72,6 +78,14 @@ uint32_t res () {
 uint32_t ree () {
   return reexport_read_head->end - source;
 }
+// getUnsafeGetterStart
+uint32_t us () {
+  return unsafe_getter_read_head->start - source;
+}
+// getUnsafeGetterEnd
+uint32_t ue () {
+  return unsafe_getter_read_head->end - source;
+}
 // readExport
 bool re () {
   if (export_read_head == NULL)
@@ -89,6 +103,16 @@ bool rre () {
   else
     reexport_read_head = reexport_read_head->next;
   if (reexport_read_head == NULL)
+    return false;
+  return true;
+}
+// readUnsafeGetter
+bool ru () {
+  if (unsafe_getter_read_head == NULL)
+    unsafe_getter_read_head = first_unsafe_getter;
+  else
+    unsafe_getter_read_head = unsafe_getter_read_head->next;
+  if (unsafe_getter_read_head == NULL)
     return false;
   return true;
 }
@@ -119,14 +143,27 @@ void _addReexport (const uint16_t* start, const uint16_t* end) {
   reexport->end = end;
   reexport->next = NULL;
 }
+void _addUnsafeGetter (const uint16_t* start, const uint16_t* end) {
+  Slice* unsafe_getter = (Slice*)(analysis_head);
+  analysis_head = analysis_head + sizeof(Slice);
+  if (unsafe_getter_write_head == NULL)
+    first_unsafe_getter = unsafe_getter;
+  else
+    unsafe_getter_write_head->next = unsafe_getter;
+  unsafe_getter_write_head = unsafe_getter;
+  unsafe_getter->start = start;
+  unsafe_getter->end = end;
+  unsafe_getter->next = NULL;
+}
 void _clearReexports () {
   reexport_write_head = NULL;
   first_reexport = NULL;
 }
 void (*addExport)(const uint16_t*, const uint16_t*) = &_addExport;
 void (*addReexport)(const uint16_t*, const uint16_t*) = &_addReexport;
+void (*addUnsafeGetter)(const uint16_t*, const uint16_t*) = &_addUnsafeGetter;
 void (*clearReexports)() = &_clearReexports;
-bool parseCJS (uint16_t* source, uint32_t sourceLen, void (*addExport)(const uint16_t* start, const uint16_t* end), void (*addReexport)(const uint16_t* start, const uint16_t* end), void (*clearReexports)());
+bool parseCJS (uint16_t* source, uint32_t sourceLen, void (*addExport)(const uint16_t* start, const uint16_t* end), void (*addReexport)(const uint16_t* start, const uint16_t* end), void (*addUnsafeGetter)(const uint16_t*, const uint16_t*), void (*clearReexports)());
 
 enum RequireType {
   Import,
