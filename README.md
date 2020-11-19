@@ -194,13 +194,23 @@ Object.defineProperty(exports, 'd', { value: 'd' });
 Object.defineProperty(exports, '__esModule', { value: true });
 ```
 
+Value properties are also detected specifically:
+
+```js
+Object.defineProperty(exports, 'a', {
+  value: 'no problem'
+});
+```
+
 To avoid matching getters that have side effects, any getter for an export name that does not support the forms above will
 opt-out of the getter matching:
 
 ```js
 // DETECTS: NO EXPORTS
 Object.defineProperty(exports, 'a', {
-  value: 'no problem'
+  get () {
+    return 'nope';
+  }
 });
 
 if (false) {
