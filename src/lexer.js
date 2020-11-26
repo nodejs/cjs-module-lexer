@@ -58,7 +58,7 @@ export function init () {
     return initPromise;
   return initPromise = (async () => {
     const compiled = await WebAssembly.compile(
-      (binary => typeof atob === 'function' ? Uint8Array.from(atob(binary), x => x.charCodeAt(0)) : Buffer.from(binary, 'base64'))
+      (binary => typeof window !== 'undefined' && typeof atob === 'function' ? Uint8Array.from(atob(binary), x => x.charCodeAt(0)) : Buffer.from(binary, 'base64'))
       ('WASM_BINARY')
     )
     const { exports } = await WebAssembly.instantiate(compiled);
