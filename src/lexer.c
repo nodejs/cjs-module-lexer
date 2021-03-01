@@ -508,6 +508,75 @@ void tryParseObjectDefineOrKeys (bool keys) {
         else break;
 
 
+        // `if (Object.prototype.hasOwnProperty.call(`  IDENTIFIER `, ` IDENTIFIER$2 `)) return` `;`?
+        if (ch == 'i' && *(pos + 1) == 'f') {
+          uint16_t *ifStartPos = pos;
+
+          pos += 2;
+          ch = commentWhitespace();
+          if (ch != '(') break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch != 'O' || !str_eq5(pos + 1, 'b', 'j', 'e', 'c', 't')) {
+            // Revert parsing the current optional if statement, but don't bail
+            // out since we can try parse the next possible if statement.
+            pos = ifStartPos;
+            ch = 'i';
+            goto currentIfStatementEnd;
+          }
+          pos += 6;
+          ch = commentWhitespace();
+          if (ch != '.') {
+            // Revert parsing the current optional if statement, but don't bail
+            // out since we can try parse the next possible if statement.
+            pos = ifStartPos;
+            ch = 'i';
+            goto currentIfStatementEnd;
+          }
+          pos++;
+          ch = commentWhitespace();
+          if (ch != 'p' || !str_eq8(pos + 1, 'r', 'o', 't', 'o', 't', 'y', 'p', 'e')) break;
+          pos += 9;
+          ch = commentWhitespace();
+          if (ch != '.') break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch != 'h' || !str_eq13(pos + 1, 'a', 's', 'O', 'w', 'n', 'P', 'r', 'o', 'p', 'e', 'r', 't', 'y')) break;
+          pos += 14;
+          ch = commentWhitespace();
+          if (ch != '.') break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch != 'c' || !str_eq3(pos + 1, 'a', 'l', 'l')) break;
+          pos += 4;
+          ch = commentWhitespace();
+          if (ch != '(') break;
+          pos++;
+          ch = commentWhitespace();
+          if (!identifier(ch)) break;
+          ch = commentWhitespace();
+          if (ch != ',') break;
+          pos++;
+          ch = commentWhitespace();
+          if (memcmp(pos, it_id_start, it_id_len * sizeof(uint16_t)) != 0) break;
+          pos += it_id_len;
+          ch = commentWhitespace();
+          if (ch != ')') break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch != ')') break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch != 'r' || !str_eq5(pos + 1, 'e', 't', 'u', 'r', 'n')) break;
+          pos += 6;
+          ch = commentWhitespace();
+          if (ch == ';')
+            pos++;
+          ch = commentWhitespace();
+        }
+        currentIfStatementEnd:;
+
+
         // `if (` IDENTIFIER$2 `in` EXPORTS_IDENTIFIER `&&` EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] ===` IDENTIFIER$1 `[` IDENTIFIER$2 `]) return` `;`?
         if (ch == 'i' && *(pos + 1) == 'f') {
           pos += 2;
@@ -1255,6 +1324,10 @@ bool str_eq6 (uint16_t* pos, uint16_t c1, uint16_t c2, uint16_t c3, uint16_t c4,
 
 bool str_eq7 (uint16_t* pos, uint16_t c1, uint16_t c2, uint16_t c3, uint16_t c4, uint16_t c5, uint16_t c6, uint16_t c7) {
   return *pos == c1 && *(pos + 1) == c2 && *(pos + 2) == c3 && *(pos + 3) == c4 && *(pos + 4) == c5 && *(pos + 5) == c6 && *(pos + 6) == c7;
+}
+
+bool str_eq8 (uint16_t* pos, uint16_t c1, uint16_t c2, uint16_t c3, uint16_t c4, uint16_t c5, uint16_t c6, uint16_t c7, uint16_t c8) {
+  return *pos == c1 && *(pos + 1) == c2 && *(pos + 2) == c3 && *(pos + 3) == c4 && *(pos + 4) == c5 && *(pos + 5) == c6 && *(pos + 6) == c7 && *(pos + 7) == c8;
 }
 
 bool str_eq9 (uint16_t* pos, uint16_t c1, uint16_t c2, uint16_t c3, uint16_t c4, uint16_t c5, uint16_t c6, uint16_t c7, uint16_t c8, uint16_t c9) {
