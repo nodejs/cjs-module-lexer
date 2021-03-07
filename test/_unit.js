@@ -144,9 +144,19 @@ suite('Lexer', () => {
         exports[key] = _external001[key];
       });
 
+      var _external003 = require("external003");
+
+      // Babel >=7.12.0, loose mode, reexports conflicts filter
+      Object.keys(_external003).forEach(function (key) {
+        if (key === "default" || key === "__esModule") return;
+        if (Object.prototype.hasOwnProperty.call(_exportNames, key)) return;
+        if (key in exports && exports[key] === _external003[key]) return;
+        exports[key] = _external003[key];
+      });
+
       var _external002 = require("external002");
 
-      // Babel >=7.12.0, loose mode
+      // Babel >=7.12.0
       Object.keys(_external002).forEach(function (key) {
         if (key === "default" || key === "__esModule") return;
         if (key in exports && exports[key] === _external002[key]) return;
@@ -154,6 +164,21 @@ suite('Lexer', () => {
           enumerable: true,
           get: function () {
             return _external002[key];
+          }
+        });
+      });
+
+      var _external004 = require("external004");
+
+      // Babel >=7.12.0, reexports conflict filter
+      Object.keys(_external004).forEach(function (key) {
+        if (key === "default" || key === "__esModule") return;
+        if (Object.prototype.hasOwnProperty.call(_exportNames, key)) return;
+        if (key in exports && exports[key] === _external004[key]) return;
+        Object.defineProperty(exports, key, {
+          enumerable: true,
+          get: function () {
+            return _external004[key];
           }
         });
       });
@@ -285,15 +310,17 @@ suite('Lexer', () => {
     `);
     assert.equal(exports.length, 1);
     assert.equal(exports[0], '__esModule');
-    assert.equal(reexports.length, 8);
+    assert.equal(reexports.length, 10);
     assert.equal(reexports[0], 'external');
     assert.equal(reexports[1], 'external2');
     assert.equal(reexports[2], 'external001');
-    assert.equal(reexports[3], 'external002');
-    assert.equal(reexports[4], 'external3');
-    assert.equal(reexports[5], 'external4');
-    assert.equal(reexports[6], 'external😃');
-    assert.equal(reexports[7], 'external𤭢');
+    assert.equal(reexports[3], 'external003');
+    assert.equal(reexports[4], 'external002');
+    assert.equal(reexports[5], 'external004');
+    assert.equal(reexports[6], 'external3');
+    assert.equal(reexports[7], 'external4');
+    assert.equal(reexports[8], 'external😃');
+    assert.equal(reexports[9], 'external𤭢');
   });
 
   test('invalid exports cases', () => {
