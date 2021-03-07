@@ -39,7 +39,7 @@ suite('Lexer', () => {
   });
 
   test('TypeScript reexports', () => {
-    var { exports, reexports } = parse(`
+    var { exports, reexports } = parse(` 
       "use strict";
       function __export(m) {
           for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
@@ -49,9 +49,15 @@ suite('Lexer', () => {
       tslib.__export(require("external2"));
       __exportStar(require("external3"));
       tslib1.__exportStar(require("external4"));
+
+      "use strict";
+      Object.defineProperty(exports, "__esModule", { value: true });
+      var color_factory_1 = require("./color-factory");
+      Object.defineProperty(exports, "colorFactory", { enumerable: true, get: function () { return color_factory_1.colorFactory; }, });
     `);
-    assert.equal(exports.length, 1);
+    assert.equal(exports.length, 2);
     assert.equal(exports[0], '__esModule');
+    assert.equal(exports[1], 'colorFactory');
     assert.equal(reexports.length, 4);
     assert.equal(reexports[0], 'external1');
     assert.equal(reexports[1], 'external2');

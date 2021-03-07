@@ -378,12 +378,12 @@ void tryParseObjectDefineOrKeys (bool keys) {
             ch = commentWhitespace();
           }
           if (ch != '}') break;
+          pos++;
+          ch = commentWhitespace();
           if (ch == ',') {
             pos++;
             ch = commentWhitespace();
           }
-          pos++;
-          ch = commentWhitespace();
           if (ch != '}') break;
           pos++;
           ch = commentWhitespace();
@@ -744,6 +744,10 @@ void tryParseObjectDefineOrKeys (bool keys) {
           if (ch != '}') break;
           pos++;
           ch = commentWhitespace();
+          if (ch == ',') {
+            pos++;
+            ch = commentWhitespace();
+          }
           if (ch != '}') break;
           pos++;
           ch = commentWhitespace();
