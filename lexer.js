@@ -366,6 +366,10 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 125/*}*/) break;
           pos++;
           ch = commentWhitespace();
+          if (ch === 44/*,*/) {
+            pos++;
+            ch = commentWhitespace();
+          }
           if (ch !== 125/*}*/) break;
           pos++;
           ch = commentWhitespace();
@@ -723,6 +727,10 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 125/*}*/) break;
           pos++;
           ch = commentWhitespace();
+          if (ch === 44/*,*/) {
+            pos++;
+            ch = commentWhitespace();
+          }
           if (ch !== 125/*}*/) break;
           pos++;
           ch = commentWhitespace();
