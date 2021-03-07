@@ -201,12 +201,12 @@ suite('Lexer', () => {
         });
       });
       Object.keys(external4).forEach(function (k) {
-        if (k !== 'default') exports[k] = external4[k];
+        if (k !== 'default' && !Object.hasOwnProperty.call(exports, k)) exports[k] = external4[k];
       });
 
       const externalǽ = require('external😃');
       Object.keys(externalǽ).forEach(function (k) {
-        if (k !== 'default') exports[k] = externalǽ[k];
+        if (k !== 'default' && !externalǽ.hasOwnProperty(k)) exports[k] = externalǽ[k];
       });
 
       const external𤭢 = require('external𤭢');
