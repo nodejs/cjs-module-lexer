@@ -528,6 +528,93 @@ void tryParseObjectDefineOrKeys (bool keys) {
           if (ch == ';')
             pos++;
           ch = commentWhitespace();
+
+          // `if (`
+          if (ch == 'i' && *(pos + 1) == 'f') {
+            bool inIf = true;
+            pos += 2;
+            ch = commentWhitespace();
+            if (ch != '(') break;
+            pos++;
+            uint16_t *ifInnerPos = pos;
+
+            // `Object.prototype.hasOwnProperty.call(`  IDENTIFIER `, ` IDENTIFIER$2 `)) return` `;`?
+            if (tryParseObjectHasOwnProperty(it_id_start, it_id_len)) {
+              ch = commentWhitespace();
+              if (ch != ')') break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch != 'r' || !str_eq5(pos + 1, 'e', 't', 'u', 'r', 'n')) break;
+              pos += 6;
+              ch = commentWhitespace();
+              if (ch == ';')
+                pos++;
+              ch = commentWhitespace();
+              // match next if
+              if (ch == 'i' && *(pos + 1) == 'f') {
+                pos += 2;
+                ch = commentWhitespace();
+                if (ch != '(') break;
+                pos++;
+              }
+              else {
+                inIf = false;
+              }
+            }
+            else {
+              pos = ifInnerPos;
+            }
+
+            // `if (` IDENTIFIER$2 `in` EXPORTS_IDENTIFIER `&&` EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] ===` IDENTIFIER$1 `[` IDENTIFIER$2 `]) return` `;`?
+            if (inIf) {
+              if (memcmp(pos, it_id_start, it_id_len * sizeof(uint16_t)) != 0) break;
+              pos += it_id_len;
+              ch = commentWhitespace();
+              if (ch != 'i' || !str_eq2(pos + 1, 'n', ' ')) break;
+              pos += 3;
+              ch = commentWhitespace();
+              if (!readExportsOrModuleDotExports(ch)) break;
+              ch = commentWhitespace();
+              if (ch != '&' || *(pos + 1) != '&') break;
+              pos += 2;
+              ch = commentWhitespace();
+              if (!readExportsOrModuleDotExports(ch)) break;
+              ch = commentWhitespace();
+              if (ch != '[') break;
+              pos++;
+              ch = commentWhitespace();
+              if (memcmp(pos, it_id_start, it_id_len * sizeof(uint16_t)) != 0) break;
+              pos += it_id_len;
+              ch = commentWhitespace();
+              if (ch != ']') break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch != '=' || !str_eq2(pos + 1, '=', '=')) break;
+              pos += 3;
+              ch = commentWhitespace();
+              if (memcmp(pos, id_start, id_len * sizeof(uint16_t)) != 0) break;
+              pos += id_len;
+              ch = commentWhitespace();
+              if (ch != '[') break;
+              pos++;
+              ch = commentWhitespace();
+              if (memcmp(pos, it_id_start, it_id_len * sizeof(uint16_t)) != 0) break;
+              pos += it_id_len;
+              ch = commentWhitespace();
+              if (ch != ']') break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch != ')') break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch != 'r' || !str_eq5(pos + 1, 'e', 't', 'u', 'r', 'n')) break;
+              pos += 6;
+              ch = commentWhitespace();
+              if (ch == ';')
+                pos++;
+              ch = commentWhitespace();
+            }
+          }
         }
         // `if (` IDENTIFIER$2 `!==` ( `'default'` | `"default"` ) (`&& !` IDENTIFIER `.hasOwnProperty(` IDENTIFIER$2 `)`  )? `)`
         else if (ch == '!') {
@@ -575,90 +662,6 @@ void tryParseObjectDefineOrKeys (bool keys) {
           ch = commentWhitespace();
         }
         else break;
-
-
-        // `if (Object.prototype.hasOwnProperty.call(`  IDENTIFIER `, ` IDENTIFIER$2 `)) return` `;`?
-        if (ch == 'i' && *(pos + 1) == 'f') {
-          uint16_t *ifStartPos = pos;
-          pos += 2;
-          ch = commentWhitespace();
-          if (ch != '(') break;
-          pos++;
-          if (!tryParseObjectHasOwnProperty(it_id_start, it_id_len)) {
-            // Revert parsing the current optional if statement, but don't bail
-            // out since we can try parse the next possible if statement.
-            pos = ifStartPos;
-            ch = 'i';
-            goto currentIfStatementEnd;
-          }
-          ch = commentWhitespace();
-          if (ch != ')') break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch != 'r' || !str_eq5(pos + 1, 'e', 't', 'u', 'r', 'n')) break;
-          pos += 6;
-          ch = commentWhitespace();
-          if (ch == ';')
-            pos++;
-          ch = commentWhitespace();
-        }
-        currentIfStatementEnd:;
-
-
-        // `if (` IDENTIFIER$2 `in` EXPORTS_IDENTIFIER `&&` EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] ===` IDENTIFIER$1 `[` IDENTIFIER$2 `]) return` `;`?
-        if (ch == 'i' && *(pos + 1) == 'f') {
-          pos += 2;
-          ch = commentWhitespace();
-          if (ch != '(') break;
-          pos++;
-          ch = commentWhitespace();
-          if (memcmp(pos, it_id_start, it_id_len * sizeof(uint16_t)) != 0) break;
-          pos += it_id_len;
-          ch = commentWhitespace();
-          if (ch != 'i' || !str_eq2(pos + 1, 'n', ' ')) break;
-          pos += 3;
-          ch = commentWhitespace();
-          if (!readExportsOrModuleDotExports(ch)) break;
-          ch = commentWhitespace();
-          if (ch != '&' || *(pos + 1) != '&') break;
-          pos += 2;
-          ch = commentWhitespace();
-          if (!readExportsOrModuleDotExports(ch)) break;
-          ch = commentWhitespace();
-          if (ch != '[') break;
-          pos++;
-          ch = commentWhitespace();
-          if (memcmp(pos, it_id_start, it_id_len * sizeof(uint16_t)) != 0) break;
-          pos += it_id_len;
-          ch = commentWhitespace();
-          if (ch != ']') break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch != '=' || !str_eq2(pos + 1, '=', '=')) break;
-          pos += 3;
-          ch = commentWhitespace();
-          if (memcmp(pos, id_start, id_len * sizeof(uint16_t)) != 0) break;
-          pos += id_len;
-          ch = commentWhitespace();
-          if (ch != '[') break;
-          pos++;
-          ch = commentWhitespace();
-          if (memcmp(pos, it_id_start, it_id_len * sizeof(uint16_t)) != 0) break;
-          pos += it_id_len;
-          ch = commentWhitespace();
-          if (ch != ']') break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch != ')') break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch != 'r' || !str_eq5(pos + 1, 'e', 't', 'u', 'r', 'n')) break;
-          pos += 6;
-          ch = commentWhitespace();
-          if (ch == ';')
-            pos++;
-          ch = commentWhitespace();
-        }
 
         // EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] =` IDENTIFIER$1 `[` IDENTIFIER$2 `]`
         if (readExportsOrModuleDotExports(ch)) {

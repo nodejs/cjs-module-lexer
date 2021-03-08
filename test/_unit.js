@@ -322,7 +322,6 @@ suite('Lexer', () => {
           exports[x] = notexternal17[x];
         });
       }
-      
     `);
     assert.equal(exports.length, 1);
     assert.equal(exports[0], '__esModule');
