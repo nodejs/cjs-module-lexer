@@ -267,6 +267,47 @@ void tryBacktrackAddStarExportBinding (uint16_t* bPos) {
   }
 }
 
+bool tryParseObjectHasOwnProperty (uint16_t* it_id_start, ptrdiff_t it_id_len) {
+  uint16_t ch = commentWhitespace();
+  if (ch != 'O' || !str_eq5(pos + 1, 'b', 'j', 'e', 'c', 't')) return false;
+  pos += 6;
+  ch = commentWhitespace();
+  if (ch != '.') return false;
+  pos++;
+  ch = commentWhitespace();
+  if (ch == 'p') {
+    if (!str_eq8(pos + 1, 'r', 'o', 't', 'o', 't', 'y', 'p', 'e')) return false;
+    pos += 9;
+    ch = commentWhitespace();
+    if (ch != '.') return false;
+    pos++;
+    ch = commentWhitespace();
+  }
+  if (ch != 'h' || !str_eq13(pos + 1, 'a', 's', 'O', 'w', 'n', 'P', 'r', 'o', 'p', 'e', 'r', 't', 'y')) return false;
+  pos += 14;
+  ch = commentWhitespace();
+  if (ch != '.') return false;
+  pos++;
+  ch = commentWhitespace();
+  if (ch != 'c' || !str_eq3(pos + 1, 'a', 'l', 'l')) return false;
+  pos += 4;
+  ch = commentWhitespace();
+  if (ch != '(') return false;
+  pos++;
+  ch = commentWhitespace();
+  if (!identifier(ch)) return false;
+  ch = commentWhitespace();
+  if (ch != ',') return false;
+  pos++;
+  ch = commentWhitespace();
+  if (memcmp(pos, it_id_start, it_id_len * sizeof(uint16_t)) != 0) return false;
+  pos += it_id_len;
+  ch = commentWhitespace();
+  if (ch != ')') return false;
+  pos++;
+  return true;
+}
+
 void tryParseObjectDefineOrKeys (bool keys) {
   pos += 6;
   uint16_t* revertPos = pos - 1;
@@ -488,7 +529,7 @@ void tryParseObjectDefineOrKeys (bool keys) {
             pos++;
           ch = commentWhitespace();
         }
-        // `if (` IDENTIFIER$2 `!==` ( `'default'` | `"default"` ) `)`
+        // `if (` IDENTIFIER$2 `!==` ( `'default'` | `"default"` ) (`&& !` IDENTIFIER `.hasOwnProperty(` IDENTIFIER$2 `)`  )? `)`
         else if (ch == '!') {
           if (!str_eq2(pos + 1, '=', '=')) break;
           pos += 3;
@@ -501,6 +542,34 @@ void tryParseObjectDefineOrKeys (bool keys) {
           if (ch != quot) break;
           pos += 1;
           ch = commentWhitespace();
+          if (ch == '&') {
+            if (*(pos + 1) != '&') break;
+            pos += 2;
+            ch = commentWhitespace();
+            if (ch != '!') break;
+            pos += 1;
+            ch = commentWhitespace();
+            if (memcmp(pos, id_start, id_len * sizeof(uint16_t)) == 0) {
+              pos += id_len;
+              ch = commentWhitespace();
+              if (ch != '.') break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch != 'h' || !str_eq13(pos + 1, 'a', 's', 'O', 'w', 'n', 'P', 'r', 'o', 'p', 'e', 'r', 't', 'y')) break;
+              pos += 14;
+              ch = commentWhitespace();
+              if (ch != '(') break;
+              pos += 1;
+              ch = commentWhitespace();
+              if (memcmp(pos, it_id_start, it_id_len * sizeof(uint16_t)) != 0) break;
+              pos += it_id_len;
+              ch = commentWhitespace();
+              if (ch != ')') break;
+              pos += 1;
+            }
+            else if (!tryParseObjectHasOwnProperty(it_id_start, it_id_len)) break;
+            ch = commentWhitespace();
+          }
           if (ch != ')') break;
           pos += 1;
           ch = commentWhitespace();
@@ -511,58 +580,17 @@ void tryParseObjectDefineOrKeys (bool keys) {
         // `if (Object.prototype.hasOwnProperty.call(`  IDENTIFIER `, ` IDENTIFIER$2 `)) return` `;`?
         if (ch == 'i' && *(pos + 1) == 'f') {
           uint16_t *ifStartPos = pos;
-
           pos += 2;
           ch = commentWhitespace();
           if (ch != '(') break;
           pos++;
-          ch = commentWhitespace();
-          if (ch != 'O' || !str_eq5(pos + 1, 'b', 'j', 'e', 'c', 't')) {
+          if (!tryParseObjectHasOwnProperty(it_id_start, it_id_len)) {
             // Revert parsing the current optional if statement, but don't bail
             // out since we can try parse the next possible if statement.
             pos = ifStartPos;
             ch = 'i';
             goto currentIfStatementEnd;
           }
-          pos += 6;
-          ch = commentWhitespace();
-          if (ch != '.') {
-            // Revert parsing the current optional if statement, but don't bail
-            // out since we can try parse the next possible if statement.
-            pos = ifStartPos;
-            ch = 'i';
-            goto currentIfStatementEnd;
-          }
-          pos++;
-          ch = commentWhitespace();
-          if (ch != 'p' || !str_eq8(pos + 1, 'r', 'o', 't', 'o', 't', 'y', 'p', 'e')) break;
-          pos += 9;
-          ch = commentWhitespace();
-          if (ch != '.') break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch != 'h' || !str_eq13(pos + 1, 'a', 's', 'O', 'w', 'n', 'P', 'r', 'o', 'p', 'e', 'r', 't', 'y')) break;
-          pos += 14;
-          ch = commentWhitespace();
-          if (ch != '.') break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch != 'c' || !str_eq3(pos + 1, 'a', 'l', 'l')) break;
-          pos += 4;
-          ch = commentWhitespace();
-          if (ch != '(') break;
-          pos++;
-          ch = commentWhitespace();
-          if (!identifier(ch)) break;
-          ch = commentWhitespace();
-          if (ch != ',') break;
-          pos++;
-          ch = commentWhitespace();
-          if (memcmp(pos, it_id_start, it_id_len * sizeof(uint16_t)) != 0) break;
-          pos += it_id_len;
-          ch = commentWhitespace();
-          if (ch != ')') break;
-          pos++;
           ch = commentWhitespace();
           if (ch != ')') break;
           pos++;

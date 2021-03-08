@@ -209,6 +209,16 @@ suite('Lexer', () => {
         if (k !== 'default') exports[k] = externalǽ[k];
       });
 
+      let external5 = require('e5');
+      let external6 = require('e6');
+      Object.keys(external5).forEach(function (k) {
+        if (k !== 'default' && !Object.hasOwnProperty.call(exports, k)) exports[k] = external5[k];
+      });
+
+      Object.keys(external6).forEach(function (k) {
+        if (k !== 'default' && !external6.hasOwnProperty(k)) exports[k] = external6[k];
+      });
+
       const external𤭢 = require('external𤭢');
       Object.keys(external𤭢).forEach(function (k) {
         if (k !== 'default') exports[k] = external𤭢[k];
@@ -316,7 +326,7 @@ suite('Lexer', () => {
     `);
     assert.equal(exports.length, 1);
     assert.equal(exports[0], '__esModule');
-    assert.equal(reexports.length, 10);
+    assert.equal(reexports.length, 12);
     assert.equal(reexports[0], 'external');
     assert.equal(reexports[1], 'external2');
     assert.equal(reexports[2], 'external001');
@@ -326,7 +336,9 @@ suite('Lexer', () => {
     assert.equal(reexports[6], 'external3');
     assert.equal(reexports[7], 'external4');
     assert.equal(reexports[8], 'external😃');
-    assert.equal(reexports[9], 'external𤭢');
+    assert.equal(reexports[9], 'e5');
+    assert.equal(reexports[10], 'e6');
+    assert.equal(reexports[11], 'external𤭢');
   });
 
   test('invalid exports cases', () => {
