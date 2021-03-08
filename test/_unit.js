@@ -322,11 +322,36 @@ suite('Lexer', () => {
           exports[x] = notexternal17[x];
         });
       }
-      
+
+      // Babel ??
+      {
+        var _p = require("p");
+        Object.keys(_p).forEach(function (key) {
+          if (key === "default" || key === "__esModule") return;
+          if (key in exports && exports[key] === _p[key]) return;
+          Object.defineProperty(exports, key, {
+            enumerable: true,
+            get: function () {
+              return _p[key];
+            }
+          });
+        });
+      }
+
+      // Babel ??
+      {
+        var _z = require("z");
+
+        Object.keys(_z).forEach(function (key) {
+          if (key === "default" || key === "__esModule") return;
+          if (key in exports && exports[key] === _z[key]) return;
+          exports[key] = _z[key];
+        });
+      }
     `);
     assert.equal(exports.length, 1);
     assert.equal(exports[0], '__esModule');
-    assert.equal(reexports.length, 12);
+    assert.equal(reexports.length, 14);
     assert.equal(reexports[0], 'external');
     assert.equal(reexports[1], 'external2');
     assert.equal(reexports[2], 'external001');
@@ -339,6 +364,8 @@ suite('Lexer', () => {
     assert.equal(reexports[9], 'e5');
     assert.equal(reexports[10], 'e6');
     assert.equal(reexports[11], 'external𤭢');
+    assert.equal(reexports[12], 'p');
+    assert.equal(reexports[13], 'z');
   });
 
   test('invalid exports cases', () => {
