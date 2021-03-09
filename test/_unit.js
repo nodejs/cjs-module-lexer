@@ -323,7 +323,7 @@ suite('Lexer', () => {
         });
       }
 
-      // Babel ??
+      // Babel 7.13.10
       {
         var _p = require("p");
         Object.keys(_p).forEach(function (key) {
@@ -338,7 +338,7 @@ suite('Lexer', () => {
         });
       }
 
-      // Babel ??
+      // Babel 7.13.10
       {
         var _z = require("z");
 
