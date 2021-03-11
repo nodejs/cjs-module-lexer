@@ -16,6 +16,19 @@ async function loadParser () {
 suite('Lexer', () => {
   beforeEach(async () => await loadParser());
 
+  test('esbuild hint style', () => {
+    var { exports, reexports } = parse(`
+      0 && module.exports = {a, b, c} && __exportStar(require('fs'));
+    `);
+
+    assert.equal(exports.length, 3);
+    assert.equal(exports[0], 'a');
+    assert.equal(exports[1], 'b');
+    assert.equal(exports[2], 'c');
+    assert.equal(reexports.length, 1);
+    assert.equal(reexports[0], 'fs');
+  });
+
   test('Getter opt-outs', () => {
     var { exports } = parse(`
       Object.defineProperty(exports, 'a', {
