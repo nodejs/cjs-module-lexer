@@ -515,6 +515,92 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch === 59/*;*/)
             pos++;
           ch = commentWhitespace();
+
+          // `if (`
+          if (ch === 105/*i*/ && source.charCodeAt(pos + 1) === 102/*f*/) {
+            let inIf = true;
+            pos += 2;
+            ch = commentWhitespace();
+            if (ch !== 40/*(*/) break;
+            pos++;
+            const ifInnerPos = pos;
+            // `Object.prototype.hasOwnProperty.call(`  IDENTIFIER `, ` IDENTIFIER$2 `)) return` `;`?
+            if (tryParseObjectHasOwnProperty(it_id)) {
+              ch = commentWhitespace();
+              if (ch !== 41/*)*/) break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch !== 114/*r*/ || !source.startsWith('eturn', pos + 1)) break;
+              pos += 6;
+              ch = commentWhitespace();
+              if (ch === 59/*;*/)
+                pos++;
+              ch = commentWhitespace();
+              // match next if
+              if (ch === 105/*i*/ && source.charCodeAt(pos + 1) === 102/*f*/) {
+                pos += 2;
+                ch = commentWhitespace();
+                if (ch !== 40/*(*/) break;
+                pos++;
+              }
+              else {
+                inIf = false;
+              }
+            }
+            else {
+              pos = ifInnerPos;
+            }
+
+            // IDENTIFIER$2 `in` EXPORTS_IDENTIFIER `&&` EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] ===` IDENTIFIER$1 `[` IDENTIFIER$2 `]) return` `;`?
+            if (inIf) {
+              if (!source.startsWith(it_id, pos)) break;
+              pos += it_id.length;
+              ch = commentWhitespace();
+              if (ch !== 105/*i*/ || !source.startsWith('n ', pos + 1)) break;
+              pos += 3;
+              ch = commentWhitespace();
+              if (!readExportsOrModuleDotExports(ch)) break;
+              ch = commentWhitespace();
+              if (ch !== 38/*&*/ || source.charCodeAt(pos + 1) !== 38/*&*/) break;
+              pos += 2;
+              ch = commentWhitespace();
+              if (!readExportsOrModuleDotExports(ch)) break;
+              ch = commentWhitespace();
+              if (ch !== 91/*[*/) break;
+              pos++;
+              ch = commentWhitespace();
+              if (!source.startsWith(it_id, pos)) break;
+              pos += it_id.length;
+              ch = commentWhitespace();
+              if (ch !== 93/*]*/) break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch !== 61/*=*/ || !source.startsWith('==', pos + 1)) break;
+              pos += 3;
+              ch = commentWhitespace();
+              if (!source.startsWith(id, pos)) break;
+              pos += id.length;
+              ch = commentWhitespace();
+              if (ch !== 91/*[*/) break;
+              pos++;
+              ch = commentWhitespace();
+              if (!source.startsWith(it_id, pos)) break;
+              pos += it_id.length;
+              ch = commentWhitespace();
+              if (ch !== 93/*]*/) break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch !== 41/*)*/) break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch !== 114/*r*/ || !source.startsWith('eturn', pos + 1)) break;
+              pos += 6;
+              ch = commentWhitespace();
+              if (ch === 59/*;*/)
+                pos++;
+              ch = commentWhitespace();
+            }
+          }
         }
         // `if (` IDENTIFIER$2 `!==` ( `'default'` | `"default"` ) (`&& !` IDENTIFIER `.hasOwnProperty(` IDENTIFIER$2 `)`  )? `)`
         else if (ch === 33/*!*/) {
@@ -562,87 +648,6 @@ function tryParseObjectDefineOrKeys (keys) {
           ch = commentWhitespace();
         }
         else break;
-
-        // `if (Object.prototype.hasOwnProperty.call(`  IDENTIFIER `, ` IDENTIFIER$2 `)) return` `;`?
-        currentIfStatement: if (ch === 105/*i*/ && source.charCodeAt(pos + 1) === 102/*f*/) {
-          const ifStartPos = pos;
-          pos += 2;
-          ch = commentWhitespace();
-          if (ch !== 40/*(*/) break;
-          pos++;
-          if (!tryParseObjectHasOwnProperty(it_id)) {
-            // Revert parsing the current optional if statement, but don't bail
-            // out since we can try parse the next possible if statement.
-            pos = ifStartPos;
-            ch = 105/*i*/;
-            break currentIfStatement;
-          }
-          ch = commentWhitespace();
-          if (ch !== 41/*)*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 114/*r*/ || !source.startsWith('eturn', pos + 1)) break;
-          pos += 6;
-          ch = commentWhitespace();
-          if (ch === 59/*;*/)
-            pos++;
-          ch = commentWhitespace();
-        }
-
-        // `if (` IDENTIFIER$2 `in` EXPORTS_IDENTIFIER `&&` EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] ===` IDENTIFIER$1 `[` IDENTIFIER$2 `]) return` `;`?
-        if (ch === 105/*i*/ && source.charCodeAt(pos + 1) === 102/*f*/) {
-          pos += 2;
-          ch = commentWhitespace();
-          if (ch !== 40/*(*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (!source.startsWith(it_id, pos)) break;
-          pos += it_id.length;
-          ch = commentWhitespace();
-          if (ch !== 105/*i*/ || !source.startsWith('n ', pos + 1)) break;
-          pos += 3;
-          ch = commentWhitespace();
-          if (!readExportsOrModuleDotExports(ch)) break;
-          ch = commentWhitespace();
-          if (ch !== 38/*&*/ || source.charCodeAt(pos + 1) !== 38/*&*/) break;
-          pos += 2;
-          ch = commentWhitespace();
-          if (!readExportsOrModuleDotExports(ch)) break;
-          ch = commentWhitespace();
-          if (ch !== 91/*[*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (!source.startsWith(it_id, pos)) break;
-          pos += it_id.length;
-          ch = commentWhitespace();
-          if (ch !== 93/*]*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 61/*=*/ || !source.startsWith('==', pos + 1)) break;
-          pos += 3;
-          ch = commentWhitespace();
-          if (!source.startsWith(id, pos)) break;
-          pos += id.length;
-          ch = commentWhitespace();
-          if (ch !== 91/*[*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (!source.startsWith(it_id, pos)) break;
-          pos += it_id.length;
-          ch = commentWhitespace();
-          if (ch !== 93/*]*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 41/*)*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 114/*r*/ || !source.startsWith('eturn', pos + 1)) break;
-          pos += 6;
-          ch = commentWhitespace();
-          if (ch === 59/*;*/)
-            pos++;
-          ch = commentWhitespace();
-        }
 
         // EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] =` IDENTIFIER$1 `[` IDENTIFIER$2 `]`
         if (readExportsOrModuleDotExports(ch)) {
