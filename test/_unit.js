@@ -18,7 +18,7 @@ suite('Lexer', () => {
 
   test('esbuild hint style', () => {
     var { exports, reexports } = parse(`
-      0 && module.exports = {a, b, c} && __exportStar(require('fs'));
+      0 && (module.exports = {a, b, c}) && __exportStar(require('fs'));
     `);
 
     assert.equal(exports.length, 3);
