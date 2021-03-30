@@ -359,10 +359,22 @@ suite('Lexer', () => {
           }
         });
       });
+
+      var _Accordion = _interopRequireWildcard(require("./Accordion"));
+      Object.keys(_Accordion).forEach(function (key) {
+        if (key === "default" || key === "__esModule") return;
+        if (Object.prototype.hasOwnProperty.call(_exportNames, key)) return;
+        Object.defineProperty(exports, key, {
+          enumerable: true,
+          get: function () {
+            return _Accordion[key];
+          }
+        });
+      });
     `);
     assert.equal(exports.length, 1);
     assert.equal(exports[0], '__esModule');
-    assert.equal(reexports.length, 14);
+    assert.equal(reexports.length, 15);
     assert.equal(reexports[0], 'external');
     assert.equal(reexports[1], 'external2');
     assert.equal(reexports[2], 'external001');
@@ -377,6 +389,7 @@ suite('Lexer', () => {
     assert.equal(reexports[11], 'external𤭢');
     assert.equal(reexports[12], './styles');
     assert.equal(reexports[13], './styles2');
+    assert.equal(reexports[14], './Accordion');
   });
 
   test('invalid exports cases', () => {

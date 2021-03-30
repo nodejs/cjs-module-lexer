@@ -104,7 +104,17 @@ bool parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const 
           continue;
         }
         case '_':
-          if (str_eq7(pos + 1, '_', 'e', 'x', 'p', 'o', 'r', 't') && (keywordStart(pos) || *(pos - 1) == '.')) {
+          if (str_eq22(pos + 1, 'i', 'n', 't', 'e', 'r', 'o', 'p', 'R', 'e', 'q', 'u', 'i', 'r', 'e', 'W', 'i', 'l', 'd', 'c', 'a', 'r', 'd') && (keywordStart(pos) || *(pos - 1) == '.')) {
+            uint16_t* startPos = pos;
+            pos += 23;
+            if (*pos == '(') {
+              pos++;
+              openTokenPosStack[openTokenDepth++] = lastTokenPos;
+              if (tryParseRequire(Import) && keywordStart(startPos))
+                tryBacktrackAddStarExportBinding(startPos - 1);
+            }
+          }
+          else if (str_eq7(pos + 1, '_', 'e', 'x', 'p', 'o', 'r', 't') && (keywordStart(pos) || *(pos - 1) == '.')) {
             pos += 8;
             if (str_eq4(pos, 'S', 't', 'a', 'r'))
               pos += 4;
@@ -1384,6 +1394,10 @@ bool str_eq13 (uint16_t* pos, uint16_t c1, uint16_t c2, uint16_t c3, uint16_t c4
 
 bool str_eq18 (uint16_t* pos, uint16_t c1, uint16_t c2, uint16_t c3, uint16_t c4, uint16_t c5, uint16_t c6, uint16_t c7, uint16_t c8, uint16_t c9, uint16_t c10, uint16_t c11, uint16_t c12, uint16_t c13, uint16_t c14, uint16_t c15, uint16_t c16, uint16_t c17, uint16_t c18) {
   return *pos == c1 && *(pos + 1) == c2 && *(pos + 2) == c3 && *(pos + 3) == c4 && *(pos + 4) == c5 && *(pos + 5) == c6 && *(pos + 6) == c7 && *(pos + 7) == c8 && *(pos + 8) == c9 && *(pos + 9) == c10 && *(pos + 10) == c11 && *(pos + 11) == c12 && *(pos + 12) == c13 && *(pos + 13) == c14 && *(pos + 14) == c15 && *(pos + 15) == c16 && *(pos + 16) == c17 && *(pos + 17) == c18;
+}
+
+bool str_eq22 (uint16_t* pos, uint16_t c1, uint16_t c2, uint16_t c3, uint16_t c4, uint16_t c5, uint16_t c6, uint16_t c7, uint16_t c8, uint16_t c9, uint16_t c10, uint16_t c11, uint16_t c12, uint16_t c13, uint16_t c14, uint16_t c15, uint16_t c16, uint16_t c17, uint16_t c18, uint16_t c19, uint16_t c20, uint16_t c21, uint16_t c22) {
+  return *pos == c1 && *(pos + 1) == c2 && *(pos + 2) == c3 && *(pos + 3) == c4 && *(pos + 4) == c5 && *(pos + 5) == c6 && *(pos + 6) == c7 && *(pos + 7) == c8 && *(pos + 8) == c9 && *(pos + 9) == c10 && *(pos + 10) == c11 && *(pos + 11) == c12 && *(pos + 12) == c13 && *(pos + 13) == c14 && *(pos + 14) == c15 && *(pos + 15) == c16 && *(pos + 16) == c17 && *(pos + 17) == c18 && *(pos + 18) == c19 && *(pos + 19) == c20 && *(pos + 20) == c21 && *(pos + 21) == c22;
 }
 
 bool keywordStart (uint16_t* pos) {

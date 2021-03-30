@@ -97,7 +97,18 @@ function parseSource (cjsSource) {
           lastTokenPos = pos;
           continue;
         case 95/*_*/:
-          if (source.startsWith('_export', pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46/*.*/)) {
+          if (source.startsWith('interopRequireWildcard', pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46/*.*/)) {
+            const startPos = pos;
+            pos += 23;
+            if (source.charCodeAt(pos) === 40/*(*/) {
+              pos++;
+              openTokenPosStack[openTokenDepth++] = lastTokenPos;
+              if (tryParseRequire(Import) && keywordStart(startPos)) {
+                tryBacktrackAddStarExportBinding(startPos - 1);
+              }
+            }
+          }
+          else if (source.startsWith('_export', pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46/*.*/)) {
             pos += 8;
             if (source.startsWith('Star', pos))
               pos += 4;
