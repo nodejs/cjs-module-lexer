@@ -3332,41 +3332,63 @@
             i32.const 6
             i32.add
             i32.store offset=20540
-            call 39
-            i32.const 58
-            i32.ne
-            br_if 3 (;@1;)
-            i32.const 0
-            i32.const 0
-            i32.load offset=20540
-            i32.const 2
-            i32.add
-            i32.store offset=20540
-            call 39
-            i32.const 102
-            i32.ne
-            br_if 3 (;@1;)
-            i32.const 0
-            i32.load offset=20540
-            local.tee 0
-            i32.const 2
-            i32.add
-            i32.const 117
-            i32.const 110
-            i32.const 99
-            i32.const 116
-            i32.const 105
-            i32.const 111
-            i32.const 110
-            call 35
-            i32.eqz
-            br_if 3 (;@1;)
-            i32.const 0
+            block  ;; label = @5
+              call 39
+              local.tee 0
+              i32.const 58
+              i32.ne
+              br_if 0 (;@5;)
+              i32.const 0
+              i32.const 0
+              i32.load offset=20540
+              i32.const 2
+              i32.add
+              i32.store offset=20540
+              call 39
+              i32.const 102
+              i32.ne
+              br_if 4 (;@1;)
+              i32.const 0
+              i32.load offset=20540
+              local.tee 0
+              i32.const 2
+              i32.add
+              i32.const 117
+              i32.const 110
+              i32.const 99
+              i32.const 116
+              i32.const 105
+              i32.const 111
+              i32.const 110
+              call 35
+              i32.eqz
+              br_if 4 (;@1;)
+              i32.const 0
+              local.get 0
+              i32.const 16
+              i32.add
+              local.tee 0
+              i32.store offset=20540
+              block  ;; label = @6
+                call 39
+                local.tee 5
+                i32.const 40
+                i32.eq
+                br_if 0 (;@6;)
+                local.get 0
+                i32.const 0
+                i32.load offset=20540
+                i32.eq
+                br_if 5 (;@1;)
+                local.get 5
+                call 45
+                i32.eqz
+                br_if 5 (;@1;)
+              end
+              call 39
+              local.set 0
+            end
             local.get 0
-            i32.const 16
-            i32.add
-            i32.store offset=20540
-            call 39
             i32.const 40
             i32.ne
             br_if 3 (;@1;)

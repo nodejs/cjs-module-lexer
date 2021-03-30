@@ -335,10 +335,34 @@ suite('Lexer', () => {
           exports[x] = notexternal17[x];
         });
       }
+
+      var _styles = require("./styles");
+      Object.keys(_styles).forEach(function (key) {
+        if (key === "default" || key === "__esModule") return;
+        if (Object.prototype.hasOwnProperty.call(_exportNames, key)) return;
+        Object.defineProperty(exports, key, {
+          enumerable: true,
+          get: function get() {
+            return _styles[key];
+          }
+        });
+      });
+
+      var _styles2 = require("./styles2");
+      Object.keys(_styles2).forEach(function (key) {
+        if (key === "default" || key === "__esModule") return;
+        if (Object.prototype.hasOwnProperty.call(_exportNames, key)) return;
+        Object.defineProperty(exports, key, {
+          enumerable: true,
+          get () {
+            return _styles2[key];
+          }
+        });
+      });
     `);
     assert.equal(exports.length, 1);
     assert.equal(exports[0], '__esModule');
-    assert.equal(reexports.length, 12);
+    assert.equal(reexports.length, 14);
     assert.equal(reexports[0], 'external');
     assert.equal(reexports[1], 'external2');
     assert.equal(reexports[2], 'external001');
@@ -351,6 +375,8 @@ suite('Lexer', () => {
     assert.equal(reexports[9], 'e5');
     assert.equal(reexports[10], 'e6');
     assert.equal(reexports[11], 'external𤭢');
+    assert.equal(reexports[12], './styles');
+    assert.equal(reexports[13], './styles2');
   });
 
   test('invalid exports cases', () => {

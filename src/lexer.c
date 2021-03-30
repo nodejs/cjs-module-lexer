@@ -738,12 +738,17 @@ void tryParseObjectDefineOrKeys (bool keys) {
           if (ch != 'g' || !str_eq2(pos + 1, 'e', 't')) break;
           pos += 3;
           ch = commentWhitespace();
-          if (ch != ':') break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch != 'f' || !str_eq7(pos + 1, 'u', 'n', 'c', 't', 'i', 'o', 'n')) break;
-          pos += 8;
-          ch = commentWhitespace();
+          if (ch == ':') {
+            pos++;
+            ch = commentWhitespace();
+            if (ch != 'f') break;
+            if (!str_eq7(pos + 1, 'u', 'n', 'c', 't', 'i', 'o', 'n')) break;
+            pos += 8;
+            uint16_t* lastPos = pos;
+            ch = commentWhitespace();
+            if (ch != '(' && (lastPos == pos || !identifier(ch))) break;
+            ch = commentWhitespace();
+          }
           if (ch != '(') break;
           pos++;
           ch = commentWhitespace();
