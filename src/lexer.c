@@ -179,10 +179,8 @@ bool parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const 
         // TODO: <!-- XML comment support
         break;
       case '\'':
-        singleQuoteString();
-        break;
       case '"':
-        doubleQuoteString();
+        stringLiteral(ch);
         break;
       case '/': {
         uint16_t next_ch = *(pos + 1);
@@ -341,9 +339,8 @@ void tryParseObjectDefineOrKeys (bool keys) {
         pos++;
         ch = commentWhitespace();
         if (ch != '\'' && ch != '"') break;
-        uint16_t quot = ch;
         exportStart = ++pos;
-        if (!identifier(*pos) || *pos != quot) break;
+        stringLiteral(ch);
         exportEnd = pos;
         pos++;
         ch = commentWhitespace();
@@ -415,8 +412,7 @@ void tryParseObjectDefineOrKeys (bool keys) {
           else if (ch == '[') {
             pos++;
             ch = commentWhitespace();
-            if (ch == '\'') singleQuoteString();
-            else if (ch == '"') doubleQuoteString();
+            if (ch == '\'' || ch == '"') stringLiteral(ch);
             else break;
             pos++;
             ch = commentWhitespace();
@@ -897,17 +893,14 @@ void tryParseExportsDotAssign (bool assign) {
       if (ch == '\'' || ch == '"') {
         pos++;
         uint16_t* startPos = pos;
-        if (identifier(*pos) && *pos == ch) {
-          uint16_t* endPos = pos++;
-          ch = commentWhitespace();
-          if (ch != ']')
-            break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch != '=')
-            break;
-          addExport(startPos, endPos);
-        }
+        stringLiteral(ch);
+        uint16_t* endPos = pos++;
+        ch = commentWhitespace();
+        if (ch != ']') break;
+        pos++;
+        ch = commentWhitespace();
+        if (ch != '=') break;
+        addExport(startPos, endPos);
       }
       break;
     }
@@ -942,8 +935,8 @@ bool tryParseRequire (enum RequireType requireType) {
       pos++;
       ch = commentWhitespace();
       uint16_t* reexportStart = pos + 1;
-      if (ch == '\'') {
-        singleQuoteString();
+      if (ch == '\'' || ch == '"') {
+        stringLiteral(ch);
         uint16_t* reexportEnd = pos++;
         ch = commentWhitespace();
         if (ch == ')') {
@@ -959,26 +952,6 @@ bool tryParseRequire (enum RequireType requireType) {
               starExportStack->specifier_end = reexportEnd;
               return true;
           }
-        }
-      }
-      else if (ch == '"') {
-        doubleQuoteString();
-        uint16_t* reexportEnd = pos++;
-        ch = commentWhitespace();
-        if (ch == ')') {
-          switch (requireType) {
-            case ExportStar:
-              addReexport(reexportStart, reexportEnd);
-              return true;
-            case ExportAssign:
-              addReexport(reexportStart, reexportEnd);
-              return true;
-            default:
-              starExportStack->specifier_start = reexportStart;
-              starExportStack->specifier_end = reexportEnd;
-              return true;
-          }
-          return true;
         }
       }
     }
@@ -1009,20 +982,19 @@ void tryParseLiteralExports () {
     }
     else if (ch == '\'' || ch == '"') {
       uint16_t* startPos = ++pos;
-      if (identifier(*pos) && *pos == ch) {
-        uint16_t* endPos = pos++;
+      stringLiteral(ch);
+      uint16_t* endPos = pos++;
+      ch = commentWhitespace();
+      if (ch == ':') {
+        pos++;
         ch = commentWhitespace();
-        if (ch == ':') {
-          pos++;
-          ch = commentWhitespace();
-          // nothing more complex than identifier expressions for now
-          if (!identifier(ch)) {
-            pos = revertPos;
-            return;
-          }
-          ch = *pos;
-          addExport(startPos, endPos);
+        // nothing more complex than identifier expressions for now
+        if (!identifier(ch)) {
+          pos = revertPos;
+          return;
         }
+        ch = *pos;
+        addExport(startPos, endPos);
       }
     }
     else if (ch == '.' && str_eq2(pos + 1, '.', '.')) {
@@ -1269,26 +1241,10 @@ void lineComment () {
   }
 }
 
-void singleQuoteString () {
+void stringLiteral (uint16_t quote) {
   while (pos++ < end) {
     uint16_t ch = *pos;
-    if (ch == '\'')
-      return;
-    if (ch == '\\') {
-      ch = *++pos;
-      if (ch == '\r' && *(pos + 1) == '\n')
-        pos++;
-    }
-    else if (isBr(ch))
-      break;
-  }
-  syntaxError();
-}
-
-void doubleQuoteString () {
-  while (pos++ < end) {
-    uint16_t ch = *pos;
-    if (ch == '"')
+    if (ch == quote)
       return;
     if (ch == '\\') {
       ch = *++pos;

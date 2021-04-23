@@ -1,5 +1,3 @@
-const strictReserved = new Set(['implements', 'interface', 'let', 'package', 'private', 'protected', 'public', 'static', 'yield', 'enum']);
-
 let wasm;
 
 const isLE = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
@@ -29,7 +27,7 @@ export function parse (source, name = '@') {
     unsafeGetters.add(source.slice(wasm.us(), wasm.ue()));
   while (wasm.re()) {
     let exptStr = source.slice(wasm.es(), wasm.ee());
-    if (!strictReserved.has(exptStr) && !unsafeGetters.has(exptStr))
+    if (!unsafeGetters.has(exptStr))
       exports.add(exptStr);
   }
 

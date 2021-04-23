@@ -51,8 +51,7 @@ void readImportString (const uint16_t* ss, uint16_t ch);
 uint16_t readExportAs (uint16_t* startPos, uint16_t* endPos);
 
 uint16_t commentWhitespace ();
-void singleQuoteString ();
-void doubleQuoteString ();
+void stringLiteral (uint16_t quote);
 void regularExpression ();
 void templateString ();
 void blockComment ();
