@@ -21,8 +21,11 @@ export function parse (source, name = '@') {
 
   let exports = new Set(), reexports = new Set(), unsafeGetters = new Set();
   
-  while (wasm.rre())
-    reexports.add(decode(source.slice(wasm.res(), wasm.ree())));
+  while (wasm.rre()) {
+    const reexptStr = decode(source.slice(wasm.res(), wasm.ree()));
+    if (reexptStr)
+      reexports.add(reexptStr);
+  }
   while (wasm.ru())
     unsafeGetters.add(decode(source.slice(wasm.us(), wasm.ue())));
   while (wasm.re()) {
@@ -31,7 +34,7 @@ export function parse (source, name = '@') {
       exports.add(exptStr);
   }
 
-  return { exports: [...exports], reexports: [...reexports] };
+  return { exports: [...exports], reexports: [...reexports].filter(reept => reept !== undefined) };
 }
 
 function decode (str) {
