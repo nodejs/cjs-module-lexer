@@ -339,10 +339,9 @@ void tryParseObjectDefineOrKeys (bool keys) {
         pos++;
         ch = commentWhitespace();
         if (ch != '\'' && ch != '"') break;
-        exportStart = pos + 1;
+        exportStart = pos;
         stringLiteral(ch);
-        exportEnd = pos;
-        pos++;
+        exportEnd = ++pos;
         ch = commentWhitespace();
         if (ch != ',') break;
         pos++;

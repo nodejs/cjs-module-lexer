@@ -1621,14 +1621,10 @@
           i32.const 0
           i32.const 0
           i32.load offset=20540
+          i32.const 2
+          i32.add
           local.tee 0
-          i32.const 2
-          i32.add
           i32.store offset=20540
-          local.get 2
-          i32.const 2
-          i32.add
-          local.set 2
           call 39
           i32.const 44
           i32.ne
@@ -3643,9 +3639,6 @@
           br 0 (;@3;)
         end
       end
-      local.get 0
-      i32.eqz
-      br_if 0 (;@1;)
       local.get 2
       local.get 0
       i32.const 0

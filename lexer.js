@@ -332,10 +332,9 @@ function tryParseObjectDefineOrKeys (keys) {
         pos++;
         ch = commentWhitespace();
         if (ch !== 39/*'*/ && ch !== 34/*"*/) break;
-        const exportPos = pos + 1;
+        const exportPos = pos;
         stringLiteral(ch);
-        expt = source.slice(exportPos, pos);
-        pos++;
+        expt = source.slice(exportPos, ++pos);
         ch = commentWhitespace();
         if (ch !== 44/*,*/) break;
         pos++;
