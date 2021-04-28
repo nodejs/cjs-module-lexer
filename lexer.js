@@ -57,9 +57,7 @@ function decode (name) {
     try {
       return (0, eval)(name);
     }
-    catch (e) {
-      console.log(e);
-    }
+    catch {}
   }
   else {
     return name;
