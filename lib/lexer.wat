@@ -1614,12 +1614,8 @@
             br_if 3 (;@1;)
           end
           i32.const 0
-          i32.const 0
           i32.load offset=20540
-          i32.const 2
-          i32.add
-          local.tee 2
-          i32.store offset=20540
+          local.set 2
           local.get 0
           call 28
           i32.const 0
@@ -1629,6 +1625,10 @@
           i32.const 2
           i32.add
           i32.store offset=20540
+          local.get 2
+          i32.const 2
+          i32.add
+          local.set 2
           call 39
           i32.const 44
           i32.ne
@@ -4484,12 +4484,8 @@
           br_if 2 (;@1;)
         end
         i32.const 0
-        i32.const 0
         i32.load offset=20540
-        local.tee 0
-        i32.const 2
-        i32.add
-        i32.store offset=20540
+        local.set 0
         local.get 2
         call 28
         i32.const 0
@@ -5380,12 +5376,8 @@
                   br_if 4 (;@3;)
                 end
                 i32.const 0
-                i32.const 0
                 i32.load offset=20540
-                local.tee 2
-                i32.const 2
-                i32.add
-                i32.store offset=20540
+                local.set 2
                 local.get 0
                 call 28
                 i32.const 0

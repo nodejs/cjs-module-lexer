@@ -332,7 +332,7 @@ function tryParseObjectDefineOrKeys (keys) {
         pos++;
         ch = commentWhitespace();
         if (ch !== 39/*'*/ && ch !== 34/*"*/) break;
-        const exportPos = ++pos;
+        const exportPos = pos + 1;
         stringLiteral(ch);
         expt = source.slice(exportPos, pos);
         pos++;
@@ -876,7 +876,6 @@ function tryParseExportsDotAssign (assign) {
       ch = commentWhitespace();
       if (ch === 39/*'*/ || ch === 34/*"*/) {
         const startPos = pos;
-        pos++;
         stringLiteral(ch);
         const endPos = ++pos;
         ch = commentWhitespace();
@@ -976,9 +975,9 @@ function tryParseLiteralExports () {
       ch = commentWhitespace();
     }
     else if (ch === 39/*'*/ || ch === 34/*"*/) {
-      const startPos = ++pos;
+      const startPos = pos;
       stringLiteral(ch);
-      const endPos = pos++;
+      const endPos = ++pos;
       ch = commentWhitespace();
       if (ch === 58/*:*/) {
         pos++;

@@ -479,8 +479,9 @@ suite('Lexer', () => {
     const { exports } = parse(`
       module.exports = { 'ab cd': foo };
       exports['not identifier'] = 'asdf';
-      exports['\u{D83C}\u{DF10}'] = 1;
-      exports['\u{D83C}'] = 1;
+      exports['\\u{D83C}\\u{DF10}'] = 1;
+      exports['\\u{D83C}'] = 1;
+      exports['\\''] = 1;
       exports['@notidentifier'] = 'asdf';
       Object.defineProperty(exports, "%notidentifier", { value: x });
       Object.defineProperty(exports, 'hm🤔', { value: x });
@@ -494,6 +495,7 @@ suite('Lexer', () => {
       'not identifier',
       '\u{D83C}\u{DF10}',
       '\u{D83C}',
+      '\'',
       '@notidentifier',
       '%notidentifier',
       'hm🤔',

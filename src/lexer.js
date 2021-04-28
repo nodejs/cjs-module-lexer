@@ -34,7 +34,7 @@ export function parse (source, name = '@') {
       exports.add(exptStr);
   }
 
-  return { exports: [...exports], reexports: [...reexports].filter(reept => reept !== undefined) };
+  return { exports: [...exports], reexports: [...reexports] };
 }
 
 function decode (str) {

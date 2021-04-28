@@ -339,7 +339,7 @@ void tryParseObjectDefineOrKeys (bool keys) {
         pos++;
         ch = commentWhitespace();
         if (ch != '\'' && ch != '"') break;
-        exportStart = ++pos;
+        exportStart = pos + 1;
         stringLiteral(ch);
         exportEnd = pos;
         pos++;
@@ -892,7 +892,6 @@ void tryParseExportsDotAssign (bool assign) {
       ch = commentWhitespace();
       if (ch == '\'' || ch == '"') {
         uint16_t* startPos = pos;
-        pos++;
         stringLiteral(ch);
         uint16_t* endPos = ++pos;
         ch = commentWhitespace();
@@ -981,7 +980,7 @@ void tryParseLiteralExports () {
       addExport(startPos, endPos);
     }
     else if (ch == '\'' || ch == '"') {
-      uint16_t* startPos = pos++;
+      uint16_t* startPos = pos;
       stringLiteral(ch);
       uint16_t* endPos = ++pos;
       ch = commentWhitespace();
