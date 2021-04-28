@@ -392,13 +392,6 @@ suite('Lexer', () => {
     assert.equal(reexports[14], './Accordion');
   });
 
-  test('invalid exports cases', () => {
-    var { exports } = parse(`
-      module.exports['?invalid'] = 'asdf';
-    `);
-    assert.equal(exports.length, 0);
-  });
-
   test('module exports reexport spread', () => {
     const { exports, reexports } = parse(`
       module.exports = {
@@ -482,18 +475,29 @@ suite('Lexer', () => {
     assert.equal(exports[0], 'asdf');
   });
 
-  test('identifiers', () => {
+  test('non-identifiers', () => {
     const { exports } = parse(`
+      module.exports = { 'ab cd': foo };
       exports['not identifier'] = 'asdf';
       exports['@notidentifier'] = 'asdf';
-      Object.defineProperty(exports, "%notidentifier");
-      Object.defineProperty(exports, 'hm🤔');
+      Object.defineProperty(exports, "%notidentifier", { value: x });
+      Object.defineProperty(exports, 'hm🤔', { value: x });
       exports['⨉'] = 45;
       exports['α'] = 54;
-      exports.package = 'RESERVED!';
+      exports.package = 'STRICT RESERVED!';
+      exports.var = 'RESERVED';
     `);
-    assert.equal(exports.length, 1);
-    assert.equal(exports[0], 'α');
+    assert.deepStrictEqual(exports, [
+      'ab cd',
+      'not identifier',
+      '@notidentifier',
+      '%notidentifier',
+      'hm🤔',
+      '⨉',
+      'α',
+      'package',
+      'var'
+    ]);
   });
 
   test('Literal exports', () => {
