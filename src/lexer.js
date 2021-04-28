@@ -21,17 +21,32 @@ export function parse (source, name = '@') {
 
   let exports = new Set(), reexports = new Set(), unsafeGetters = new Set();
   
-  while (wasm.rre())
-    reexports.add(source.slice(wasm.res(), wasm.ree()));
+  while (wasm.rre()) {
+    const reexptStr = decode(source.slice(wasm.res(), wasm.ree()));
+    if (reexptStr)
+      reexports.add(reexptStr);
+  }
   while (wasm.ru())
-    unsafeGetters.add(source.slice(wasm.us(), wasm.ue()));
+    unsafeGetters.add(decode(source.slice(wasm.us(), wasm.ue())));
   while (wasm.re()) {
-    let exptStr = source.slice(wasm.es(), wasm.ee());
-    if (!unsafeGetters.has(exptStr))
+    let exptStr = decode(source.slice(wasm.es(), wasm.ee()));
+    if (exptStr !== undefined && !unsafeGetters.has(exptStr))
       exports.add(exptStr);
   }
 
   return { exports: [...exports], reexports: [...reexports] };
+}
+
+function decode (str) {
+  if (str[0] === '"' || str[0] === '\'') {
+    try {
+      return (0, eval)(str);
+    }
+    catch {}
+  }
+  else {
+    return str;
+  }
 }
 
 function copyBE (src, outBuf16) {
