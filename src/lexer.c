@@ -891,10 +891,10 @@ void tryParseExportsDotAssign (bool assign) {
       pos++;
       ch = commentWhitespace();
       if (ch == '\'' || ch == '"') {
-        pos++;
         uint16_t* startPos = pos;
+        pos++;
         stringLiteral(ch);
-        uint16_t* endPos = pos++;
+        uint16_t* endPos = ++pos;
         ch = commentWhitespace();
         if (ch != ']') break;
         pos++;
@@ -934,10 +934,10 @@ bool tryParseRequire (enum RequireType requireType) {
     if (ch == '(') {
       pos++;
       ch = commentWhitespace();
-      uint16_t* reexportStart = pos + 1;
+      uint16_t* reexportStart = pos;
       if (ch == '\'' || ch == '"') {
         stringLiteral(ch);
-        uint16_t* reexportEnd = pos++;
+        uint16_t* reexportEnd = ++pos;
         ch = commentWhitespace();
         if (ch == ')') {
           switch (requireType) {
@@ -981,9 +981,9 @@ void tryParseLiteralExports () {
       addExport(startPos, endPos);
     }
     else if (ch == '\'' || ch == '"') {
-      uint16_t* startPos = ++pos;
+      uint16_t* startPos = pos++;
       stringLiteral(ch);
-      uint16_t* endPos = pos++;
+      uint16_t* endPos = ++pos;
       ch = commentWhitespace();
       if (ch == ':') {
         pos++;

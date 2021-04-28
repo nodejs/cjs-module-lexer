@@ -1222,32 +1222,28 @@
         i32.const 0
         i32.const 0
         i32.load offset=20540
-        local.tee 3
         i32.const 2
         i32.add
+        local.tee 3
         i32.store offset=20540
         call 39
         i32.const 41
         i32.ne
         br_if 0 (;@2;)
-        local.get 4
-        i32.const 2
-        i32.add
-        local.set 1
         block  ;; label = @3
           local.get 0
           i32.const -1
           i32.add
-          local.tee 2
+          local.tee 1
           i32.const 1
           i32.gt_u
           br_if 0 (;@3;)
           block  ;; label = @4
             block  ;; label = @5
-              local.get 2
+              local.get 1
               br_table 1 (;@4;) 0 (;@5;) 1 (;@4;)
             end
-            local.get 1
+            local.get 4
             local.get 3
             i32.const 0
             i32.load offset=4000
@@ -1255,7 +1251,7 @@
             i32.const 1
             return
           end
-          local.get 1
+          local.get 4
           local.get 3
           i32.const 0
           i32.load offset=4000
@@ -1265,7 +1261,7 @@
         end
         i32.const 0
         i32.load offset=20532
-        local.get 1
+        local.get 4
         i32.store
         i32.const 0
         i32.load offset=20532
@@ -4490,18 +4486,18 @@
         i32.const 0
         i32.const 0
         i32.load offset=20540
+        local.tee 0
         i32.const 2
         i32.add
-        local.tee 0
         i32.store offset=20540
         local.get 2
         call 28
         i32.const 0
         i32.const 0
         i32.load offset=20540
-        local.tee 2
         i32.const 2
         i32.add
+        local.tee 2
         i32.store offset=20540
         call 39
         i32.const 93
@@ -5386,18 +5382,18 @@
                 i32.const 0
                 i32.const 0
                 i32.load offset=20540
+                local.tee 2
                 i32.const 2
                 i32.add
-                local.tee 2
                 i32.store offset=20540
                 local.get 0
                 call 28
                 i32.const 0
                 i32.const 0
                 i32.load offset=20540
-                local.tee 3
                 i32.const 2
                 i32.add
+                local.tee 3
                 i32.store offset=20540
                 call 39
                 local.tee 0
