@@ -494,7 +494,6 @@ suite('Lexer', () => {
       'ab cd',
       'not identifier',
       '\u{D83C}\u{DF10}',
-      '\u{D83C}',
       '\'',
       '@notidentifier',
       '%notidentifier',

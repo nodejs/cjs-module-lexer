@@ -40,7 +40,25 @@ export function parse (source, name = '@') {
 function decode (str) {
   if (str[0] === '"' || str[0] === '\'') {
     try {
-      return (0, eval)(str);
+      const decoded = (0, eval)(str);
+      // Filter to exclude non-matching UTF-16 surrogate strings
+      for (let i = 0; i < decoded.length; i++) {
+        const surrogatePrefix = decoded.charCodeAt(i) & 0xFC00;
+        if (surrogatePrefix < 0xD800) {
+          // Not a surrogate
+          continue;
+        }
+        else if (surrogatePrefix === 0xD800) {
+          // Validate surrogate pair
+          if ((decoded.charCodeAt(++i) & 0xFC00) !== 0xDC00)
+            return;
+        }
+        else {
+          // Out-of-range surrogate code (above 0xD800)
+          return;
+        }
+      }
+      return decoded;
     }
     catch {}
   }
