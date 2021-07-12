@@ -228,8 +228,13 @@ suite('Lexer', () => {
         if (k !== 'default' && !Object.hasOwnProperty.call(exports, k)) exports[k] = external5[k];
       });
 
+      const not = require('not');
+      Object.keys(not).forEach(function (k) {
+        if (k !== 'default' && !a().hasOwnProperty(k)) exports[k] = not[k];
+      });
+
       Object.keys(external6).forEach(function (k) {
-        if (k !== 'default' && !external6.hasOwnProperty(k)) exports[k] = external6[k];
+        if (k !== 'default' && !exports.hasOwnProperty(k)) exports[k] = external6[k];
       });
 
       const external𤭢 = require('external𤭢');

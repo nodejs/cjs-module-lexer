@@ -641,8 +641,10 @@ void tryParseObjectDefineOrKeys (bool keys) {
             if (ch != '!') break;
             pos += 1;
             ch = commentWhitespace();
-            if (memcmp(pos, id_start, id_len * sizeof(uint16_t)) == 0) {
-              pos += id_len;
+            if (ch == 'O' && str_eq6(pos + 1, 'b', 'j', 'e', 'c', 't', '.')) {
+              if (!tryParseObjectHasOwnProperty(it_id_start, it_id_len)) break;
+            }
+            else if (identifier(ch)) {
               ch = commentWhitespace();
               if (ch != '.') break;
               pos++;
@@ -659,7 +661,6 @@ void tryParseObjectDefineOrKeys (bool keys) {
               if (ch != ')') break;
               pos += 1;
             }
-            else if (!tryParseObjectHasOwnProperty(it_id_start, it_id_len)) break;
             ch = commentWhitespace();
           }
           if (ch != ')') break;
