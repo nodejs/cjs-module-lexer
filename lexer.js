@@ -665,7 +665,8 @@ function tryParseObjectDefineOrKeys (keys) {
               if (ch !== 40/*(*/) break;
               pos += 1;
               ch = commentWhitespace();
-              if (!identifier()) break;
+              if (!source.startsWith(it_id, pos)) break;
+              pos += it_id.length;
               ch = commentWhitespace();
               if (ch !== 41/*)*/) break;
               pos += 1;
