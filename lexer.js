@@ -367,8 +367,17 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 58/*:*/) break;
           pos++;
           ch = commentWhitespace();
-          if (ch !== 116/*t*/ || !source.startsWith('rue', pos + 1)) break;
-          pos += 4;
+          // if (ch !== 116/*t*/ || !source.startsWith('rue', pos + 1)) break;
+          // pos += 4;
+
+          if (source.startsWith('true', pos)) {
+            pos += 4;
+          } else if (source.startsWith('!0', pos)) {
+            pos += 2;
+          } else {
+            break;
+          }
+
           ch = commentWhitespace();
           if (ch !== 44) break;
           pos++;

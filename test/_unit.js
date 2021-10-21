@@ -52,7 +52,7 @@ suite('Lexer', () => {
   });
 
   test('TypeScript reexports', () => {
-    var { exports, reexports } = parse(` 
+    var { exports, reexports } = parse(`
       "use strict";
       function __export(m) {
           for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
@@ -421,9 +421,9 @@ suite('Lexer', () => {
       class Number {
 
       }
-      
+
       /("|')(?<value>(\\\\(\\1)|[^\\1])*)?(\\1)/.exec(\`'\\\\"\\\\'aa'\`);
-      
+
       const x = \`"\${label.replace(/"/g, "\\\\\\"")}"\`
     `);
   });
@@ -447,7 +447,7 @@ suite('Lexer', () => {
       function log(r){
         if(g>=0){u[g++]=m;g>=n.logSz&&(g=0)}else{u.push(m);u.length>=n.logSz&&(g=0)}/^(DBG|TICK): /.test(r)||t.Ticker.tick(454,o.slice(0,200));
       }
-      
+
       (function(n){
       })();
     `);
@@ -464,7 +464,7 @@ suite('Lexer', () => {
   test('shebang', () => {
     var { exports } = parse(`#!`);
     assert.equal(exports.length, 0);
-    
+
     var { exports } = parse(`#! (  {
       exports.asdf = 'asdf';
     `);
@@ -535,10 +535,10 @@ suite('Lexer', () => {
         // These WILL be detected as exports
         a: a,
         b: b,
-        
+
         // This WILL be detected as an export
         e: require('d'),
-      
+
         // These WONT be detected as exports
         // because the object parser stops on the non-identifier
         // expression "require('d')"
@@ -550,13 +550,13 @@ suite('Lexer', () => {
   });
 
   test('Literal exports complex', () => {
-    const { exports } = parse(`    
+    const { exports } = parse(`
       function defineProp(name, value) {
         delete module.exports[name];
         module.exports[name] = value;
         return value;
       }
-    
+
       module.exports = {
         Parser: Parser,
         Tokenizer: require("./Tokenizer.js"),
@@ -662,11 +662,13 @@ suite('Lexer', () => {
       Object.defineProperty(module.exports, 'thing', { value: true });
       Object.defineProperty(exports, "other", { enumerable: true, value: true });
       Object.defineProperty(exports, "__esModule", { value: true });
+      Object.defineProperty(exports, "uglify", { enumerable: !0, value: true });
     `);
-    assert.equal(exports.length, 3);
+    assert.equal(exports.length, 4);
     assert.equal(exports[0], 'thing');
     assert.equal(exports[1], 'other');
     assert.equal(exports[2], '__esModule');
+    assert.equal(exports[3], 'uglify');
   });
 
   test('module assign', () => {
