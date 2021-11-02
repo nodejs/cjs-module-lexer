@@ -77,4 +77,4 @@ jobs:
           PROJ_ROOT: ${{ steps.preparation.outputs.PROJ_ROOT }}
         run: |
           cd $PROJ_ROOT;
-          npm run bench:wasm;
+          npm run bench;
