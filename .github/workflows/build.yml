@@ -1,0 +1,80 @@
+name: Test
+
+on:
+  push:
+    branches: main
+  pull_request:
+    branches: main
+
+env:
+  WASI_VERSION: 12
+  WASI_VERSION_FULL: "12.0"
+  WABT_VERSION: "1.0.24"
+  EMCC_VERSION: "1.40.1-fastcomp"
+
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Prepare
+        id: preparation
+        run: |
+          export PWD=$(pwd);
+          echo "::set-output name=PROJ_ROOT::$PWD";
+
+      - name: Install
+        run: npm install
+
+      - name: Install wasi-sdk
+        env:
+          PROJ_ROOT: ${{ steps.preparation.outputs.PROJ_ROOT }}
+        run: |
+          cd $PROJ_ROOT;
+          cd ../;
+          export WASI_OS="linux"
+          curl -sL https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/wasi-sdk-${WASI_VERSION_FULL}-${WASI_OS}.tar.gz -O
+          # check if package downloaded
+          ls -la
+          tar xvf wasi-sdk-${WASI_VERSION_FULL}-${WASI_OS}.tar.gz
+          # print clang version
+          ./wasi-sdk-${WASI_VERSION_FULL}/bin/clang --version
+      - name: Install wabt
+        env:
+          PROJ_ROOT: ${{ steps.preparation.outputs.PROJ_ROOT }}
+        run: |
+          cd $PROJ_ROOT;
+          cd ../;
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            export WABT_OS="ubuntu";
+          fi
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            export WABT_OS="macos";
+          fi
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            export WABT_OS="windows";
+          fi
+          curl -sL https://github.com/WebAssembly/wabt/releases/download/${WABT_VERSION}/wabt-${WABT_VERSION}-${WABT_OS}.tar.gz -O
+          # check if package downloaded
+          ls -la
+          tar xvf wabt-${WABT_VERSION}-${WABT_OS}.tar.gz
+          # check if wabt binaries installed
+          ls -la ./wabt-${WABT_VERSION}/bin/
+      - name: Compile to Wasm & Test Wasm
+        env:
+          PROJ_ROOT: ${{ steps.preparation.outputs.PROJ_ROOT }}
+        run: |
+          cd $PROJ_ROOT;
+          rm lib/lexer.wasm;
+          npm run build-wasm;
+          npm run build;
+          # test
+          npm run test;
+      - name: Benchmark Wasm
+        env:
+          PROJ_ROOT: ${{ steps.preparation.outputs.PROJ_ROOT }}
+        run: |
+          cd $PROJ_ROOT;
+          npm run bench;

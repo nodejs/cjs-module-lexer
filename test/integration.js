@@ -26,7 +26,7 @@ const files = fs.readdirSync('test/samples')
 	});
 
 suite('Samples', () => {
-  beforeEach(async () => await loadParser());
+  suiteSetup(async () => await loadParser());
 
   const selfSource = fs.readFileSync(process.cwd() + '/lexer.js').toString();
   test('Self test', async () => {

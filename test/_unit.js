@@ -14,7 +14,7 @@ async function loadParser () {
 }
 
 suite('Lexer', () => {
-  beforeEach(async () => await loadParser());
+  suiteSetup(async () => await loadParser());
 
   test('esbuild hint style', () => {
     var { exports, reexports } = parse(`
