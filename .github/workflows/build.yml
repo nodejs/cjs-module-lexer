@@ -19,6 +19,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Prepare
+        id: preparation
+        run: |
+          export PWD=$(pwd);
+          echo "::set-output name=PROJ_ROOT::$PWD";
+
       - name: Install
         run: npm install
 
@@ -28,15 +34,7 @@ jobs:
         run: |
           cd $PROJ_ROOT;
           cd ../;
-          if [[ "$RUNNER_OS" == "Linux" ]]; then
-            export WASI_OS="linux";
-          fi
-          if [[ "$RUNNER_OS" == "macOS" ]]; then
-            export WASI_OS="macos";
-          fi
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            export WASI_OS="mingw";
-          fi
+          export WASI_OS="linux"
           curl -sL https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/wasi-sdk-${WASI_VERSION_FULL}-${WASI_OS}.tar.gz -O
           # check if package downloaded
           ls -la
