@@ -140,6 +140,13 @@ function parseSource (cjsSource) {
               if (source.charCodeAt(++pos) === 114/*r*/)
                 tryParseRequire(ExportStar);
             }
+          } else if (source.startsWith('exportStar', pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46/*.*/)) {
+            pos += 11;
+            if (source.charCodeAt(pos) === 40/*(*/) {
+              openTokenPosStack[openTokenDepth++] = lastTokenPos;
+              if (source.charCodeAt(++pos) === 114/*r*/)
+                tryParseRequire(ExportStar);
+            }
           }
           lastTokenPos = pos;
           continue;

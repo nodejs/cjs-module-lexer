@@ -123,6 +123,13 @@ bool parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const 
               if (*(++pos) == 'r')
                 tryParseRequire(ExportStar);
             }
+          } else if (str_eq10(pos + 1, 'e', 'x', 'p', 'o', 'r', 't', 'S', 't', 'a', 'r') && (keywordStart(pos) || *(pos - 1) == '.')) {
+            pos += 11;
+            if (*pos == '(') {
+              openTokenPosStack[openTokenDepth++] = lastTokenPos;
+              if (*(++pos) == 'r')
+                tryParseRequire(ExportStar);
+            }
           }
           lastTokenPos = pos;
           continue;

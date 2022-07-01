@@ -29,6 +29,16 @@ suite('Lexer', () => {
     assert.equal(reexports[0], 'fs');
   });
 
+  test("swc reexports", () => {
+    var { reexports } = parse(`
+      _exportStar(require("fs"), exports);
+      swcHelpers._exportStar(require("url"), exports);
+  `);
+
+    assert.equal(reexports[0], "fs");
+    assert.equal(reexports[1], "url");
+  });
+
   test('Getter opt-outs', () => {
     var { exports } = parse(`
       Object.defineProperty(exports, 'a', {
