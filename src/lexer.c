@@ -807,9 +807,9 @@ void tryParseObjectDefineOrKeys (bool keys) {
             if (ch != 'r' || !str_eq5(pos + 1, 'e', 't', 'u', 'r', 'n'))
               break;
             pos += 6;
-          } else if (is_arrow)
+          } else if (is_arrow) {
             is_arrow_expr = true;
-          else
+          } else
             break;
           ch = commentWhitespace();
           if (memcmp(pos, id_start, id_len * sizeof(uint16_t)) != 0) break;
