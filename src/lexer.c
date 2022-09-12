@@ -376,16 +376,23 @@ void tryParseObjectDefineOrKeys (bool keys) {
           if (!str_eq2(pos + 1, 'e', 't')) break;
           pos += 3;
           ch = commentWhitespace();
+          bool is_arrow = false;
           if (ch == ':') {
             pos++;
             ch = commentWhitespace();
-            if (ch != 'f') break;
-            if (!str_eq7(pos + 1, 'u', 'n', 'c', 't', 'i', 'o', 'n')) break;
-            pos += 8;
-            uint16_t* lastPos = pos;
-            ch = commentWhitespace();
-            if (ch != '(' && (lastPos == pos || !identifier(ch))) break;
-            ch = commentWhitespace();
+            if (ch == 'f') {
+              if (!str_eq7(pos + 1, 'u', 'n', 'c', 't', 'i', 'o', 'n'))
+                break;
+              pos += 8;
+              uint16_t* lastPos = pos;
+              ch = commentWhitespace();
+              if (ch != '(' && (lastPos == pos || !identifier(ch)))
+                break;
+              ch = commentWhitespace();
+            } else if (ch == '(') {
+              is_arrow = true;
+            } else
+              break;
           }
           if (ch != '(') break;
           pos++;
@@ -393,12 +400,24 @@ void tryParseObjectDefineOrKeys (bool keys) {
           if (ch != ')') break;
           pos++;
           ch = commentWhitespace();
-          if (ch != '{') break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch != 'r') break;
-          if (!str_eq5(pos + 1, 'e', 't', 'u', 'r', 'n')) break;
-          pos += 6;
+          if (is_arrow) {
+            if (str_eq2(pos, '=', '>')) {
+              pos += 2;
+              ch = commentWhitespace();
+            } else
+              break;
+          }
+          bool is_arrow_expr = false;
+          if (ch == '{') {
+            pos++;
+            ch = commentWhitespace();
+            if (ch != 'r' || !str_eq5(pos + 1, 'e', 't', 'u', 'r', 'n'))
+              break;
+            pos += 6;
+          } else if (is_arrow) {
+            is_arrow_expr = true;
+          } else
+            break;
           ch = commentWhitespace();
           if (!identifier(ch)) break;
           ch = commentWhitespace();
@@ -419,13 +438,16 @@ void tryParseObjectDefineOrKeys (bool keys) {
             pos++;
             ch = commentWhitespace();
           }
-          if (ch == ';') {
+          if (!is_arrow_expr) {
+            if (ch == ';') {
+              pos++;
+              ch = commentWhitespace();
+            }
+            if (ch != '}')
+              break;
             pos++;
             ch = commentWhitespace();
           }
-          if (ch != '}') break;
-          pos++;
-          ch = commentWhitespace();
           if (ch == ',') {
             pos++;
             ch = commentWhitespace();
@@ -702,6 +724,9 @@ void tryParseObjectDefineOrKeys (bool keys) {
           }
         }
         // `Object.defineProperty(` EXPORTS_IDENTIFIER `, ` IDENTIFIER$2 `, { enumerable: true, get: function () { return ` IDENTIFIER$1 `[` IDENTIFIER$2 `]; } })`
+        // `Object.defineProperty(` EXPORTS_IDENTIFIER `, ` IDENTIFIER$2 `, { enumerable: true, get  ()          { return ` IDENTIFIER$1 `[` IDENTIFIER$2 `]; } })`
+        // `Object.defineProperty(` EXPORTS_IDENTIFIER `, ` IDENTIFIER$2 `, { enumerable: true, get: () =>       { return ` IDENTIFIER$1 `[` IDENTIFIER$2 `]; } })`
+        // `Object.defineProperty(` EXPORTS_IDENTIFIER `, ` IDENTIFIER$2 `, { enumerable: true, get: () =>                ` IDENTIFIER$1 `[` IDENTIFIER$2 `]    })`
         else if (ch == 'O') {
           if (!str_eq5(pos + 1, 'b', 'j', 'e', 'c', 't')) break;
           pos += 6;
@@ -744,16 +769,23 @@ void tryParseObjectDefineOrKeys (bool keys) {
           if (ch != 'g' || !str_eq2(pos + 1, 'e', 't')) break;
           pos += 3;
           ch = commentWhitespace();
+          bool is_arrow = false;
           if (ch == ':') {
             pos++;
             ch = commentWhitespace();
-            if (ch != 'f') break;
-            if (!str_eq7(pos + 1, 'u', 'n', 'c', 't', 'i', 'o', 'n')) break;
-            pos += 8;
-            uint16_t* lastPos = pos;
-            ch = commentWhitespace();
-            if (ch != '(' && (lastPos == pos || !identifier(ch))) break;
-            ch = commentWhitespace();
+            if (ch == 'f') {
+              if (!str_eq7(pos + 1, 'u', 'n', 'c', 't', 'i', 'o', 'n'))
+                break;
+              pos += 8;
+              uint16_t* lastPos = pos;
+              ch = commentWhitespace();
+              if (ch != '(' && (lastPos == pos || !identifier(ch)))
+                break;
+              ch = commentWhitespace();
+            } else if (ch == '(') {
+              is_arrow = true;
+            } else
+              break;
           }
           if (ch != '(') break;
           pos++;
@@ -761,11 +793,24 @@ void tryParseObjectDefineOrKeys (bool keys) {
           if (ch != ')') break;
           pos++;
           ch = commentWhitespace();
-          if (ch != '{') break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch != 'r' || !str_eq5(pos + 1, 'e', 't', 'u', 'r', 'n')) break;
-          pos += 6;
+          if (is_arrow) {
+            if (str_eq2(pos, '=', '>')) {
+              pos += 2;
+              ch = commentWhitespace();
+            } else
+              break;
+          }
+          bool is_arrow_expr = false;
+          if (ch == '{') {
+            pos++;
+            ch = commentWhitespace();
+            if (ch != 'r' || !str_eq5(pos + 1, 'e', 't', 'u', 'r', 'n'))
+              break;
+            pos += 6;
+          } else if (is_arrow)
+            is_arrow_expr = true;
+          else
+            break;
           ch = commentWhitespace();
           if (memcmp(pos, id_start, id_len * sizeof(uint16_t)) != 0) break;
           pos += id_len;
@@ -779,13 +824,16 @@ void tryParseObjectDefineOrKeys (bool keys) {
           if (ch != ']') break;
           pos++;
           ch = commentWhitespace();
-          if (ch == ';') {
+          if (!is_arrow_expr) {
+            if (ch == ';') {
+              pos++;
+              ch = commentWhitespace();
+            }
+            if (ch != '}')
+              break;
             pos++;
             ch = commentWhitespace();
           }
-          if (ch != '}') break;
-          pos++;
-          ch = commentWhitespace();
           if (ch == ',') {
             pos++;
             ch = commentWhitespace();

@@ -16,6 +16,42 @@ async function loadParser () {
 suite('Lexer', () => {
   suiteSetup(async () => await loadParser());
 
+  test('Getter', () => {
+    var { exports } = parse(`
+      Object.defineProperty(exports, 'a', {
+        enumerable: true,
+        get: function () {
+          return q.p;
+        }
+      });
+
+      Object.defineProperty(exports, 'b', {
+        enumerable: true,
+        get() {
+          return q.p;
+        }
+      });
+
+      Object.defineProperty(exports, 'c', {
+        enumerable: true,
+        get: () => {
+          return q.p;
+        }
+      });
+
+      Object.defineProperty(exports, 'd', {
+        enumerable: true,
+        get: () => q.p,
+      });
+    `);
+
+    assert.equal(exports.length, 4);
+    assert.equal(exports[0], 'a');
+    assert.equal(exports[1], 'b');
+    assert.equal(exports[2], 'c');
+    assert.equal(exports[3], 'd');
+  })
+
   test('esbuild hint style', () => {
     var { exports, reexports } = parse(`
       0 && (module.exports = {a, b, c}) && __exportStar(require('fs'));
@@ -642,9 +678,6 @@ suite('Lexer', () => {
         get () {
           return p;
         }
-      });
-      Object.defineProperty(exports, 'c', {
-        get: () => p
       });
       Object.defineProperty(exports, 'd', {
         enumerable: true,

@@ -387,16 +387,19 @@ function tryParseObjectDefineOrKeys (keys) {
           if (!source.startsWith('et', pos + 1)) break;
           pos += 3;
           ch = commentWhitespace();
+          let is_arrow = false;
           if (ch === 58/*:*/) {
             pos++;
             ch = commentWhitespace();
-            if (ch !== 102/*f*/) break;
-            if (!source.startsWith('unction', pos + 1)) break;
-            pos += 8;
-            let lastPos = pos;
-            ch = commentWhitespace();
-            if (ch !== 40 && (lastPos === pos || !identifier())) break;
-            ch = commentWhitespace();
+            if (ch === 102/*f*/) {
+              if (!source.startsWith('unction', pos + 1)) break;
+              pos += 8;
+              let lastPos = pos;
+              ch = commentWhitespace();
+              if (ch !== 40 && (lastPos === pos || !identifier())) break;
+              ch = commentWhitespace();
+            } else if (ch === 40/*(*/) is_arrow = true;
+            else break;
           }
           if (ch !== 40/*(*/) break;
           pos++;
@@ -404,12 +407,20 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 41/*)*/) break;
           pos++;
           ch = commentWhitespace();
-          if (ch !== 123/*{*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 114/*r*/) break;
-          if (!source.startsWith('eturn', pos + 1)) break;
-          pos += 6;
+          if (is_arrow) {
+            if (source.startsWith("=>", pos)) {
+              pos += 2;
+              ch = commentWhitespace();
+            } else break
+          }
+          let is_arrow_expr = false;
+          if (ch === 123/*{*/) {
+            pos++;
+            ch = commentWhitespace();
+            if (ch !== 114/*r*/ || !source.startsWith('eturn', pos + 1)) break;
+            pos += 6;
+          } else if (is_arrow) is_arrow_expr = true;
+          else break;
           ch = commentWhitespace();
           if (!identifier()) break;
           ch = commentWhitespace();
@@ -430,13 +441,15 @@ function tryParseObjectDefineOrKeys (keys) {
             pos++;
             ch = commentWhitespace();
           }
-          if (ch === 59/*;*/) {
+          if (!is_arrow_expr) {
+            if (ch === 59/*;*/) {
+              pos++;
+              ch = commentWhitespace();
+            }
+            if (ch !== 125/*}*/) break;
             pos++;
             ch = commentWhitespace();
           }
-          if (ch !== 125/*}*/) break;
-          pos++;
-          ch = commentWhitespace();
           if (ch === 44/*,*/) {
             pos++;
             ch = commentWhitespace();
@@ -713,6 +726,9 @@ function tryParseObjectDefineOrKeys (keys) {
           }
         }
         // `Object.defineProperty(` EXPORTS_IDENTIFIER `, ` IDENTIFIER$2 `, { enumerable: true, get: function () { return ` IDENTIFIER$1 `[` IDENTIFIER$2 `]; } })`
+        // `Object.defineProperty(` EXPORTS_IDENTIFIER `, ` IDENTIFIER$2 `, { enumerable: true, get  ()          { return ` IDENTIFIER$1 `[` IDENTIFIER$2 `]; } })`
+        // `Object.defineProperty(` EXPORTS_IDENTIFIER `, ` IDENTIFIER$2 `, { enumerable: true, get: () =>       { return ` IDENTIFIER$1 `[` IDENTIFIER$2 `]; } })`
+        // `Object.defineProperty(` EXPORTS_IDENTIFIER `, ` IDENTIFIER$2 `, { enumerable: true, get: () =>                ` IDENTIFIER$1 `[` IDENTIFIER$2 `]    })`
         else if (ch === 79/*O*/) {
           if (source.slice(pos + 1, pos + 6) !== 'bject') break;
           pos += 6;
@@ -755,16 +771,19 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 103/*g*/ || !source.startsWith('et', pos + 1)) break;
           pos += 3;
           ch = commentWhitespace();
+          let is_arrow = false;
           if (ch === 58/*:*/) {
             pos++;
             ch = commentWhitespace();
-            if (ch !== 102/*f*/) break;
-            if (!source.startsWith('unction', pos + 1)) break;
-            pos += 8;
-            let lastPos = pos;
-            ch = commentWhitespace();
-            if (ch !== 40 && (lastPos === pos || !identifier())) break;
-            ch = commentWhitespace();
+            if (ch === 102/*f*/) {
+              if (!source.startsWith('unction', pos + 1)) break;
+              pos += 8;
+              let lastPos = pos;
+              ch = commentWhitespace();
+              if (ch !== 40 && (lastPos === pos || !identifier())) break;
+              ch = commentWhitespace();
+            } else if (ch === 40/*(*/) is_arrow = true;
+            else break;
           }
           if (ch !== 40/*(*/) break;
           pos++;
@@ -772,11 +791,21 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 41/*)*/) break;
           pos++;
           ch = commentWhitespace();
-          if (ch !== 123/*{*/) break;
+          if (is_arrow) {
+            if (source.startsWith("=>", pos)) {
+              pos += 2;
+              ch = commentWhitespace();
+            } else break;
+          }
+          let is_arrow_expr = false;
+          if (ch === 123/*{*/) {
           pos++;
-          ch = commentWhitespace();
-          if (ch !== 114/*r*/ || !source.startsWith('eturn', pos + 1)) break;
-          pos += 6;
+            ch = commentWhitespace();
+            if (ch !== 114/*r*/ || !source.startsWith('eturn', pos + 1)) break;
+            pos += 6;
+          } else if (is_arrow)
+            is_arrow_expr = true;
+          else break;
           ch = commentWhitespace();
           if (!source.startsWith(id, pos)) break;
           pos += id.length;
@@ -790,13 +819,15 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 93/*]*/) break;
           pos++;
           ch = commentWhitespace();
-          if (ch === 59/*;*/) {
+          if (!is_arrow_expr) {
+            if (ch === 59/*;*/) {
+              pos++;
+              ch = commentWhitespace();
+            }
+            if (ch !== 125/*}*/) break;
             pos++;
             ch = commentWhitespace();
           }
-          if (ch !== 125/*}*/) break;
-          pos++;
-          ch = commentWhitespace();
           if (ch === 44/*,*/) {
             pos++;
             ch = commentWhitespace();
