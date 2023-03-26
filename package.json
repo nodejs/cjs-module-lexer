@@ -34,10 +34,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/guybedford/cjs-module-lexer.git"
+    "url": "git+https://github.com/nodejs/cjs-module-lexer.git"
   },
   "bugs": {
-    "url": "https://github.com/guybedford/cjs-module-lexer/issues"
+    "url": "https://github.com/nodejs/cjs-module-lexer/issues"
   },
-  "homepage": "https://github.com/guybedford/cjs-module-lexer#readme"
+  "homepage": "https://github.com/nodejs/cjs-module-lexer#readme"
 }
