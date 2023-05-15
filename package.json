@@ -4,7 +4,10 @@
   "description": "Lexes CommonJS modules, returning their named exports metadata",
   "main": "lexer.js",
   "exports": {
-    "import": "./dist/lexer.mjs",
+    "import": {
+      "types": "./lexer.d.mts",
+      "default": "./dist/lexer.mjs"
+    },
     "default": "./lexer.js"
   },
   "types": "lexer.d.ts",
