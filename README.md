@@ -247,9 +247,6 @@ Object.defineProperty(exports, 'b', {
     return p;
   }
 });
-Object.defineProperty(exports, 'c', {
-  get: () => p
-});
 Object.defineProperty(exports, 'd', {
   enumerable: true,
   get: function () {
