@@ -356,8 +356,15 @@ void tryParseObjectDefineOrKeys (bool keys) {
           if (ch != ':') break;
           pos++;
           ch = commentWhitespace();
-          if (ch != 't' || !str_eq3(pos + 1, 'r', 'u', 'e')) break;
-          pos += 4;
+
+          if (str_eq4(pos, 't', 'r', 'u', 'e')) {
+            pos += 4;
+          } else if (str_eq2(pos, '!', '0')) {
+            pos += 2;
+          } else {
+            break;
+          }
+
           ch = commentWhitespace();
           if (ch != 44) break;
           pos++;
@@ -1156,7 +1163,7 @@ void throwIfImportStatement () {
     case '.':
       syntaxError();
       return;
-    
+
     default:
       // no space after "import" -> not an import keyword
       if (pos == startPos + 6)
@@ -1456,7 +1463,7 @@ bool isExpressionKeyword (uint16_t* pos) {
           // throw
           return readPrecedingKeyword3(pos - 2, 't', 'h', 'r');
         default:
-          return false; 
+          return false;
       }
   }
   return false;
