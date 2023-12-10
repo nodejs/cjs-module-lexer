@@ -20,16 +20,17 @@ suite('Lexer', () => {
     try {
       parse(`
         import 'x';
-      `)
+      `);
+      assert(false);
     } catch (e) {
-      console.error(e);
       assert(e.code === 'ERR_LEXER_ESM_SYNTAX');
     }
 
     try {
       parse(`
         export { x };
-      `)
+      `);
+      assert(false);
     } catch (e) {
       assert(e.code === 'ERR_LEXER_ESM_SYNTAX');
     }
@@ -41,7 +42,8 @@ suite('Lexer', () => {
         export function x () {
 
         }
-      `)
+      `);
+      assert(false);
     } catch (e) {
       assert(e.code === 'ERR_LEXER_ESM_SYNTAX');
     }
@@ -49,7 +51,8 @@ suite('Lexer', () => {
     try {
       parse(`
         import.meta.url
-      `)
+      `);
+      assert(false);
     } catch (e) {
       assert(e.code === 'ERR_LEXER_ESM_SYNTAX');
     }
