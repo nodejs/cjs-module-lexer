@@ -30,7 +30,7 @@ uint16_t* lastReexportEnd;
 // -> source
 // -> analysis starts after source
 uint32_t parse_error;
-bool has_error = false;
+uint32_t error = 0;
 uint32_t sourceLen;
 
 uint16_t templateStack_[STACK_DEPTH];
@@ -45,7 +45,7 @@ void (*addUnsafeGetter)(const uint16_t*, const uint16_t*);
 void (*clearReexports)();
 
 // Note: parsing is based on the _assumption_ that the source is already valid
-bool parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const uint16_t*, const uint16_t*), void (*_addReexport)(const uint16_t*, const uint16_t*), void (*_addUnsafeGetter)(const uint16_t*, const uint16_t*), void (*_clearReexports)()) {
+uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const uint16_t*, const uint16_t*), void (*_addReexport)(const uint16_t*, const uint16_t*), void (*_addUnsafeGetter)(const uint16_t*, const uint16_t*), void (*_clearReexports)()) {
   source = _source;
   sourceLen = _sourceLen;
   if (_addExport)
@@ -61,7 +61,7 @@ bool parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const 
   lastTokenPos = (uint16_t*)EMPTY_CHAR;
   lastSlashWasDivision = false;
   parse_error = 0;
-  has_error = false;
+  error = 0;
   templateStack = &templateStack_[0];
   openTokenPosStack = &openTokenPosStack_[0];
   starExportStack = &starExportStack_[0];
@@ -74,7 +74,7 @@ bool parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const 
   // Handle #!
   if (*source == '#' && *(source + 1) == '!') {
     if (sourceLen == 2)
-      return true;
+      return 0;
     pos += 2;
     while (pos++ < end) {
       ch = *pos;
@@ -155,7 +155,7 @@ bool parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const 
         break;
       case ')':
         if (openTokenDepth == 0)
-          return syntaxError(), false;
+          return syntaxError(8), error;
         openTokenDepth--;
         break;
       case '{':
@@ -165,14 +165,14 @@ bool parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const 
         break;
       case '}':
         if (openTokenDepth == 0)
-          return syntaxError(), false;
+          return syntaxError(2), false;
         if (openTokenDepth-- == templateDepth) {
           templateDepth = templateStack[--templateStackDepth];
           templateString();
         }
         else {
           if (templateDepth != UINT16_MAX && openTokenDepth < templateDepth)
-            return syntaxError(), false;
+            return syntaxError(3), error;
         }
         break;
       case '<':
@@ -219,18 +219,18 @@ bool parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const 
       }
       case '`':
         if (templateDepth == UINT16_MAX - 1)
-          return syntaxError(), false;
+          return syntaxError(4), error;
         templateString();
         break;
     }
     lastTokenPos = pos;
   }
 
-  if (templateDepth != UINT16_MAX || openTokenDepth || has_error)
-    return false;
+  if (templateDepth != UINT16_MAX || openTokenDepth || error)
+    return error;
 
   // success
-  return true;
+  return 0;
 }
 
 void tryBacktrackAddStarExportBinding (uint16_t* bPos) {
@@ -1154,7 +1154,7 @@ void throwIfImportStatement () {
       return;
     // import.meta
     case '.':
-      syntaxError();
+      syntaxError(5);
       return;
     
     default:
@@ -1171,7 +1171,7 @@ void throwIfImportStatement () {
         return;
       }
       // import statements are a syntax error in CommonJS
-      syntaxError();
+      syntaxError(6);
   }
 }
 
@@ -1181,7 +1181,7 @@ void throwIfExportStatement () {
   uint16_t ch = commentWhitespace();
   if (pos == curPos && !isPunctuator(ch))
     return;
-  syntaxError();
+  syntaxError(7);
 }
 
 uint16_t commentWhitespace () {
@@ -1218,7 +1218,7 @@ void templateString () {
     if (ch == '\\')
       pos++;
   }
-  syntaxError();
+  syntaxError(8);
 }
 
 void blockComment () {
@@ -1253,7 +1253,7 @@ void stringLiteral (uint16_t quote) {
     else if (isBr(ch))
       break;
   }
-  syntaxError();
+  syntaxError(9);
 }
 
 uint16_t regexCharacterClass () {
@@ -1266,7 +1266,7 @@ uint16_t regexCharacterClass () {
     else if (ch == '\n' || ch == '\r')
       break;
   }
-  syntaxError();
+  syntaxError(10);
   return '\0';
 }
 
@@ -1282,7 +1282,7 @@ void regularExpression () {
     else if (ch == '\n' || ch == '\r')
       break;
   }
-  syntaxError();
+  syntaxError(11);
 }
 
 uint16_t readToWsOrPunctuator (uint16_t ch) {
@@ -1503,14 +1503,14 @@ bool isExpressionTerminator (uint16_t* curPos) {
   return false;
 }
 
-void bail (uint32_t error) {
-  has_error = true;
-  parse_error = error;
+void bail (uint32_t err) {
+  error = 1;
+  parse_error = err;
   pos = end + 1;
 }
 
-void syntaxError () {
-  has_error = true;
+void syntaxError (uint32_t code) {
+  if (error == 0) error = code;
   parse_error = pos - source;
   pos = end + 1;
 }

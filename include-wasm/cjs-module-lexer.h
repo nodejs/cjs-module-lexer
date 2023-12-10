@@ -117,8 +117,6 @@ bool ru () {
   return true;
 }
 
-bool parse (uint32_t point);
-
 void _addExport (const uint16_t* start, const uint16_t* end) {
   Slice* export = (Slice*)(analysis_head);
   analysis_head = analysis_head + sizeof(Slice);
@@ -163,7 +161,7 @@ void (*addExport)(const uint16_t*, const uint16_t*) = &_addExport;
 void (*addReexport)(const uint16_t*, const uint16_t*) = &_addReexport;
 void (*addUnsafeGetter)(const uint16_t*, const uint16_t*) = &_addUnsafeGetter;
 void (*clearReexports)() = &_clearReexports;
-bool parseCJS (uint16_t* source, uint32_t sourceLen, void (*addExport)(const uint16_t* start, const uint16_t* end), void (*addReexport)(const uint16_t* start, const uint16_t* end), void (*addUnsafeGetter)(const uint16_t*, const uint16_t*), void (*clearReexports)());
+uint32_t parseCJS (uint16_t* source, uint32_t sourceLen, void (*addExport)(const uint16_t* start, const uint16_t* end), void (*addReexport)(const uint16_t* start, const uint16_t* end), void (*addUnsafeGetter)(const uint16_t*, const uint16_t*), void (*clearReexports)());
 
 enum RequireType {
   Import,
@@ -237,4 +235,4 @@ void nextChar (uint16_t ch);
 void nextCharSurrogate (uint16_t ch);
 uint16_t readChar ();
 
-void syntaxError ();
+void syntaxError (uint32_t code);

@@ -19,4 +19,7 @@ const minified = MINIFY && terser.minify(jsSourceProcessed, {
   }
 });
 
+if (minified.error)
+  throw minified.error;
+
 fs.writeFileSync('./dist/lexer.mjs', minified ? minified.code : jsSourceProcessed);
