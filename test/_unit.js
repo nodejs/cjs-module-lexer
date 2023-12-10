@@ -17,14 +17,14 @@ suite('Lexer', () => {
   suiteSetup(async () => await loadParser());
 
   test('esm syntax error', () => {
-    // try {
-    //   parse(`
-    //     import 'x';
-    //   `)
-    // } catch (e) {
-    //   console.error(e);
-    //   assert(e.code === 'ERR_LEXER_ESM_SYNTAX');
-    // }
+    try {
+      parse(`
+        import 'x';
+      `)
+    } catch (e) {
+      console.error(e);
+      assert(e.code === 'ERR_LEXER_ESM_SYNTAX');
+    }
 
     try {
       parse(`
