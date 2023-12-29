@@ -16,8 +16,15 @@ export function parse (source, name = '@') {
   const addr = wasm.sa(len);
   (isLE ? copyLE : copyBE)(source, new Uint16Array(wasm.memory.buffer, addr, len));
 
-  if (!wasm.parseCJS(addr, source.length, 0, 0, 0))
-    throw Object.assign(new Error(`Parse error ${name}${wasm.e()}:${source.slice(0, wasm.e()).split('\n').length}:${wasm.e() - source.lastIndexOf('\n', wasm.e() - 1)}`), { idx: wasm.e() });
+  const err_code = wasm.parseCJS(addr, source.length, 0, 0, 0);
+
+  if (err_code) {
+    const err = new Error(`Parse error ${name}${wasm.e()}:${source.slice(0, wasm.e()).split('\n').length}:${wasm.e() - source.lastIndexOf('\n', wasm.e() - 1)}`);
+    Object.assign(err, { idx: wasm.e() });
+    if (err_code === 5 || err_code === 6 || err_code === 7)
+      Object.assign(err, { code: 'ERR_LEXER_ESM_SYNTAX' });
+    throw err;
+  }
 
   let exports = new Set(), reexports = new Set(), unsafeGetters = new Set();
   

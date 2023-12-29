@@ -16,6 +16,48 @@ async function loadParser () {
 suite('Lexer', () => {
   suiteSetup(async () => await loadParser());
 
+  test('esm syntax error', () => {
+    try {
+      parse(`
+        import 'x';
+      `);
+      assert(false);
+    } catch (e) {
+      assert(e.code === 'ERR_LEXER_ESM_SYNTAX');
+    }
+
+    try {
+      parse(`
+        export { x };
+      `);
+      assert(false);
+    } catch (e) {
+      assert(e.code === 'ERR_LEXER_ESM_SYNTAX');
+    }
+
+    try {
+      parse(`
+        syntax?error;
+
+        export function x () {
+
+        }
+      `);
+      assert(false);
+    } catch (e) {
+      assert(e.code === 'ERR_LEXER_ESM_SYNTAX');
+    }
+
+    try {
+      parse(`
+        import.meta.url
+      `);
+      assert(false);
+    } catch (e) {
+      assert(e.code === 'ERR_LEXER_ESM_SYNTAX');
+    }
+  });
+
   test('esbuild hint style', () => {
     var { exports, reexports } = parse(`
       0 && (module.exports = {a, b, c}) && __exportStar(require('fs'));
