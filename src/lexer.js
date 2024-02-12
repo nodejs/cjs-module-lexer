@@ -90,14 +90,28 @@ function copyLE (src, outBuf16) {
     outBuf16[i] = src.charCodeAt(i++);
 }
 
+const loadWasm = (typeof EXTERNAL_PATH === "string" && (async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  return readFile(fileURLToPath(
+    import.meta.resolve("undefined/dist/lexer.wasm")
+  ));
+})) || (async () => {
+  const binary = WASM_BINARY
+  if (typeof window !== "undefined" && typeof atob === "function") {
+    return Uint8Array.from(atob(binary), (x) => x.charCodeAt(0));
+  } else {
+    return Buffer.from(binary, "base64");
+  }
+});
+
 let initPromise;
 export function init () {
   if (initPromise)
     return initPromise;
   return initPromise = (async () => {
     const compiled = await WebAssembly.compile(
-      (binary => typeof window !== 'undefined' && typeof atob === 'function' ? Uint8Array.from(atob(binary), x => x.charCodeAt(0)) : Buffer.from(binary, 'base64'))
-      ('WASM_BINARY')
+      await loadWasm()
     )
     const { exports } = await WebAssembly.instantiate(compiled);
     wasm = exports;
