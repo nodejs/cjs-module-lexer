@@ -91,11 +91,7 @@ function copyLE (src, outBuf16) {
 }
 
 const loadWasm = (typeof EXTERNAL_PATH === "string" && (async () => {
-  const { readFile } = await import('node:fs/promises');
-  const { fileURLToPath } = await import('node:url');
-  return readFile(fileURLToPath(
-    import.meta.resolve("undefined/dist/lexer.wasm")
-  ));
+  return (await import('node:fs/promises')).readFile(EXTERNAL_PATH);
 })) || (async () => {
   const binary = WASM_BINARY
   if (typeof window !== "undefined" && typeof atob === "function") {
