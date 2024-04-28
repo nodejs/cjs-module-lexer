@@ -1,26 +1,10 @@
 # These flags depend on the system and may be overridden
-
-ifeq ($(WASI_SDK_PATH),)
 WASM_CC := ../wasi-sdk-12.0/bin/clang
 WASM_CFLAGS := --sysroot=../wasi-sdk-12.0/share/wasi-sysroot
-else
-WASM_CC := $(WASI_SDK_PATH)/bin/clang
-WASM_CFLAGS := --sysroot=$(WASI_SDK_PATH)/share/wasi-sysroot
-endif
-
 WASM_LDFLAGS := -nostartfiles
 
-ifeq ($(WABT_PATH),)
 WASM2WAT := ../wabt/bin/wasm2wat
-else
-WASM2WAT := $(WABT_PATH)/bin/wasm2wat
-endif
-
-ifeq ($(BINARYEN_PATH),)
 WASM_OPT := ../binaryen/bin/wasm-opt
-else
-WASM_OPT := $(BINARYEN_PATH)/bin/wasm-opt
-endif
 
 # These are project-specific and are expected to be kept intact
 WASM_EXTRA_CFLAGS := -I include-wasm/ -Wno-logical-op-parentheses -Wno-parentheses -Oz
