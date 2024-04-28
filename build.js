@@ -37,7 +37,7 @@ if (EXTERNAL_PATH) {
 let lazy;
 async function init () {
   if (!lazy) {
-    lazy = await import(require('node:url').pathToFileURL(require('node:module').createRequire('${path.join(EXTERNAL_PATH, 'dist/lexer.js')}').resolve('./lexer.mjs')));
+    lazy = await import(require('node:url').pathToFileURL(require('node:module').createRequire('${EXTERNAL_PATH}/dist/lexer.js').resolve('./lexer.mjs')));
   }
   module.exports = lazy;
   return lazy.init();
