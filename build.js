@@ -1,6 +1,5 @@
 const fs = require('fs');
 const { buildSync } = require('esbuild');
-const path = require('path/posix')
 
 const { EXTERNAL_PATH } = process.env;
 const MINIFY = !EXTERNAL_PATH;
@@ -23,7 +22,7 @@ buildSync({
   },
   define: EXTERNAL_PATH ? {
     WASM_BINARY: 'undefined',
-    EXTERNAL_PATH: `'${path.join(EXTERNAL_PATH, 'lib/lexer.wasm')}'`,
+    EXTERNAL_PATH: `'${EXTERNAL_PATH}'`,
   } : {
     WASM_BINARY: `'${wasmBuffer.toString('base64')}'`,
     EXTERNAL_PATH: 'undefined'
@@ -37,7 +36,7 @@ if (EXTERNAL_PATH) {
 let lazy;
 async function init () {
   if (!lazy) {
-    lazy = await import(require('node:url').pathToFileURL(require('node:module').createRequire('${path.join(EXTERNAL_PATH, 'dist/lexer.js')}').resolve('./lexer.mjs')));
+    lazy = await import(require('node:url').pathToFileURL(require('node:module').createRequire('${EXTERNAL_PATH}/dist/lexer.js').resolve('./lexer.mjs')));
   }
   module.exports = lazy;
   return lazy.init();
