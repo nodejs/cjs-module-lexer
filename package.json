@@ -30,7 +30,8 @@
     "mocha": "^9.1.3"
   },
   "files": [
-    "dist",
+    "dist/",
+    "lib/lexer.wasm",
     "lexer.d.ts"
   ],
   "repository": {
