@@ -1,25 +1,69 @@
 const fs = require('fs');
-const terser = require('terser');
+const esbuild = require('esbuild');
 
-const MINIFY = true;
+let minify = true;
+let cjsBuild = true;
+let esmBuild = true;
 
-try { fs.mkdirSync('./dist'); }
-catch (e) {}
+for (const arg of process.argv) {
+  switch (arg) {
+    case '--without-cjs': {
+      cjsBuild = false;
+      break;
+    }
+    case '--without-esm': {
+      esmBuild = false;
+      break;
+    }
+    case '--no-minify': {
+      minify = false;
+      break;
+    }
+    default:
+      continue;
+  }
+}
+
+fs.mkdirSync('./dist', { recursive: true });
 
 const wasmBuffer = fs.readFileSync('./lib/lexer.wasm');
-const jsSource = fs.readFileSync('./src/lexer.js').toString();
 const pjson = JSON.parse(fs.readFileSync('./package.json').toString());
 
-const jsSourceProcessed = jsSource.replace('WASM_BINARY', wasmBuffer.toString('base64'));
+/** @type {esbuild.BuildOptions} */
+const buildOptions = {
+  entryPoints: ['./src/lexer.js'],
+  bundle: true,
+  minify,
+  platform: 'node',
+  banner: {
+    js: `/* cjs-module-lexer ${pjson.version} */`,
+  },
+  outfile: './dist/lexer.mjs',
+  format: 'esm',
+  define: {
+    WASM_BINARY: `'${wasmBuffer.toString('base64')}'`,
+  },
+};
 
-const minified = MINIFY && terser.minify(jsSourceProcessed, {
-  module: true,
-  output: {
-    preamble: `/* cjs-module-lexer ${pjson.version} */`
-  }
-});
+if (esmBuild) {
+  // ESM builds are used when importing from npm.
+  // Assume lib/lexer.wasm exists.
+  esbuild.buildSync({
+    ...buildOptions,
+    define: {
+      WASM_BINARY: 'undefined',
+    },
+  });
+}
 
-if (minified.error)
-  throw minified.error;
-
-fs.writeFileSync('./dist/lexer.mjs', minified ? minified.code : jsSourceProcessed);
+if (cjsBuild) {
+  // CJS builds are used for libnode inlined builtins.
+  esbuild.buildSync({
+    ...buildOptions,
+    outfile: './dist/lexer.js',
+    format: 'cjs',
+    logOverride: {
+      'empty-import-meta': 'silent'
+    },
+  });
+}

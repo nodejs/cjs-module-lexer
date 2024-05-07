@@ -90,14 +90,36 @@ function copyLE (src, outBuf16) {
     outBuf16[i] = src.charCodeAt(i++);
 }
 
+/*
+ * Load from file when WASM_BINARY isn't inlined.
+ * A LogicalExpression is used here instead of a ConditionalExpression,
+ * to ensure esbuild perform dead code elimination correctly.
+ */
+const loadWasm = (typeof WASM_BINARY === 'undefined' && (async () => {
+  // we can safely assume import.meta works here with the following workaround.
+  // https://github.com/nodejs/cjs-module-lexer/blob/bcc6ce4/build.js#L36-L53
+  return (await import('node:fs/promises'))
+    .readFile(
+      (await import('node:url')).fileURLToPath(
+        import.meta.resolve('../lib/lexer.wasm')
+      )
+  );
+})) || (async () => {
+  const binary = WASM_BINARY
+  if (typeof window !== 'undefined' && typeof atob === 'function') {
+    return Uint8Array.from(atob(binary), (x) => x.charCodeAt(0));
+  } else {
+    return Buffer.from(binary, 'base64');
+  }
+});
+
 let initPromise;
 export function init () {
   if (initPromise)
     return initPromise;
   return initPromise = (async () => {
     const compiled = await WebAssembly.compile(
-      (binary => typeof window !== 'undefined' && typeof atob === 'function' ? Uint8Array.from(atob(binary), x => x.charCodeAt(0)) : Buffer.from(binary, 'base64'))
-      ('WASM_BINARY')
+      await loadWasm()
     )
     const { exports } = await WebAssembly.instantiate(compiled);
     wasm = exports;
