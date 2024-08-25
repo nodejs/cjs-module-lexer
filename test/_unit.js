@@ -7,6 +7,10 @@ async function loadParser () {
     const m = await import('../dist/lexer.mjs');
     await m.init();
     parse = m.parse;
+  } else if (process.env.WASM_SYNC) {
+    const m = require('../dist/lexer.js');
+    m.initSync();
+    parse = m.parse;
   }
   else {
     parse = require('../lexer.js').parse;
