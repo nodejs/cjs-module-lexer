@@ -92,7 +92,7 @@ function copyLE (src, outBuf16) {
 
 function getWasmBytes() {
   const binary = 'WASM_BINARY';  // This string will be replaced by build.js.
-  if (typeof window !== 'undefined' && typeof atob === 'function')
+  if ((typeof window !== 'undefined' || typeof self !== 'undefined') && typeof atob === 'function')
     return Uint8Array.from(atob(binary), x => x.charCodeAt(0));
   return Buffer.from(binary, 'base64');
 }
