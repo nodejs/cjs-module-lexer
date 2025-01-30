@@ -466,7 +466,7 @@ as outlined above:
   - npm run build
   - npm run test
 - [ ] Commit and tag the changes, pushing up to main and the tag
-  - git tag -a 1.4.2 -m "1.4.2"
+  - For example -  `git tag -a 1.4.2 -m "1.4.2"`
 - [ ] Create the GitHub release
 - [ ] Run npm publish from an account with access (asking somebody with access
       the nodejs-foundation account is an option if you don't have access.
