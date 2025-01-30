@@ -456,6 +456,21 @@ If you need to build lib/lexer.wat (optional) you must first install
 [wabt](https://github.com/WebAssembly/wabt) as a sibling folder to this
 project. The wat file is then build by running `make lib/lexer.wat`
 
+### Creating a Release
+These are the steps to create and publish a release. You will need docker
+installed as well as having installed [wabt](https://github.com/WebAssembly/wabt)
+as outlined above:
+
+- [ ] Update the package.json version, and run a full build and test
+  - npm install
+  - npm run build
+  - npm run test
+- [ ] Commit and tag the changes, pushing up to main and the tag
+  - git tag -a 1.4.2 -m "1.4.2"
+- [ ] Create the GitHub release
+- [ ] Run npm publish from an account with access (asking somebody with access
+      the nodejs-foundation account is an option if you don't have access.
+      
 ### License
 
 MIT
