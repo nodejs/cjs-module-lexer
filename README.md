@@ -461,6 +461,8 @@ These are the steps to create and publish a release. You will need docker
 installed as well as having installed [wabt](https://github.com/WebAssembly/wabt)
 as outlined above:
 
+- [ ] Figure out if the release should be semver patch, minor or major based on the changes since
+  the last release and determine the new version.
 - [ ] Update the package.json version, and run a full build and test
   - npm install
   - npm run build
