@@ -20,6 +20,10 @@ async function loadParser () {
 suite('Lexer', () => {
   suiteSetup(async () => await loadParser());
 
+  test('export star failure', () => {
+    parse(`__exportStar((0));`);
+  });
+
   test('esm syntax error', () => {
     try {
       parse(`
