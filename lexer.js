@@ -288,7 +288,7 @@ function tryBacktrackAddStarExportBinding (bPos) {
 
 // `Object.` `prototype.`? hasOwnProperty.call(`  IDENTIFIER `, ` IDENTIFIER$2 `)`
 function tryParseObjectHasOwnProperty (it_id) {
-  ch = commentWhitespace();
+  let ch = commentWhitespace();
   if (ch !== 79/*O*/ || !source.startsWith('bject', pos + 1)) return false;
   pos += 6;
   ch = commentWhitespace();
