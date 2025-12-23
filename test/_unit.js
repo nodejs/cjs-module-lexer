@@ -536,6 +536,11 @@ suite('Lexer', () => {
       exports['not identifier'] = 'asdf';
       exports['\\u{D83C}\\u{DF10}'] = 1;
       exports['\\u{D83C}'] = 1;
+      exports['\\u58b8'] = 1;
+      exports['\\n'] = 1;
+      exports['\\xFF'] = 1;
+      exports['\\011'] = 1;
+      exports['\\3z'] = 1;
       exports['\\''] = 1;
       exports['@notidentifier'] = 'asdf';
       Object.defineProperty(exports, "%notidentifier", { value: x });
@@ -549,6 +554,11 @@ suite('Lexer', () => {
       'ab cd',
       'not identifier',
       '\u{D83C}\u{DF10}',
+      '\u58B8',
+      '\n',
+      '\xFF',
+      '\011',
+      '\3z',
       '\'',
       '@notidentifier',
       '%notidentifier',
