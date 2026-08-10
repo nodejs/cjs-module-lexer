@@ -35,7 +35,8 @@
   },
   "files": [
     "dist",
-    "lexer.d.ts"
+    "lexer.d.ts",
+    "lexer.d.mts"
   ],
   "repository": {
     "type": "git",
