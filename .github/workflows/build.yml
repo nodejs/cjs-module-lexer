@@ -6,63 +6,66 @@ on:
   pull_request:
     branches: main
 
-env:
-  WABT_VERSION: "1.0.24"
-  EMCC_VERSION: "1.40.1-fastcomp"
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        node: [18, latest]
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
-      - name: Prepare
-        id: preparation
-        run: |
-          export PWD=$(pwd);
-          echo "::set-output name=PROJ_ROOT::$PWD";
+      - name: Use Node.js ${{ matrix.node }}
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ matrix.node }}
 
       - name: Set up Docker
         uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
 
       - name: Install
-        run: npm install
+        run: npm ci
 
-      - name: Install wabt
-        env:
-          PROJ_ROOT: ${{ steps.preparation.outputs.PROJ_ROOT }}
+      - name: Compile to Wasm and test
         run: |
-          cd $PROJ_ROOT;
-          cd ../;
-          if [[ "$RUNNER_OS" == "Linux" ]]; then
-            export WABT_OS="ubuntu";
-          fi
-          if [[ "$RUNNER_OS" == "macOS" ]]; then
-            export WABT_OS="macos";
-          fi
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            export WABT_OS="windows";
-          fi
-          curl -sL https://github.com/WebAssembly/wabt/releases/download/${WABT_VERSION}/wabt-${WABT_VERSION}-${WABT_OS}.tar.gz -O
-          # check if package downloaded
-          ls -la
-          tar xvf wabt-${WABT_VERSION}-${WABT_OS}.tar.gz
-          # check if wabt binaries installed
-          ls -la ./wabt-${WABT_VERSION}/bin/
-      - name: Compile to Wasm & Test Wasm
-        env:
-          PROJ_ROOT: ${{ steps.preparation.outputs.PROJ_ROOT }}
+          rm lib/lexer.wasm
+          npm run build-wasm
+          git diff --exit-code -- lib/lexer.wasm
+          npm run build
+          npm test
+
+      - name: Legacy browser test (Firefox 67)
+        if: matrix.node == 18
         run: |
-          cd $PROJ_ROOT;
-          rm lib/lexer.wasm;
-          npm run build-wasm;
-          npm run build;
-          # test
-          npm run test;
+          sudo apt-get install -y libdbus-glib-1-2 libxt6 >/dev/null
+          curl --fail --location --silent --show-error \
+            https://archive.mozilla.org/pub/firefox/releases/67.0.4/linux-x86_64/en-US/firefox-67.0.4.tar.bz2 \
+            --output firefox-67.0.4.tar.bz2
+          echo "45182265a7fdc3059088502e9f1a9ec6be54a99138d5215f3a46b7e33384e1bdd8d21a5ef5fe5efb99ae3873f146fda9a26c028b114b46bf04c5c3e6812f4913  firefox-67.0.4.tar.bz2" | sha512sum --check
+          tar xjf firefox-67.0.4.tar.bz2
+          curl --fail --location --silent --show-error \
+            https://github.com/mozilla/geckodriver/releases/download/v0.26.0/geckodriver-v0.26.0-linux64.tar.gz \
+            --output geckodriver-v0.26.0-linux64.tar.gz
+          echo "d59ca434d8e41ec1e30dd7707b0c95171dd6d16056fb6db9c978449ad8b93cc0  geckodriver-v0.26.0-linux64.tar.gz" | sha256sum --check
+          tar xzf geckodriver-v0.26.0-linux64.tar.gz
+          FIREFOX_BIN=$PWD/firefox/firefox GECKODRIVER=$PWD/geckodriver node build/test-legacy-browser.mjs
+
       - name: Benchmark Wasm
-        env:
-          PROJ_ROOT: ${{ steps.preparation.outputs.PROJ_ROOT }}
-        run: |
-          cd $PROJ_ROOT;
-          npm run bench;
+        run: npm run bench
+
+      - name: Use Node.js 10
+        if: matrix.node == 18
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 10
+
+      - name: Test Node.js 10 compatibility
+        if: matrix.node == 18
+        run: npm run test-compatibility

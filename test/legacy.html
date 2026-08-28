@@ -1,0 +1,14 @@
+<!doctype html>
+<title>RUNNING</title>
+<script type="module">
+import { init, parse } from '../dist/lexer.mjs';
+
+init().then(function () {
+  var result = parse('exports.value = 1');
+  if (result.exports.length !== 1 || result.exports[0] !== 'value' || result.reexports.length !== 0)
+    throw new Error('Unexpected parse result');
+  document.title = 'PASS';
+}).catch(function (error) {
+  document.title = 'FAIL: ' + error.message;
+});
+</script>

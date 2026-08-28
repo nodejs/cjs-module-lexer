@@ -13,7 +13,7 @@ lib/:
 	@mkdir -p $@
 
 optimize: lib/lexer.wasm
-	$(WASM_OPT) -Oz --enable-bulk-memory --strip-debug lib/lexer.wasm -o lib/lexer.wasm
+	$(WASM_OPT) -Oz --mvp-features --strip-debug lib/lexer.wasm -o lib/lexer.wasm
 
 clean:
 	$(RM) lib/*
