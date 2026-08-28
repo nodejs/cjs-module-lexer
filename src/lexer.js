@@ -1,6 +1,7 @@
 let wasm;
 
 const isLE = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
+const hasBuffer = typeof Buffer !== 'undefined';
 
 export function parse (source, name = '@') {
   if (!wasm)
@@ -14,7 +15,11 @@ export function parse (source, name = '@') {
     wasm.memory.grow(Math.ceil(extraMem / 65536));
     
   const addr = wasm.sa(len);
-  (isLE ? copyLE : copyBE)(source, new Uint16Array(wasm.memory.buffer, addr, len));
+  // Buffer setup is slower than the loop for short sources on supported Node.js releases.
+  if (source.length >= 128 && hasBuffer)
+    Buffer.from(wasm.memory.buffer, addr, (len - 1) * 2).write(source, 'utf16le');
+  else
+    (isLE ? copyLE : copyBE)(source, new Uint16Array(wasm.memory.buffer, addr, len));
 
   const err_code = wasm.parseCJS(addr, source.length, 0, 0, 0);
 

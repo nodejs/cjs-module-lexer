@@ -758,6 +758,23 @@ suite('Lexer', () => {
     });
   });
 
+  test('browser UTF-16 source copy', async () => {
+    const originalBuffer = global.Buffer;
+    global.Buffer = undefined;
+    let browserLexer;
+    try {
+      browserLexer = await import('../dist/lexer.mjs?browser-utf16-copy');
+    }
+    finally {
+      global.Buffer = originalBuffer;
+    }
+    browserLexer.initSync();
+    const source = `const value = '${'𓀀'.repeat(40000)}'; exports.value = value`;
+    const { exports, reexports } = browserLexer.parse(source);
+    assert.deepStrictEqual(exports, ['value']);
+    assert.deepStrictEqual(reexports, []);
+  });
+
   test('Simple import', () => {
     const source = `
       import test from "test";
