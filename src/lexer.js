@@ -4,7 +4,7 @@ const isLE = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
 
 export function parse (source, name = '@') {
   if (!wasm)
-    throw new Error('Not initialized');
+    initSync();
 
   const len = source.length + 1;
 
