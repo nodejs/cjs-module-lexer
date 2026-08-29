@@ -111,12 +111,14 @@ function parseSource (cjsSource) {
         case 105/*i*/:
           if (source.startsWith('mport', pos + 1) && keywordStart(pos))
             throwIfImportStatement();
+          skipTokenRun();
           lastTokenPos = pos;
           continue;
         case 114/*r*/:
           const startPos = pos;
           if (tryParseRequire(Import) && keywordStart(startPos))
             tryBacktrackAddStarExportBinding(startPos - 1);
+          skipTokenRun();
           lastTokenPos = pos;
           continue;
         case 95/*_*/:
@@ -143,6 +145,7 @@ function parseSource (cjsSource) {
               }
             }
           }
+          skipTokenRun();
           lastTokenPos = pos;
           continue;
       }
@@ -156,18 +159,22 @@ function parseSource (cjsSource) {
           else if (openTokenDepth === 0)
             throwIfExportStatement();
         }
+        skipTokenRun();
         break;
       case 99/*c*/:
         if (keywordStart(pos) && source.startsWith('lass', pos + 1) && isBrOrWs(source.charCodeAt(pos + 5)))
           nextBraceIsClass = true;
+        skipTokenRun();
         break;
       case 109/*m*/:
         if (source.startsWith('odule', pos + 1) && keywordStart(pos))
           tryParseModuleExportsDotAssign();
+        skipTokenRun();
         break;
       case 79/*O*/:
         if (source.startsWith('bject', pos + 1) && keywordStart(pos))
           tryParseObjectDefineOrKeys(openTokenDepth === 0);
+        skipTokenRun();
         break;
       case 40/*(*/:
         openTokenPosStack[openTokenDepth++] = lastTokenPos;
@@ -239,6 +246,9 @@ function parseSource (cjsSource) {
       case 96/*`*/:
         templateString();
         break;
+      default:
+        if (isTokenRunChar(ch))
+          skipTokenRun();
     }
     lastTokenPos = pos;
   }
@@ -1469,6 +1479,20 @@ function isBrOrWs (c) {
 
 function isBrOrWsOrPunctuatorNotDot (c) {
   return c > 8 && c < 14 || c === 32 || c === 160 || isPunctuator(c) && c !== 46/*.*/;
+}
+
+/** @param {number} ch */
+function isTokenRunChar (ch) {
+  const lower = ch | 32;
+  return lower >= 97/*a*/ && lower <= 122/*z*/ || ch >= 48/*0*/ && ch <= 57/*9*/ ||
+    ch === 36/*$*/ || ch === 95/*_*/ || ch === 92/*\\*/ || ch > 127 && ch !== 160;
+}
+
+function skipTokenRun () {
+  if (!isTokenRunChar(source.charCodeAt(pos)))
+    return;
+  while (isTokenRunChar(source.charCodeAt(pos + 1)))
+    pos++;
 }
 
 function keywordStart (pos) {

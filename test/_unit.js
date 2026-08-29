@@ -478,6 +478,38 @@ suite('Lexer', () => {
     `);
   });
 
+  test('Identifier and number runs preserve token boundaries', () => {
+    const result = parse(`
+      const importName = 1;
+      const requireName = importName;
+      const _helperName = requireName;
+      const someexports = {};
+      const somemodule = {};
+      const someObject = {};
+      const \\u0065scapedIdentifier = 1234567890.5 / 2;
+      const café = escapedIdentifier;
+      const templateResult = \`value \${someexports.value}\`;
+      class LongClassName {
+        #privateField = café;
+        method () { return /exports/.test('exports'); }
+      }
+      \u00a0exports.value = templateResult;
+    `);
+    assert.deepStrictEqual(result.exports, ['value']);
+    assert.deepStrictEqual(result.reexports, []);
+  });
+
+  test('Token runs stop at parsed construct boundaries', () => {
+    const result = parse(`
+      exports.a=exports.b=1;
+      exports.c=Object.defineProperty(exports,'d',{value:1});
+    `);
+    assert.deepStrictEqual(result.exports, ['a', 'b', 'c', 'd']);
+    assert.deepStrictEqual(result.reexports, []);
+    assert.throws(() => parse('exports.a=import.meta'), { code: 'ERR_LEXER_ESM_SYNTAX' });
+    assert.throws(() => parse('exports.a=export { value }'), { code: 'ERR_LEXER_ESM_SYNTAX' });
+  });
+
   test('Regexp division', () => {
     parse(`\nconst x = num / /'/.exec(l)[0].slice(1, -1)//'"`);
   });
