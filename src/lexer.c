@@ -49,6 +49,25 @@ static inline __attribute__((always_inline)) bool isTokenRunChar (uint16_t ch) {
     ch == '$' || ch == '_' || ch == '\\' || (ch > 127 && ch != 160);
 }
 
+static inline __attribute__((always_inline)) bool pushOpenToken (uint16_t* tokenPos) {
+  if (openTokenDepth == STACK_DEPTH) {
+    syntaxError(12);
+    return false;
+  }
+  openTokenPosStack[openTokenDepth++] = tokenPos;
+  return true;
+}
+
+static inline __attribute__((always_inline)) bool pushTemplate () {
+  if (templateStackDepth == STACK_DEPTH || openTokenDepth == STACK_DEPTH) {
+    syntaxError(12);
+    return false;
+  }
+  templateStack[templateStackDepth++] = templateDepth;
+  templateDepth = ++openTokenDepth;
+  return true;
+}
+
 // Note: parsing is based on the _assumption_ that the source is already valid
 uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const uint16_t*, const uint16_t*), void (*_addReexport)(const uint16_t*, const uint16_t*), void (*_addUnsafeGetter)(const uint16_t*, const uint16_t*), void (*_clearReexports)()) {
   source = _source;
@@ -112,7 +131,8 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
             pos += 23;
             if (*pos == '(') {
               pos++;
-              openTokenPosStack[openTokenDepth++] = lastTokenPos;
+              if (!pushOpenToken(lastTokenPos))
+                return error;
               if (tryParseRequire(Import) && keywordStart(startPos))
                 tryBacktrackAddStarExportBinding(startPos - 1);
             }
@@ -122,7 +142,8 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
             if (str_eq4(pos, 'S', 't', 'a', 'r'))
               pos += 4;
             if (*pos == '(') {
-              openTokenPosStack[openTokenDepth++] = lastTokenPos;
+              if (!pushOpenToken(lastTokenPos))
+                return error;
               if (*(pos + 1) == 'r') {
                 pos++;
                 tryParseRequire(ExportStar);
@@ -155,7 +176,8 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
           tryParseObjectDefineOrKeys(openTokenDepth == 0);
         goto skipTokenRun;
       case '(':
-        openTokenPosStack[openTokenDepth++] = lastTokenPos;
+        if (!pushOpenToken(lastTokenPos))
+          return error;
         break;
       case ')':
         if (openTokenDepth == 0)
@@ -163,9 +185,10 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
         openTokenDepth--;
         break;
       case '{':
-        openClassPosStack[openTokenDepth] = nextBraceIsClass;
+        if (!pushOpenToken(lastTokenPos))
+          return error;
+        openClassPosStack[openTokenDepth - 1] = nextBraceIsClass;
         nextBraceIsClass = false;
-        openTokenPosStack[openTokenDepth++] = lastTokenPos;
         break;
       case '}':
         if (openTokenDepth == 0)
@@ -1160,7 +1183,8 @@ void throwIfImportStatement () {
   switch (ch) {
     // dynamic import
     case '(':
-      openTokenPosStack[openTokenDepth++] = startPos;
+      if (!pushOpenToken(startPos))
+        return;
       return;
     // import.meta
     case '.':
@@ -1219,8 +1243,8 @@ void templateString () {
     uint16_t ch = *pos;
     if (ch == '$' && *(pos + 1) == '{') {
       pos++;
-      templateStack[templateStackDepth++] = templateDepth;
-      templateDepth = ++openTokenDepth;
+      if (!pushTemplate())
+        return;
       return;
     }
     if (ch == '`')

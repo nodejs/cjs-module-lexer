@@ -1,4 +1,5 @@
 let source, pos, end;
+const STACK_DEPTH = 2048;
 let openTokenDepth,
   templateDepth,
   lastTokenPos,
@@ -36,6 +37,20 @@ function resetState () {
 const Import = 0;
 const ExportAssign = 1;
 const ExportStar = 2;
+
+/** @param {number} tokenPos */
+function pushOpenToken (tokenPos) {
+  if (openTokenDepth === STACK_DEPTH)
+    throw new Error('Maximum nesting depth exceeded.');
+  openTokenPosStack[openTokenDepth++] = tokenPos;
+}
+
+function pushTemplate () {
+  if (templateStackDepth === STACK_DEPTH || openTokenDepth === STACK_DEPTH)
+    throw new Error('Maximum nesting depth exceeded.');
+  templateStack[templateStackDepth++] = templateDepth;
+  templateDepth = ++openTokenDepth;
+}
 
 function parseCJS (source, name = '@') {
   resetState();
@@ -127,7 +142,7 @@ function parseSource (cjsSource) {
             pos += 23;
             if (source.charCodeAt(pos) === 40/*(*/) {
               pos++;
-              openTokenPosStack[openTokenDepth++] = lastTokenPos;
+              pushOpenToken(lastTokenPos);
               if (tryParseRequire(Import) && keywordStart(startPos)) {
                 tryBacktrackAddStarExportBinding(startPos - 1);
               }
@@ -138,7 +153,7 @@ function parseSource (cjsSource) {
             if (source.startsWith('Star', pos))
               pos += 4;
             if (source.charCodeAt(pos) === 40/*(*/) {
-              openTokenPosStack[openTokenDepth++] = lastTokenPos;
+              pushOpenToken(lastTokenPos);
               if (source.charCodeAt(pos + 1) === 114/*r*/) {
                 pos++;
                 tryParseRequire(ExportStar);
@@ -178,7 +193,7 @@ function parseSource (cjsSource) {
         skipTokenRun();
         break;
       case 40/*(*/:
-        openTokenPosStack[openTokenDepth++] = lastTokenPos;
+        pushOpenToken(lastTokenPos);
         break;
       case 41/*)*/:
         if (openTokenDepth === 0)
@@ -186,9 +201,9 @@ function parseSource (cjsSource) {
         openTokenDepth--;
         break;
       case 123/*{*/:
-        openClassPosStack[openTokenDepth] = nextBraceIsClass;
+        pushOpenToken(lastTokenPos);
+        openClassPosStack[openTokenDepth - 1] = nextBraceIsClass;
         nextBraceIsClass = false;
-        openTokenPosStack[openTokenDepth++] = lastTokenPos;
         break;
       case 125/*}*/:
         if (openTokenDepth === 0)
@@ -1335,7 +1350,7 @@ function throwIfImportStatement () {
   switch (ch) {
     // dynamic import
     case 40/*(*/:
-      openTokenPosStack[openTokenDepth++] = startPos;
+      pushOpenToken(startPos);
       return;
     // import.meta
     case 46/*.*/:
@@ -1393,8 +1408,7 @@ function templateString () {
     const ch = source.charCodeAt(pos);
     if (ch === 36/*$*/ && source.charCodeAt(pos + 1) === 123/*{*/) {
       pos++;
-      templateStack[templateStackDepth++] = templateDepth;
-      templateDepth = ++openTokenDepth;
+      pushTemplate();
       return;
     }
     if (ch === 96/*`*/)
