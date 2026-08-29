@@ -520,6 +520,23 @@ suite('Lexer', () => {
     assert.throws(() => parse('exports.a=export { value }'), { code: 'ERR_LEXER_ESM_SYNTAX' });
   });
 
+  test('Class keyword detection', () => {
+    for (const whitespace of ['\t', '\n', '\v', '\f', '\r', ' ', '\u00a0']) {
+      const result = parse(`class${whitespace}Example {}/regex/.test('regex'); exports.value = 1`);
+      assert.deepStrictEqual(result.exports, ['value']);
+      assert.deepStrictEqual(result.reexports, []);
+    }
+    for (const source of [
+      'const className = {} / 2; exports.value = className',
+      'const close = {} / 2; exports.value = close',
+      'const value = {}; value.class = {} / 2; exports.value = value'
+    ]) {
+      const result = parse(source);
+      assert.deepStrictEqual(result.exports, ['value']);
+      assert.deepStrictEqual(result.reexports, []);
+    }
+  });
+
   test('Regexp division', () => {
     parse(`\nconst x = num / /'/.exec(l)[0].slice(1, -1)//'"`);
   });

@@ -162,7 +162,8 @@ function parseSource (cjsSource) {
         skipTokenRun();
         break;
       case 99/*c*/:
-        if (keywordStart(pos) && source.startsWith('lass', pos + 1) && isBrOrWs(source.charCodeAt(pos + 5)))
+        if (source.charCodeAt(pos + 1) === 108/*l*/ && keywordStart(pos) &&
+            source.startsWith('ass', pos + 2) && isBrOrWs(source.charCodeAt(pos + 5)))
           nextBraceIsClass = true;
         skipTokenRun();
         break;
