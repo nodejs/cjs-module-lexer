@@ -67,6 +67,17 @@ const { exports, reexports } = parse(source);
 
 The Wasm build is around 1.5x faster and without a cold start.
 
+Node.js deployments can load Wasm from a separate file through the `cjs-module-lexer/external` entry:
+
+```js
+import { init, parse } from 'cjs-module-lexer/external';
+await init();
+const { exports, reexports } = parse(source);
+```
+
+This entry loads `lib/lexer.wasm` during initialization. It also supports `require('cjs-module-lexer/external')`
+with `initSync()`. The default entry remains self-contained.
+
 ### Grammar
 
 CommonJS exports matches are run against the source token stream.
