@@ -14,9 +14,9 @@ _Comprehensively handles the JS language grammar while remaining small and fast.
 
 This project is used in Node.js core for detecting the named exports available when importing a CJS module into ESM, and is maintained for this purpose.
 
-PRs will be accepted and upstreamed for parser bugs, performance improvements or new syntax support only.
+PRs are accepted for parser bugs, performance improvements, and detection changes that improve Node.js interoperability.
 
-_Detection patterns for this project are **frozen**_. This is because adding any new export detection patterns would result in fragmented backwards-compatibility. Specifically, it would be very difficult to figure out why an ES module named export for CommonJS might work in newer Node.js versions but not older versions. This problem would only be discovered downstream of module authors, with the fix for module authors being to then have to understand which patterns in this project provide full backwards-compatibily. Rather, by fully freezing the detected patterns, if it works in any Node.js version it will work in any other. Build tools can also reliably treat the supported syntax for this project as a part of their output target for ensuring syntax support.
+Detection patterns can change in major releases. Such changes can alter which named exports Node.js exposes for a CommonJS module.
 
 ### Usage
 
