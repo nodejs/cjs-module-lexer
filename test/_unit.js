@@ -581,6 +581,53 @@ suite('Lexer', () => {
     assert.equal(exports[3], 'e');
   });
 
+  test('Literal export values', () => {
+    const { exports, reexports } = parse(`
+      module.exports = {
+        shorthand,
+        identifier: binding,
+        dotMember: namespace.value,
+        dotChain: namespace.deep.value,
+        bracketMember: namespace['value'],
+        bracketChain: namespace['deep'].value["final"],
+        comments: namespace /* before member */ . /* after member */ value,
+        required: require /* before call */ ('dependency') /* after call */,
+        ...require('star'),
+        afterSpread: namespace.value,
+        last: namespace.value
+      };
+    `);
+
+    assert.deepStrictEqual(exports, [
+      'shorthand',
+      'identifier',
+      'dotMember',
+      'dotChain',
+      'bracketMember',
+      'bracketChain',
+      'comments',
+      'required',
+      'afterSpread',
+      'last'
+    ]);
+    assert.deepStrictEqual(reexports, ['star']);
+  });
+
+  test('Literal export value bailouts', () => {
+    assert.deepStrictEqual(parse('module.exports = { call: binding(), later }').exports, ['call']);
+    assert.deepStrictEqual(parse('module.exports = { computed: namespace[key], later }').exports, ['computed']);
+    assert.deepStrictEqual(parse('module.exports = { dynamic: require(name), later }').exports, ['dynamic']);
+    assert.deepStrictEqual(parse("module.exports = { extra: require('value', other), later }").exports, ['extra']);
+    assert.deepStrictEqual(parse('module.exports = { optional: namespace?.value, later }').exports, ['optional']);
+    assert.deepStrictEqual(parse('module.exports = { missing: namespace., later }').exports, ['missing']);
+    assert.deepStrictEqual(parse("module.exports = { missing: namespace['value', later }").exports, ['missing']);
+    assert.deepStrictEqual(parse('module.exports = { method () {}, later }').exports, []);
+    assert.deepStrictEqual(parse('module.exports = { get value () {}, later }').exports, []);
+    assert.deepStrictEqual(parse('module.exports = { set value (next) {}, later }').exports, []);
+    assert.deepStrictEqual(parse("module.exports = { text: 'value', later }").exports, []);
+    assert.deepStrictEqual(parse("module.exports = { 'text': 'value', later }").exports, []);
+  });
+
   test('Literal exports unsupported', () => {
     const { exports } = parse(`
       module.exports = { a = 5, b };
@@ -599,9 +646,6 @@ suite('Lexer', () => {
         // This WILL be detected as an export
         e: require('d'),
       
-        // These WONT be detected as exports
-        // because the object parser stops on the non-identifier
-        // expression "require('d')"
         f: 'f'
       }
     `);
@@ -681,9 +725,11 @@ suite('Lexer', () => {
         }
       };
     `);
-    assert.equal(exports.length, 2);
+    assert.equal(exports.length, 4);
     assert.equal(exports[0], 'Parser');
     assert.equal(exports[1], 'Tokenizer');
+    assert.equal(exports[2], 'ElementType');
+    assert.equal(exports[3], 'DomHandler');
   });
 
   test('defineProperty value', () => {

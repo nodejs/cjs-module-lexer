@@ -961,6 +961,62 @@ bool tryParseRequire (enum RequireType requireType) {
   return false;
 }
 
+bool tryParseLiteralExportValue (uint16_t ch) {
+  uint16_t* identifierStart = pos;
+  if (!identifier(ch)) return false;
+  uint16_t* identifierEnd = pos;
+  ch = commentWhitespace();
+
+  if (identifierEnd == identifierStart + 7 &&
+      str_eq7(identifierStart, 'r', 'e', 'q', 'u', 'i', 'r', 'e') && ch == '(') {
+    uint16_t* callStart = pos;
+    pos++;
+    ch = commentWhitespace();
+    if (ch == '\'' || ch == '"') {
+      stringLiteral(ch);
+      pos++;
+      ch = commentWhitespace();
+      if (ch == ')') {
+        pos++;
+        commentWhitespace();
+        return true;
+      }
+    }
+    pos = callStart;
+    return true;
+  }
+
+  while (ch == '.' || ch == '[') {
+    uint16_t* memberStart = pos;
+    if (ch == '.') {
+      pos++;
+      ch = commentWhitespace();
+      if (!identifier(ch)) {
+        pos = memberStart;
+        return true;
+      }
+    }
+    else {
+      pos++;
+      ch = commentWhitespace();
+      if (ch != '\'' && ch != '"') {
+        pos = memberStart;
+        return true;
+      }
+      stringLiteral(ch);
+      pos++;
+      ch = commentWhitespace();
+      if (ch != ']') {
+        pos = memberStart;
+        return true;
+      }
+      pos++;
+    }
+    ch = commentWhitespace();
+  }
+  return true;
+}
+
 void tryParseLiteralExports () {
   uint16_t* revertPos = pos - 1;
   while (pos++ < end) {
@@ -972,14 +1028,20 @@ void tryParseLiteralExports () {
       if (ch == ':') {
         pos++;
         ch = commentWhitespace();
-        // nothing more complex than identifier expressions for now
-        if (!identifier(ch)) {
+        if (!tryParseLiteralExportValue(ch)) {
           pos = revertPos;
           return;
         }
         ch = *pos;
+        addExport(startPos, endPos);
       }
-      addExport(startPos, endPos);
+      else if (ch == ',' || ch == '}' || ch == '=') {
+        addExport(startPos, endPos);
+      }
+      else {
+        pos = revertPos;
+        return;
+      }
     }
     else if (ch == '\'' || ch == '"') {
       uint16_t* startPos = pos;
@@ -989,8 +1051,7 @@ void tryParseLiteralExports () {
       if (ch == ':') {
         pos++;
         ch = commentWhitespace();
-        // nothing more complex than identifier expressions for now
-        if (!identifier(ch)) {
+        if (!tryParseLiteralExportValue(ch)) {
           pos = revertPos;
           return;
         }

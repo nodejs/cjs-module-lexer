@@ -964,6 +964,64 @@ function tryParseRequire (requireType) {
   return false;
 }
 
+/**
+ * @param {number} ch
+ */
+function tryParseLiteralExportValue (ch) {
+  const identifierStart = pos;
+  if (!identifier()) return false;
+  const identifierEnd = pos;
+  ch = commentWhitespace();
+
+  if (identifierEnd === identifierStart + 7 && source.startsWith('require', identifierStart) && ch === 40/*(*/) {
+    const callStart = pos;
+    pos++;
+    ch = commentWhitespace();
+    if (ch === 39/*'*/ || ch === 34/*"*/) {
+      stringLiteral(ch);
+      pos++;
+      ch = commentWhitespace();
+      if (ch === 41/*)*/) {
+        pos++;
+        commentWhitespace();
+        return true;
+      }
+    }
+    pos = callStart;
+    return true;
+  }
+
+  while (ch === 46/*.*/ || ch === 91/*[*/) {
+    const memberStart = pos;
+    if (ch === 46/*.*/) {
+      pos++;
+      ch = commentWhitespace();
+      if (!identifier()) {
+        pos = memberStart;
+        return true;
+      }
+    }
+    else {
+      pos++;
+      ch = commentWhitespace();
+      if (ch !== 39/*'*/ && ch !== 34/*"*/) {
+        pos = memberStart;
+        return true;
+      }
+      stringLiteral(ch);
+      pos++;
+      ch = commentWhitespace();
+      if (ch !== 93/*]*/) {
+        pos = memberStart;
+        return true;
+      }
+      pos++;
+    }
+    ch = commentWhitespace();
+  }
+  return true;
+}
+
 function tryParseLiteralExports () {
   const revertPos = pos - 1;
   while (pos++ < end) {
@@ -975,14 +1033,20 @@ function tryParseLiteralExports () {
       if (ch === 58/*:*/) {
         pos++;
         ch = commentWhitespace();
-        // nothing more complex than identifier expressions for now
-        if (!identifier()) {
+        if (!tryParseLiteralExportValue(ch)) {
           pos = revertPos;
           return;
         }
         ch = source.charCodeAt(pos);
+        _exports.add(decode(source.slice(startPos, endPos)));
       }
-      _exports.add(decode(source.slice(startPos, endPos)));
+      else if (ch === 44/*,*/ || ch === 125/*}*/ || ch === 61/*=*/) {
+        _exports.add(decode(source.slice(startPos, endPos)));
+      }
+      else {
+        pos = revertPos;
+        return;
+      }
     }
     else if (ch === 46/*.*/ && source.startsWith('..', pos + 1)) {
       pos += 3;
@@ -1003,8 +1067,7 @@ function tryParseLiteralExports () {
       if (ch === 58/*:*/) {
         pos++;
         ch = commentWhitespace();
-        // nothing more complex than identifier expressions for now
-        if (!identifier()) {
+        if (!tryParseLiteralExportValue(ch)) {
           pos = revertPos;
           return;
         }

@@ -87,7 +87,9 @@ EXPORTS_DOT_ASSIGN: EXPORTS_IDENTIFIER `.` IDENTIFIER `=`
 
 EXPORTS_LITERAL_COMPUTED_ASSIGN: EXPORTS_IDENTIFIER `[` STRING_LITERAL `]` `=`
 
-EXPORTS_LITERAL_PROP: (IDENTIFIER  (`:` IDENTIFIER)?) | (STRING_LITERAL `:` IDENTIFIER)
+EXPORTS_LITERAL_VALUE: IDENTIFIER ((`.` IDENTIFIER) | (`[` STRING_LITERAL `]`))* | REQUIRE
+
+EXPORTS_LITERAL_PROP: IDENTIFIER (`:` EXPORTS_LITERAL_VALUE)? | STRING_LITERAL `:` EXPORTS_LITERAL_VALUE
 
 EXPORTS_SPREAD: `...` (IDENTIFIER | REQUIRE)
 
@@ -275,24 +277,31 @@ object parsing process.
 Simple object definitions are supported:
 
 ```js
-// DETECTS EXPORTS: a, b, c
+// DETECTS EXPORTS: a, b, c, d, e
 module.exports = {
   a,
   'b': b,
-  c: c,
-  ...d
+  c: namespace.value,
+  d: namespace['deep'].value,
+  e: require('e'),
+  ...spread
 };
 ```
 
-Object properties that are not identifiers or string expressions will bail out of the object detection, while spreads are ignored:
+Identifier values, member chains with static properties, and direct `require()` values are detected. Other values stop
+the object detection. The property at the stopping point can still be detected from its leading identifier, but later
+properties are not. Spreads are ignored for named exports:
 
 ```js
-// DETECTS EXPORTS: a, b
+// DETECTS EXPORTS: a, b, c, d, e
 module.exports = {
   a,
-  ...d,
-  b: require('c'),
-  c: "not detected since require('c') above bails the object detection"
+  ...spread,
+  b: namespace.value,
+  c: namespace['deep'].value,
+  d: require('d'),
+  e: createValue(),
+  f: "not detected because the call above stops object detection"
 }
 ```
 
