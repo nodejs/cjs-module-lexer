@@ -5,9 +5,7 @@ const {
   mkdirSync,
   mkdtempSync,
   realpathSync,
-  readdirSync,
-  rmdirSync,
-  unlinkSync,
+  rmSync,
   writeFileSync
 } = require('fs');
 const { tmpdir } = require('os');
@@ -34,18 +32,6 @@ function createExternalFixture (entryName, wasm) {
 /**
  * @param {string} directory
  */
-function removeDirectory (directory) {
-  for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) {
-      removeDirectory(path);
-    } else {
-      unlinkSync(path);
-    }
-  }
-  rmdirSync(directory);
-}
-
 async function testExternalInitializers () {
   let fixture = createExternalFixture('lexer-external.js');
   try {
@@ -55,7 +41,7 @@ async function testExternalInitializers () {
       path: fixture.wasmPath
     });
   } finally {
-    removeDirectory(fixture.root);
+    rmSync(fixture.root, { recursive: true, force: true });
   }
 
   fixture = createExternalFixture('lexer-external.mjs');
@@ -66,7 +52,7 @@ async function testExternalInitializers () {
       path: fixture.wasmPath
     });
   } finally {
-    removeDirectory(fixture.root);
+    rmSync(fixture.root, { recursive: true, force: true });
   }
 
   fixture = createExternalFixture('lexer-external.js', Buffer.from('invalid Wasm'));
@@ -74,7 +60,7 @@ async function testExternalInitializers () {
     const lexer = require(fixture.entry);
     assert.throws(() => lexer.initSync(), WebAssembly.CompileError);
   } finally {
-    removeDirectory(fixture.root);
+    rmSync(fixture.root, { recursive: true, force: true });
   }
 
   fixture = createExternalFixture('lexer-external.mjs', Buffer.from('invalid Wasm'));
@@ -82,7 +68,7 @@ async function testExternalInitializers () {
     const lexer = await import(pathToFileURL(fixture.entry).href);
     await assert.rejects(lexer.init(), WebAssembly.CompileError);
   } finally {
-    removeDirectory(fixture.root);
+    rmSync(fixture.root, { recursive: true, force: true });
   }
 }
 
