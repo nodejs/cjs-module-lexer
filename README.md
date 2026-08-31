@@ -363,7 +363,7 @@ Where the `__export(require("external"))` statement is explicitly detected as a 
 
 ### Environment Support
 
-Node.js 10+, and [all browsers with Web Assembly support](https://caniuse.com/#feat=wasm).
+Node.js 18+, and [all browsers with Web Assembly support](https://caniuse.com/#feat=wasm).
 
 ### JS Grammar Support
 

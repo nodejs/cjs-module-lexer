@@ -2,6 +2,9 @@
   "name": "cjs-module-lexer",
   "version": "2.2.1",
   "description": "Lexes CommonJS modules, returning their named exports metadata",
+  "engines": {
+    "node": ">=18"
+  },
   "main": "lexer.js",
   "exports": {
     "import": {
