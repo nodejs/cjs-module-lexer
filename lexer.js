@@ -413,12 +413,16 @@ function tryParseObjectDefineOrKeys (keys) {
           if (!source.startsWith('eturn', pos + 1)) break;
           pos += 6;
           ch = commentWhitespace();
+          let identifierStart = pos;
           if (!identifier()) break;
+          let identifierEnd = pos;
           ch = commentWhitespace();
           if (ch === 46/*.*/) {
             pos++;
             commentWhitespace();
+            identifierStart = pos;
             if (!identifier()) break;
+            identifierEnd = pos;
             ch = commentWhitespace();
           }
           else if (ch === 91/*[*/) {
@@ -430,6 +434,23 @@ function tryParseObjectDefineOrKeys (keys) {
             ch = commentWhitespace();
             if (ch !== 93/*]*/) break;
             pos++;
+            ch = commentWhitespace();
+          }
+          const isImportDefault = identifierEnd === identifierStart + 15 &&
+            source.startsWith('__importDefault', identifierStart);
+          if (isImportDefault && ch === 40/*(*/) {
+            pos++;
+            ch = commentWhitespace();
+            if (!identifier()) break;
+            ch = commentWhitespace();
+            if (ch !== 41/*)*/) break;
+            pos++;
+            ch = commentWhitespace();
+            if (ch !== 46/*.*/) break;
+            pos++;
+            ch = commentWhitespace();
+            if (ch !== 100/*d*/ || !source.startsWith('efault', pos + 1)) break;
+            pos += 7;
             ch = commentWhitespace();
           }
           if (ch === 59/*;*/) {

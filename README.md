@@ -95,11 +95,14 @@ EXPORTS_MEMBER: EXPORTS_DOT_ASSIGN | EXPORTS_LITERAL_COMPUTED_ASSIGN
 
 EXPORTS_DEFINE: `Object` `.` `defineProperty `(` EXPORTS_IDENFITIER `,` STRING_LITERAL
 
+IMPORT_DEFAULT: (IDENTIFIER `.`)? `__importDefault` `(` IDENTIFIER `)` `.` `default`
+
 EXPORTS_DEFINE_VALUE: EXPORTS_DEFINE `, {`
   (`enumerable: true,`)?
   (
     `value:` |
-    `get` (`: function` IDENTIFIER? )?  `() {` return IDENTIFIER (`.` IDENTIFIER | `[` STRING_LITERAL `]`)? `;`? `}` `,`?
+    `get` (`: function` IDENTIFIER? )?  `() {` return
+      (IDENTIFIER (`.` IDENTIFIER | `[` STRING_LITERAL `]`)? | IMPORT_DEFAULT) `;`? `}` `,`?
   )
   `})`
 
@@ -202,6 +205,22 @@ Object.defineProperty(exports, 'c', {
 });
 Object.defineProperty(exports, 'd', { value: 'd' });
 Object.defineProperty(exports, '__esModule', { value: true });
+```
+
+The exact TypeScript default-import helper form is also detected. The helper can be local or a member of a `tslib`
+binding:
+
+```js
+Object.defineProperty(exports, 'a', {
+  get: function () {
+    return __importDefault(a).default;
+  }
+});
+Object.defineProperty(exports, 'b', {
+  get () {
+    return tslib.__importDefault(b).default;
+  }
+});
 ```
 
 Value properties are also detected specifically:

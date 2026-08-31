@@ -128,6 +128,81 @@ suite('Lexer', () => {
     assert.equal(reexports[3], 'external4');
   });
 
+  test('TypeScript default import getters', () => {
+    const { exports } = parse(`
+      exports.localDefault = void 0;
+      exports.qualifiedDefault = void 0;
+      exports.commentedDefault = void 0;
+      exports.otherHelper = void 0;
+      exports.prefixedHelper = void 0;
+      exports.noArgument = void 0;
+      exports.multipleArguments = void 0;
+      exports.memberArgument = void 0;
+      exports.callArgument = void 0;
+      exports.spreadArgument = void 0;
+      exports.computedHelper = void 0;
+      exports.computedDefault = void 0;
+      exports.otherProperty = void 0;
+      exports.continuedMember = void 0;
+      exports.arbitraryCall = void 0;
+
+      Object.defineProperty(exports, 'localDefault', {
+        enumerable: true,
+        get: function () {
+          return __importDefault(dependency).default;
+        }
+      });
+      Object.defineProperty(exports, 'qualifiedDefault', {
+        get () {
+          return tslib.__importDefault /* helper call */ (dependency).default;
+        }
+      });
+      Object.defineProperty(exports, 'commentedDefault', {
+        get: function named () {
+          return __importDefault /* helper call */ (dependency).default;
+        }
+      });
+      Object.defineProperty(exports, 'otherHelper', {
+        get () { return __importStar(dependency).default; }
+      });
+      Object.defineProperty(exports, 'prefixedHelper', {
+        get () { return __importDefaulted(dependency).default; }
+      });
+      Object.defineProperty(exports, 'noArgument', {
+        get () { return __importDefault().default; }
+      });
+      Object.defineProperty(exports, 'multipleArguments', {
+        get () { return __importDefault(dependency, other).default; }
+      });
+      Object.defineProperty(exports, 'memberArgument', {
+        get () { return __importDefault(dependency.value).default; }
+      });
+      Object.defineProperty(exports, 'callArgument', {
+        get () { return __importDefault(dependency()).default; }
+      });
+      Object.defineProperty(exports, 'spreadArgument', {
+        get () { return __importDefault(...dependency).default; }
+      });
+      Object.defineProperty(exports, 'computedHelper', {
+        get () { return tslib['__importDefault'](dependency).default; }
+      });
+      Object.defineProperty(exports, 'computedDefault', {
+        get () { return __importDefault(dependency)['default']; }
+      });
+      Object.defineProperty(exports, 'otherProperty', {
+        get () { return __importDefault(dependency).value; }
+      });
+      Object.defineProperty(exports, 'continuedMember', {
+        get () { return __importDefault(dependency).default.value; }
+      });
+      Object.defineProperty(exports, 'arbitraryCall', {
+        get () { return dynamic(dependency).default; }
+      });
+    `);
+
+    assert.deepStrictEqual(exports, ['localDefault', 'qualifiedDefault', 'commentedDefault']);
+  });
+
   test('Rollup Babel reexport getter', () => {
     var { exports } = parse(`
       Object.defineProperty(exports, 'a', {

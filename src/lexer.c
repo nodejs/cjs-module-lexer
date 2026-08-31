@@ -402,12 +402,16 @@ void tryParseObjectDefineOrKeys (bool keys) {
           if (!str_eq5(pos + 1, 'e', 't', 'u', 'r', 'n')) break;
           pos += 6;
           ch = commentWhitespace();
+          uint16_t* identifierStart = pos;
           if (!identifier(ch)) break;
+          uint16_t* identifierEnd = pos;
           ch = commentWhitespace();
           if (ch == '.') {
             pos++;
             ch = commentWhitespace();
+            identifierStart = pos;
             if (!identifier(ch)) break;
+            identifierEnd = pos;
             ch = commentWhitespace();
           }
           else if (ch == '[') {
@@ -419,6 +423,23 @@ void tryParseObjectDefineOrKeys (bool keys) {
             ch = commentWhitespace();
             if (ch != ']') break;
             pos++;
+            ch = commentWhitespace();
+          }
+          bool isImportDefault = identifierEnd == identifierStart + 15 && str_eq2(identifierStart, '_', '_') &&
+            str_eq13(identifierStart + 2, 'i', 'm', 'p', 'o', 'r', 't', 'D', 'e', 'f', 'a', 'u', 'l', 't');
+          if (isImportDefault && ch == '(') {
+            pos++;
+            ch = commentWhitespace();
+            if (!identifier(ch)) break;
+            ch = commentWhitespace();
+            if (ch != ')') break;
+            pos++;
+            ch = commentWhitespace();
+            if (ch != '.') break;
+            pos++;
+            ch = commentWhitespace();
+            if (ch != 'd' || !str_eq6(pos + 1, 'e', 'f', 'a', 'u', 'l', 't')) break;
+            pos += 7;
             ch = commentWhitespace();
           }
           if (ch == ';') {
