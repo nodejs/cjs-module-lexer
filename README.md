@@ -99,7 +99,13 @@ EXPORTS_DEFINE_VALUE: EXPORTS_DEFINE `, {`
   (`enumerable: true,`)?
   (
     `value:` |
-    `get` (`: function` IDENTIFIER? )?  `() {` return IDENTIFIER (`.` IDENTIFIER | `[` STRING_LITERAL `]`)? `;`? `}` `,`?
+    `get` (
+      (`: function` IDENTIFIER? )? `() {` return IDENTIFIER (`.` IDENTIFIER | `[` STRING_LITERAL `]`)? `;`? `}` |
+      `: () =>` (
+        IDENTIFIER (`.` IDENTIFIER | `[` STRING_LITERAL `]`)? |
+        `{` return IDENTIFIER (`.` IDENTIFIER | `[` STRING_LITERAL `]`)? `;`? `}`
+      )
+    ) `,`?
   )
   `})`
 
@@ -126,12 +132,19 @@ EXPORT_STAR_LIB: `Object.keys(` IDENTIFIER$1 `).forEach(function (` IDENTIFIER$2
   )
   (
     EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] =` IDENTIFIER$1 `[` IDENTIFIER$2 `]` `;`? |
-    `Object.defineProperty(` EXPORTS_IDENTIFIER `, ` IDENTIFIER$2 `, { enumerable: true, get` (`: function` IDENTIFIER? )?  `() { return ` IDENTIFIER$1 `[` IDENTIFIER$2 `]` `;`? `}` `,`? `})` `;`?
+    `Object.defineProperty(` EXPORTS_IDENTIFIER `, ` IDENTIFIER$2 `, { enumerable: true, get` (
+      (`: function` IDENTIFIER? )? `() {` return IDENTIFIER$1 `[` IDENTIFIER$2 `]` `;`? `}` |
+      `: () =>` (
+        IDENTIFIER$1 `[` IDENTIFIER$2 `]` |
+        `{` return IDENTIFIER$1 `[` IDENTIFIER$2 `]` `;`? `}`
+      )
+    ) `,`? `})` `;`?
   )
   `})`
 ```
 
 Spacing between tokens is taken to be any ECMA-262 whitespace, ECMA-262 block comment or ECMA-262 line comment.
+A line terminator is not accepted between `)` and `=>` or between `return` and its expression.
 
 * The returned export names are taken to be the combination of:
   1. All `IDENTIFIER` and `STRING_LITERAL` slots for `EXPORTS_MEMBER` and `EXPORTS_LITERAL` matches.
@@ -181,7 +194,7 @@ It will in turn underclassify in cases where the identifiers are renamed:
 `Object.defineProperty` is detected for specifically value and getter forms returning an identifier or member expression:
 
 ```js
-// DETECTS: a, b, c, d, __esModule
+// DETECTS: a, b, c, d, e, f, __esModule
 Object.defineProperty(exports, 'a', {
   enumerable: true,
   get: function () {
@@ -201,6 +214,14 @@ Object.defineProperty(exports, 'c', {
   }
 });
 Object.defineProperty(exports, 'd', { value: 'd' });
+Object.defineProperty(exports, 'e', {
+  enumerable: true,
+  get: () => q.e
+});
+Object.defineProperty(exports, 'f', {
+  enumerable: true,
+  get: () => { return q['f']; }
+});
 Object.defineProperty(exports, '__esModule', { value: true });
 ```
 
@@ -249,15 +270,12 @@ Object.defineProperty(exports, 'b', {
   }
 });
 Object.defineProperty(exports, 'c', {
-  get: () => p
-});
-Object.defineProperty(exports, 'd', {
   enumerable: true,
   get: function () {
     return dynamic();
   }
 });
-Object.defineProperty(exports, 'e', {
+Object.defineProperty(exports, 'd', {
   enumerable: true,
   get () {
     return 'str';

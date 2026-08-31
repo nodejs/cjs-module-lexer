@@ -175,6 +175,257 @@ suite('Lexer', () => {
     assert.equal(exports[3], 'e');
   });
 
+  test('arrow getters', () => {
+    const { exports, reexports } = parse(`
+      Object.defineProperty(exports, 'identifier', {
+        get: () => binding
+      });
+      Object.defineProperty(exports, 'dot', {
+        enumerable: true,
+        get: () => binding.dot
+      });
+      Object.defineProperty(exports, 'bracket', {
+        enumerable: true,
+        get: () => binding['bracket']
+      });
+      Object.defineProperty(exports, 'block', {
+        enumerable: true,
+        get: () => { return binding.block; }
+      });
+      Object.defineProperty(exports, 'blockComment', {
+        enumerable: true,
+        get: () => { return/**/binding.blockComment; }
+      });
+      Object.defineProperty(exports, 'blockCommentSpace', {
+        enumerable: true,
+        get: () => { return /* comment */ binding.blockCommentSpace; }
+      });
+      Object.defineProperty(exports, 'parameter', {
+        enumerable: true,
+        get: (value) => binding.parameter
+      });
+      Object.defineProperty(exports, 'async', {
+        enumerable: true,
+        get: async () => binding.async
+      });
+      Object.defineProperty(exports, 'call', {
+        enumerable: true,
+        get: () => dynamic()
+      });
+      Object.defineProperty(exports, 'conditional', {
+        enumerable: true,
+        get: () => condition ? binding.yes : binding.no
+      });
+      Object.defineProperty(exports, 'literal', {
+        enumerable: true,
+        get: () => 'literal'
+      });
+      Object.defineProperty(exports, 'trueLiteral', {
+        enumerable: true,
+        get: () => true
+      });
+      Object.defineProperty(exports, 'falseLiteral', {
+        enumerable: true,
+        get: () => false
+      });
+      Object.defineProperty(exports, 'nullLiteral', {
+        enumerable: true,
+        get: () => null
+      });
+      Object.defineProperty(exports, 'statements', {
+        enumerable: true,
+        get: () => { prepare(); return binding.statements; }
+      });
+      Object.defineProperty(exports, 'joinedReturn', {
+        enumerable: true,
+        get: () => { returnbinding.joinedReturn; }
+      });
+      Object.defineProperty(exports, 'lineBreakAfterReturn', {
+        enumerable: true,
+        get: () => { return
+          binding.lineBreakAfterReturn; }
+      });
+      Object.defineProperty(exports, 'commentLineBreakAfterReturn', {
+        enumerable: true,
+        get: () => { return/*
+        */binding.commentLineBreakAfterReturn; }
+      });
+      Object.defineProperty(exports, 'notEnumerable', {
+        enumerable: false,
+        get: () => binding.notEnumerable
+      });
+      Object.defineProperty(exports, 'wrongProperty', {
+        enumerable: true,
+        getter () { return binding.wrongProperty; }
+      });
+      Object.defineProperty(exports, 'missingArrow', {
+        enumerable: true,
+        get: () = binding.missingArrow
+      });
+      Object.defineProperty(exports, 'missingBlock', {
+        enumerable: true,
+        get: function () binding.missingBlock
+      });
+      Object.defineProperty(exports, 'missingMember', {
+        enumerable: true,
+        get: () => binding.1
+      });
+      Object.defineProperty(exports, 'dynamicMember', {
+        enumerable: true,
+        get: () => binding[key]
+      });
+      Object.defineProperty(exports, 'continuedMember', {
+        enumerable: true,
+        get: () => binding['key'.length]
+      });
+      Object.defineProperty(exports, 'escapedIdentifier', {
+        enumerable: true,
+        get: () => \\u0061
+      });
+      Object.defineProperty(exports, 'lineBreakBeforeArrow', {
+        enumerable: true,
+        get: ()
+          => binding.lineBreakBeforeArrow
+      });
+      Object.defineProperty(exports, 'commentLineBreakBeforeArrow', {
+        enumerable: true,
+        get: () /*
+        */ => binding.commentLineBreakBeforeArrow
+      });
+      Object.defineProperty(exports, 'lineSeparatorBeforeArrow', {
+        enumerable: true,
+        get: () /*\u2028*/ => binding.lineSeparatorBeforeArrow
+      });
+      Object.defineProperty(exports, 'paragraphSeparatorBeforeArrow', {
+        enumerable: true,
+        get: () /*\u2029*/ => binding.paragraphSeparatorBeforeArrow
+      });
+      Object.defineProperty(exports, 'lineSeparatorAfterReturn', {
+        enumerable: true,
+        get: () => { return/*\u2028*/binding.lineSeparatorAfterReturn; }
+      });
+      Object.defineProperty(exports, 'paragraphSeparatorAfterReturn', {
+        enumerable: true,
+        get: () => { return/*\u2029*/binding.paragraphSeparatorAfterReturn; }
+      });
+      Object.defineProperty(exports, 'afterInvalid', {
+        enumerable: true,
+        get: () => binding.afterInvalid
+      });
+    `);
+
+    assert.deepStrictEqual(
+      exports,
+      ['identifier', 'dot', 'bracket', 'block', 'blockComment', 'blockCommentSpace', 'afterInvalid']
+    );
+    assert.deepStrictEqual(reexports, []);
+  });
+
+  test('arrow getter reexports', () => {
+    const { exports, reexports } = parse(`
+      var concise = require('concise');
+      Object.keys(concise).forEach(function (key) {
+        if (key === 'default' || key === '__esModule') return;
+        Object.defineProperty(exports, key, {
+          enumerable: true,
+          get: () => concise[key]
+        });
+      });
+
+      var block = require('block');
+      Object.keys(block).forEach(function (key) {
+        if (key === 'default' || key === '__esModule') return;
+        Object.defineProperty(exports, key, {
+          enumerable: true,
+          get: () => { return block[key]; }
+        });
+      });
+
+      var parameter = require('parameter');
+      Object.keys(parameter).forEach(function (key) {
+        if (key === 'default' || key === '__esModule') return;
+        Object.defineProperty(exports, key, {
+          enumerable: true,
+          get: (value) => parameter[key]
+        });
+      });
+
+      var wrongBinding = require('wrong-binding');
+      Object.keys(wrongBinding).forEach(function (key) {
+        if (key === 'default' || key === '__esModule') return;
+        Object.defineProperty(exports, key, {
+          enumerable: true,
+          get: () => other[key]
+        });
+      });
+
+      var wrongKey = require('wrong-key');
+      Object.keys(wrongKey).forEach(function (key) {
+        if (key === 'default' || key === '__esModule') return;
+        Object.defineProperty(exports, key, {
+          enumerable: true,
+          get: () => wrongKey[other]
+        });
+      });
+
+      var dotMember = require('dot-member');
+      Object.keys(dotMember).forEach(function (key) {
+        if (key === 'default' || key === '__esModule') return;
+        Object.defineProperty(exports, key, {
+          enumerable: true,
+          get: () => dotMember.key
+        });
+      });
+
+      var continuedKey = require('continued-key');
+      Object.keys(continuedKey).forEach(function (key) {
+        if (key === 'default' || key === '__esModule') return;
+        Object.defineProperty(exports, key, {
+          enumerable: true,
+          get: () => continuedKey[key.value]
+        });
+      });
+
+      var enumerableIdentifier = require('enumerable-identifier');
+      Object.keys(enumerableIdentifier).forEach(function (key) {
+        if (key === 'default' || key === '__esModule') return;
+        Object.defineProperty(exports, key, {
+          enumerable: test,
+          get: () => enumerableIdentifier[key]
+        });
+      });
+
+      var notEnumerable = require('not-enumerable');
+      Object.keys(notEnumerable).forEach(function (key) {
+        if (key === 'default' || key === '__esModule') return;
+        Object.defineProperty(exports, key, {
+          enumerable: false,
+          get: () => notEnumerable[key]
+        });
+      });
+
+      var missingEnumerable = require('missing-enumerable');
+      Object.keys(missingEnumerable).forEach(function (key) {
+        if (key === 'default' || key === '__esModule') return;
+        Object.defineProperty(exports, key, {
+          get: () => missingEnumerable[key]
+        });
+      });
+
+      var afterNegative = require('after-negative');
+      Object.keys(afterNegative).forEach(function (key) {
+        if (key === 'default' || key === '__esModule') return;
+        Object.defineProperty(exports, key, {
+          enumerable: true,
+          get: () => afterNegative[key]
+        });
+      });
+    `);
+
+    assert.deepStrictEqual(exports, []);
+    assert.deepStrictEqual(reexports, ['concise', 'block', 'after-negative']);
+  });
+
   test('Rollup Babel reexports', () => {
     var { exports, reexports } = parse(`
       "use strict";
@@ -723,10 +974,11 @@ suite('Lexer', () => {
       Object.defineProperty(exports, "other", { enumerable: true, value: true });
       Object.defineProperty(exports, "__esModule", { value: true });
     `);
-    assert.equal(exports.length, 3);
-    assert.equal(exports[0], 'thing');
-    assert.equal(exports[1], 'other');
-    assert.equal(exports[2], '__esModule');
+    assert.equal(exports.length, 4);
+    assert.equal(exports[0], 'c');
+    assert.equal(exports[1], 'thing');
+    assert.equal(exports[2], 'other');
+    assert.equal(exports[3], '__esModule');
   });
 
   test('module assign', () => {

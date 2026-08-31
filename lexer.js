@@ -330,6 +330,117 @@ function tryParseObjectHasOwnProperty (it_id) {
   return true;
 }
 
+/**
+ * @param {number} ch
+ * @param {string} [expectedIdentifier]
+ * @param {string} [expectedProperty]
+ */
+function tryParseGetter (ch, expectedIdentifier, expectedProperty) {
+  let arrow = false;
+  let block = true;
+  if (ch === 58/*:*/) {
+    pos++;
+    ch = commentWhitespace();
+    if (ch === 102/*f*/ && source.startsWith('unction', pos + 1)) {
+      pos += 8;
+      const lastPos = pos;
+      ch = commentWhitespace();
+      if (ch !== 40/*(*/ && (lastPos === pos || !identifier())) return false;
+      ch = commentWhitespace();
+    }
+    else if (ch === 40/*(*/) {
+      arrow = true;
+    }
+    else {
+      return false;
+    }
+  }
+  if (ch !== 40/*(*/) return false;
+  pos++;
+  ch = commentWhitespace();
+  if (ch !== 41/*)*/) return false;
+  pos++;
+  const arrowTriviaStart = pos;
+  ch = commentWhitespace();
+  if (arrow) {
+    for (let triviaPos = arrowTriviaStart; triviaPos < pos; triviaPos++) {
+      if (isLineTerminator(source.charCodeAt(triviaPos))) return false;
+    }
+    if (ch !== 61/*=*/ || source.charCodeAt(pos + 1) !== 62/*>*/) return false;
+    pos += 2;
+    ch = commentWhitespace();
+    block = ch === 123/*{*/;
+  }
+  else if (ch !== 123/*{*/) {
+    return false;
+  }
+  if (block) {
+    pos++;
+    ch = commentWhitespace();
+    if (ch !== 114/*r*/ || !source.startsWith('eturn', pos + 1)) return false;
+    pos += 6;
+    const triviaStart = pos;
+    const nextCh = source.charCodeAt(pos + 1);
+    if (source.charCodeAt(pos) === 32/* */ && nextCh > 32 && nextCh !== 47/*/*/ && nextCh !== 160) {
+      ch = source.charCodeAt(++pos);
+    }
+    else {
+      ch = commentWhitespace();
+      if (pos === triviaStart) return false;
+      for (let triviaPos = triviaStart; triviaPos < pos; triviaPos++) {
+        if (isLineTerminator(source.charCodeAt(triviaPos))) return false;
+      }
+    }
+  }
+  if (expectedIdentifier === undefined) {
+    const identifierStart = pos;
+    if (!identifier()) return false;
+    const identifierLength = pos - identifierStart;
+    if (identifierLength === 4 &&
+        (source.startsWith('true', identifierStart) || source.startsWith('null', identifierStart)) ||
+        identifierLength === 5 && source.startsWith('false', identifierStart)) return false;
+    ch = commentWhitespace();
+    if (ch === 46/*.*/) {
+      pos++;
+      commentWhitespace();
+      if (!identifier()) return false;
+    }
+    else if (ch === 91/*[*/) {
+      pos++;
+      ch = commentWhitespace();
+      if (ch !== 39/*'*/ && ch !== 34/*"*/) return false;
+      stringLiteral(ch);
+      pos++;
+      ch = commentWhitespace();
+      if (ch !== 93/*]*/) return false;
+      pos++;
+    }
+  }
+  else {
+    if (!source.startsWith(expectedIdentifier, pos)) return false;
+    pos += expectedIdentifier.length;
+    ch = commentWhitespace();
+    if (ch !== 91/*[*/) return false;
+    pos++;
+    ch = commentWhitespace();
+    if (!source.startsWith(expectedProperty, pos)) return false;
+    pos += expectedProperty.length;
+    ch = commentWhitespace();
+    if (ch !== 93/*]*/) return false;
+    pos++;
+  }
+  if (block) {
+    ch = commentWhitespace();
+    if (ch === 59/*;*/) {
+      pos++;
+      ch = commentWhitespace();
+    }
+    if (ch !== 125/*}*/) return false;
+    pos++;
+  }
+  return true;
+}
+
 function tryParseObjectDefineOrKeys (keys) {
   pos += 6;
   let revertPos = pos - 1;
@@ -389,55 +500,7 @@ function tryParseObjectDefineOrKeys (keys) {
           if (!source.startsWith('et', pos + 1)) break;
           pos += 3;
           ch = commentWhitespace();
-          if (ch === 58/*:*/) {
-            pos++;
-            ch = commentWhitespace();
-            if (ch !== 102/*f*/) break;
-            if (!source.startsWith('unction', pos + 1)) break;
-            pos += 8;
-            let lastPos = pos;
-            ch = commentWhitespace();
-            if (ch !== 40 && (lastPos === pos || !identifier())) break;
-            ch = commentWhitespace();
-          }
-          if (ch !== 40/*(*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 41/*)*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 123/*{*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 114/*r*/) break;
-          if (!source.startsWith('eturn', pos + 1)) break;
-          pos += 6;
-          ch = commentWhitespace();
-          if (!identifier()) break;
-          ch = commentWhitespace();
-          if (ch === 46/*.*/) {
-            pos++;
-            commentWhitespace();
-            if (!identifier()) break;
-            ch = commentWhitespace();
-          }
-          else if (ch === 91/*[*/) {
-            pos++;
-            ch = commentWhitespace();
-            if (ch === 39/*'*/ || ch === 34/*"*/) stringLiteral(ch);
-            else break;
-            pos++;
-            ch = commentWhitespace();
-            if (ch !== 93/*]*/) break;
-            pos++;
-            ch = commentWhitespace();
-          }
-          if (ch === 59/*;*/) {
-            pos++;
-            ch = commentWhitespace();
-          }
-          if (ch !== 125/*}*/) break;
-          pos++;
+          if (!tryParseGetter(ch)) break;
           ch = commentWhitespace();
           if (ch === 44/*,*/) {
             pos++;
@@ -748,7 +811,7 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 58/*:*/) break;
           pos++;
           ch = commentWhitespace();
-          if (ch !== 116/*t*/ && !source.startsWith('rue', pos + 1)) break;
+          if (ch !== 116/*t*/ || !source.startsWith('rue', pos + 1)) break;
           pos += 4;
           ch = commentWhitespace();
           if (ch !== 44/*,*/) break;
@@ -757,47 +820,7 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 103/*g*/ || !source.startsWith('et', pos + 1)) break;
           pos += 3;
           ch = commentWhitespace();
-          if (ch === 58/*:*/) {
-            pos++;
-            ch = commentWhitespace();
-            if (ch !== 102/*f*/) break;
-            if (!source.startsWith('unction', pos + 1)) break;
-            pos += 8;
-            let lastPos = pos;
-            ch = commentWhitespace();
-            if (ch !== 40 && (lastPos === pos || !identifier())) break;
-            ch = commentWhitespace();
-          }
-          if (ch !== 40/*(*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 41/*)*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 123/*{*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 114/*r*/ || !source.startsWith('eturn', pos + 1)) break;
-          pos += 6;
-          ch = commentWhitespace();
-          if (!source.startsWith(id, pos)) break;
-          pos += id.length;
-          ch = commentWhitespace();
-          if (ch !== 91/*[*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (!source.startsWith(it_id, pos)) break;
-          pos += it_id.length;
-          ch = commentWhitespace();
-          if (ch !== 93/*]*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch === 59/*;*/) {
-            pos++;
-            ch = commentWhitespace();
-          }
-          if (ch !== 125/*}*/) break;
-          pos++;
+          if (!tryParseGetter(ch, id, it_id)) break;
           ch = commentWhitespace();
           if (ch === 44/*,*/) {
             pos++;
@@ -1461,6 +1484,13 @@ function regularExpression () {
 // if there is a significant user need this can be reconsidered
 function isBr (c) {
   return c === 13/*\r*/ || c === 10/*\n*/;
+}
+
+/**
+ * @param {number} ch
+ */
+function isLineTerminator (ch) {
+  return isBr(ch) || ch === 0x2028 || ch === 0x2029;
 }
 
 function isBrOrWs (c) {

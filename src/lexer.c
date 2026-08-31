@@ -318,6 +318,122 @@ bool tryParseObjectHasOwnProperty (uint16_t* it_id_start, ptrdiff_t it_id_len) {
   return true;
 }
 
+bool isLineTerminator (uint16_t ch) {
+  return isBr(ch) || ch == 0x2028 || ch == 0x2029;
+}
+
+bool tryParseGetter (
+  uint16_t ch,
+  uint16_t* expectedStart,
+  ptrdiff_t expectedLen,
+  uint16_t* propertyStart,
+  ptrdiff_t propertyLen
+) {
+  bool arrow = false;
+  bool block = true;
+  if (ch == ':') {
+    pos++;
+    ch = commentWhitespace();
+    if (ch == 'f' && str_eq7(pos + 1, 'u', 'n', 'c', 't', 'i', 'o', 'n')) {
+      pos += 8;
+      uint16_t* lastPos = pos;
+      ch = commentWhitespace();
+      if (ch != '(' && (lastPos == pos || !identifier(ch))) return false;
+      ch = commentWhitespace();
+    }
+    else if (ch == '(') {
+      arrow = true;
+    }
+    else {
+      return false;
+    }
+  }
+  if (ch != '(') return false;
+  pos++;
+  ch = commentWhitespace();
+  if (ch != ')') return false;
+  pos++;
+  uint16_t* arrowTriviaStart = pos;
+  ch = commentWhitespace();
+  if (arrow) {
+    for (uint16_t* triviaPos = arrowTriviaStart; triviaPos < pos; triviaPos++) {
+      if (isLineTerminator(*triviaPos)) return false;
+    }
+    if (ch != '=' || *(pos + 1) != '>') return false;
+    pos += 2;
+    ch = commentWhitespace();
+    block = ch == '{';
+  }
+  else if (ch != '{') {
+    return false;
+  }
+  if (block) {
+    pos++;
+    ch = commentWhitespace();
+    if (ch != 'r' || !str_eq5(pos + 1, 'e', 't', 'u', 'r', 'n')) return false;
+    pos += 6;
+    uint16_t* triviaStart = pos;
+    uint16_t nextCh = *(pos + 1);
+    if (*pos == ' ' && nextCh > ' ' && nextCh != '/' && nextCh != 160) {
+      ch = *(++pos);
+    }
+    else {
+      ch = commentWhitespace();
+      if (pos == triviaStart) return false;
+      for (uint16_t* triviaPos = triviaStart; triviaPos < pos; triviaPos++) {
+        if (isLineTerminator(*triviaPos)) return false;
+      }
+    }
+  }
+  if (expectedStart == 0) {
+    uint16_t* identifierStart = pos;
+    if (!identifier(ch)) return false;
+    ptrdiff_t identifierLen = pos - identifierStart;
+    if (identifierLen == 4 &&
+        (str_eq4(identifierStart, 't', 'r', 'u', 'e') || str_eq4(identifierStart, 'n', 'u', 'l', 'l')) ||
+        identifierLen == 5 && str_eq5(identifierStart, 'f', 'a', 'l', 's', 'e')) return false;
+    ch = commentWhitespace();
+    if (ch == '.') {
+      pos++;
+      ch = commentWhitespace();
+      if (!identifier(ch)) return false;
+    }
+    else if (ch == '[') {
+      pos++;
+      ch = commentWhitespace();
+      if (ch != '\'' && ch != '"') return false;
+      stringLiteral(ch);
+      pos++;
+      ch = commentWhitespace();
+      if (ch != ']') return false;
+      pos++;
+    }
+  }
+  else {
+    if (memcmp(pos, expectedStart, expectedLen * sizeof(uint16_t)) != 0) return false;
+    pos += expectedLen;
+    ch = commentWhitespace();
+    if (ch != '[') return false;
+    pos++;
+    ch = commentWhitespace();
+    if (memcmp(pos, propertyStart, propertyLen * sizeof(uint16_t)) != 0) return false;
+    pos += propertyLen;
+    ch = commentWhitespace();
+    if (ch != ']') return false;
+    pos++;
+  }
+  if (block) {
+    ch = commentWhitespace();
+    if (ch == ';') {
+      pos++;
+      ch = commentWhitespace();
+    }
+    if (ch != '}') return false;
+    pos++;
+  }
+  return true;
+}
+
 void tryParseObjectDefineOrKeys (bool keys) {
   pos += 6;
   uint16_t* revertPos = pos - 1;
@@ -378,55 +494,7 @@ void tryParseObjectDefineOrKeys (bool keys) {
           if (!str_eq2(pos + 1, 'e', 't')) break;
           pos += 3;
           ch = commentWhitespace();
-          if (ch == ':') {
-            pos++;
-            ch = commentWhitespace();
-            if (ch != 'f') break;
-            if (!str_eq7(pos + 1, 'u', 'n', 'c', 't', 'i', 'o', 'n')) break;
-            pos += 8;
-            uint16_t* lastPos = pos;
-            ch = commentWhitespace();
-            if (ch != '(' && (lastPos == pos || !identifier(ch))) break;
-            ch = commentWhitespace();
-          }
-          if (ch != '(') break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch != ')') break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch != '{') break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch != 'r') break;
-          if (!str_eq5(pos + 1, 'e', 't', 'u', 'r', 'n')) break;
-          pos += 6;
-          ch = commentWhitespace();
-          if (!identifier(ch)) break;
-          ch = commentWhitespace();
-          if (ch == '.') {
-            pos++;
-            ch = commentWhitespace();
-            if (!identifier(ch)) break;
-            ch = commentWhitespace();
-          }
-          else if (ch == '[') {
-            pos++;
-            ch = commentWhitespace();
-            if (ch == '\'' || ch == '"') stringLiteral(ch);
-            else break;
-            pos++;
-            ch = commentWhitespace();
-            if (ch != ']') break;
-            pos++;
-            ch = commentWhitespace();
-          }
-          if (ch == ';') {
-            pos++;
-            ch = commentWhitespace();
-          }
-          if (ch != '}') break;
-          pos++;
+          if (!tryParseGetter(ch, 0, 0, 0, 0)) break;
           ch = commentWhitespace();
           if (ch == ',') {
             pos++;
@@ -737,7 +805,7 @@ void tryParseObjectDefineOrKeys (bool keys) {
           if (ch != ':') break;
           pos++;
           ch = commentWhitespace();
-          if (ch != 't' && !str_eq3(pos + 1, 'r', 'u', 'e')) break;
+          if (ch != 't' || !str_eq3(pos + 1, 'r', 'u', 'e')) break;
           pos += 4;
           ch = commentWhitespace();
           if (ch != ',') break;
@@ -746,47 +814,7 @@ void tryParseObjectDefineOrKeys (bool keys) {
           if (ch != 'g' || !str_eq2(pos + 1, 'e', 't')) break;
           pos += 3;
           ch = commentWhitespace();
-          if (ch == ':') {
-            pos++;
-            ch = commentWhitespace();
-            if (ch != 'f') break;
-            if (!str_eq7(pos + 1, 'u', 'n', 'c', 't', 'i', 'o', 'n')) break;
-            pos += 8;
-            uint16_t* lastPos = pos;
-            ch = commentWhitespace();
-            if (ch != '(' && (lastPos == pos || !identifier(ch))) break;
-            ch = commentWhitespace();
-          }
-          if (ch != '(') break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch != ')') break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch != '{') break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch != 'r' || !str_eq5(pos + 1, 'e', 't', 'u', 'r', 'n')) break;
-          pos += 6;
-          ch = commentWhitespace();
-          if (memcmp(pos, id_start, id_len * sizeof(uint16_t)) != 0) break;
-          pos += id_len;
-          ch = commentWhitespace();
-          if (ch != '[') break;
-          pos++;
-          ch = commentWhitespace();
-          if (memcmp(pos, it_id_start, it_id_len * sizeof(uint16_t)) != 0) break;
-          pos += it_id_len;
-          ch = commentWhitespace();
-          if (ch != ']') break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch == ';') {
-            pos++;
-            ch = commentWhitespace();
-          }
-          if (ch != '}') break;
-          pos++;
+          if (!tryParseGetter(ch, id_start, id_len, it_id_start, it_id_len)) break;
           ch = commentWhitespace();
           if (ch == ',') {
             pos++;
@@ -1127,7 +1155,7 @@ uint32_t fullCharCode(uint16_t ch) {
 
 bool identifier (uint16_t startCh) {
   uint32_t ch = fullCharCode(startCh);
-  if (!isIdentifierStart(ch) && ch != '\\')
+  if (!isIdentifierStart(ch) || ch == '\\')
     return false;
   pos += charCodeByteLen(ch);
   while (ch = fullCharCode(*pos)) {
