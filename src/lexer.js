@@ -15,8 +15,8 @@ export function parse (source, name = '@') {
     wasm.memory.grow(Math.ceil(extraMem / 65536));
     
   const addr = wasm.sa(len);
-  // Buffer setup is slower than the loop for short sources on supported Node.js releases.
-  if (source.length >= 128 && hasBuffer)
+  // Buffer setup is slower than the loop for short sources.
+  if (source.length >= 64 && hasBuffer)
     Buffer.from(wasm.memory.buffer, addr, (len - 1) * 2).write(source, 'utf16le');
   else
     (isLE ? copyLE : copyBE)(source, new Uint16Array(wasm.memory.buffer, addr, len));

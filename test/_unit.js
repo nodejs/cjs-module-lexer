@@ -775,6 +775,34 @@ suite('Lexer', () => {
     assert.deepStrictEqual(reexports, []);
   });
 
+  test('Node.js UTF-16 source copy cutoff', async function testNodeUtf16CopyCutoff () {
+    const nodeLexer = await import('../dist/lexer.mjs?node-utf16-copy-cutoff');
+    nodeLexer.initSync();
+
+    const originalBuffer = global.Buffer;
+    let copies = 0;
+    global.Buffer = {
+      /**
+       * @param {ArrayBuffer} arrayBuffer
+       * @param {number} byteOffset
+       * @param {number} length
+       */
+      from (arrayBuffer, byteOffset, length) {
+        copies++;
+        return originalBuffer.from(arrayBuffer, byteOffset, length);
+      }
+    };
+    try {
+      nodeLexer.parse(' '.repeat(63));
+      assert.strictEqual(copies, 0);
+      nodeLexer.parse(' '.repeat(64));
+      assert.strictEqual(copies, 1);
+    }
+    finally {
+      global.Buffer = originalBuffer;
+    }
+  });
+
   test('Simple import', () => {
     const source = `
       import test from "test";
