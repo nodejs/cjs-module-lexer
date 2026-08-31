@@ -1,3 +1,6 @@
 node_modules
 dist
+!fuzz/fixtures/retained-target/dist/
+!fuzz/fixtures/retained-target/dist/lexer.js
+!fuzz/fixtures/retained-target/dist/lexer.mjs
 yarn.lock

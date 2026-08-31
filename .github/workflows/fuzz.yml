@@ -1,0 +1,35 @@
+name: Fuzz
+
+on:
+  pull_request:
+    branches: main
+  schedule:
+    - cron: '17 3 * * 2'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18.x, 22.x]
+        seed: [1, 2654435769]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test-fuzz
+      - if: github.event_name != 'schedule'
+        run: npm run fuzz -- --seed ${{ matrix.seed }} --cases 1000
+      - if: github.event_name == 'schedule'
+        run: npm run fuzz -- --seed ${{ matrix.seed }} --cases 10000 --timeout-ms 30000

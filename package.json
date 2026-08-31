@@ -16,6 +16,8 @@
     "test-wasm": "cross-env WASM=1 NODE_OPTIONS=--disallow-code-generation-from-strings mocha -b -u tdd test/*.js",
     "test-wasm-sync": "cross-env WASM_SYNC=1 NODE_OPTIONS=--disallow-code-generation-from-strings mocha -b -u tdd test/*.js",
     "test": "npm run test-wasm && npm run test-wasm-sync && npm run test-js",
+    "test-fuzz": "node fuzz/test.mjs",
+    "fuzz": "node fuzz/index.mjs",
     "bench": "node --expose-gc bench/index.mjs",
     "build": "node build.js ; babel dist/lexer.mjs -o dist/lexer.js ; terser dist/lexer.js -o dist/lexer.js",
     "build-wasm": "make lib/lexer.wasm ; node build.js",
