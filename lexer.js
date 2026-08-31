@@ -330,6 +330,18 @@ function tryParseObjectHasOwnProperty (it_id) {
   return true;
 }
 
+function readBooleanTrue (ch) {
+  if (ch === 116/*t*/ && source.startsWith('rue', pos + 1)) {
+    pos += 4;
+    return true;
+  }
+  if (ch === 33/*!*/ && source.charCodeAt(pos + 1) === 48/*0*/) {
+    pos += 2;
+    return true;
+  }
+  return false;
+}
+
 function tryParseObjectDefineOrKeys (keys) {
   pos += 6;
   let revertPos = pos - 1;
@@ -369,8 +381,7 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 58/*:*/) break;
           pos++;
           ch = commentWhitespace();
-          if (ch !== 116/*t*/ || !source.startsWith('rue', pos + 1)) break;
-          pos += 4;
+          if (!readBooleanTrue(ch)) break;
           ch = commentWhitespace();
           if (ch !== 44) break;
           pos++;
@@ -748,8 +759,7 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 58/*:*/) break;
           pos++;
           ch = commentWhitespace();
-          if (ch !== 116/*t*/ && !source.startsWith('rue', pos + 1)) break;
-          pos += 4;
+          if (!readBooleanTrue(ch)) break;
           ch = commentWhitespace();
           if (ch !== 44/*,*/) break;
           pos++;

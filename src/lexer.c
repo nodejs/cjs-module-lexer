@@ -318,6 +318,18 @@ bool tryParseObjectHasOwnProperty (uint16_t* it_id_start, ptrdiff_t it_id_len) {
   return true;
 }
 
+bool readBooleanTrue (uint16_t ch) {
+  if (ch == 't' && str_eq3(pos + 1, 'r', 'u', 'e')) {
+    pos += 4;
+    return true;
+  }
+  if (ch == '!' && *(pos + 1) == '0') {
+    pos += 2;
+    return true;
+  }
+  return false;
+}
+
 void tryParseObjectDefineOrKeys (bool keys) {
   pos += 6;
   uint16_t* revertPos = pos - 1;
@@ -358,8 +370,7 @@ void tryParseObjectDefineOrKeys (bool keys) {
           if (ch != ':') break;
           pos++;
           ch = commentWhitespace();
-          if (ch != 't' || !str_eq3(pos + 1, 'r', 'u', 'e')) break;
-          pos += 4;
+          if (!readBooleanTrue(ch)) break;
           ch = commentWhitespace();
           if (ch != 44) break;
           pos++;
@@ -737,8 +748,7 @@ void tryParseObjectDefineOrKeys (bool keys) {
           if (ch != ':') break;
           pos++;
           ch = commentWhitespace();
-          if (ch != 't' && !str_eq3(pos + 1, 'r', 'u', 'e')) break;
-          pos += 4;
+          if (!readBooleanTrue(ch)) break;
           ch = commentWhitespace();
           if (ch != ',') break;
           pos++;

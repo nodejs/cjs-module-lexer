@@ -96,7 +96,7 @@ EXPORTS_MEMBER: EXPORTS_DOT_ASSIGN | EXPORTS_LITERAL_COMPUTED_ASSIGN
 EXPORTS_DEFINE: `Object` `.` `defineProperty `(` EXPORTS_IDENFITIER `,` STRING_LITERAL
 
 EXPORTS_DEFINE_VALUE: EXPORTS_DEFINE `, {`
-  (`enumerable: true,`)?
+  (`enumerable:` (`true` | `!0`) `,`)?
   (
     `value:` |
     `get` (`: function` IDENTIFIER? )?  `() {` return IDENTIFIER (`.` IDENTIFIER | `[` STRING_LITERAL `]`)? `;`? `}` `,`?
@@ -126,7 +126,7 @@ EXPORT_STAR_LIB: `Object.keys(` IDENTIFIER$1 `).forEach(function (` IDENTIFIER$2
   )
   (
     EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] =` IDENTIFIER$1 `[` IDENTIFIER$2 `]` `;`? |
-    `Object.defineProperty(` EXPORTS_IDENTIFIER `, ` IDENTIFIER$2 `, { enumerable: true, get` (`: function` IDENTIFIER? )?  `() { return ` IDENTIFIER$1 `[` IDENTIFIER$2 `]` `;`? `}` `,`? `})` `;`?
+    `Object.defineProperty(` EXPORTS_IDENTIFIER `, ` IDENTIFIER$2 `, { enumerable:` (`true` | `!0`) `, get` (`: function` IDENTIFIER? )?  `() { return ` IDENTIFIER$1 `[` IDENTIFIER$2 `]` `;`? `}` `,`? `})` `;`?
   )
   `})`
 ```
@@ -178,12 +178,13 @@ It will in turn underclassify in cases where the identifiers are renamed:
 
 #### Getter Exports Parsing
 
-`Object.defineProperty` is detected for specifically value and getter forms returning an identifier or member expression:
+`Object.defineProperty` is detected for specifically value and getter forms returning an identifier or member expression.
+The enumerable form also accepts the minified Boolean value `!0`:
 
 ```js
 // DETECTS: a, b, c, d, __esModule
 Object.defineProperty(exports, 'a', {
-  enumerable: true,
+  enumerable: !0,
   get: function () {
     return q.p;
   }

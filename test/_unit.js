@@ -175,6 +175,65 @@ suite('Lexer', () => {
     assert.equal(exports[3], 'e');
   });
 
+  test('minified enumerable descriptors', () => {
+    const { exports, reexports } = parse(`
+      Object.defineProperty(exports, 'preserved', {
+        enumerable: true,
+        get: function () { return binding.preserved; }
+      });
+      Object.defineProperty(exports, 'minified', {
+        enumerable: !0,
+        get: function () { return binding.minified; }
+      });
+      Object.defineProperty(exports, 'minifiedValue', {
+        enumerable: !0,
+        value: true
+      });
+      Object.defineProperty(exports, 'false', {
+        enumerable: !1,
+        get: function () { return binding.false; }
+      });
+      Object.defineProperty(exports, 'double', {
+        enumerable: !!1,
+        get: function () { return binding.double; }
+      });
+      Object.defineProperty(exports, 'trailing', {
+        enumerable: !00,
+        get: function () { return binding.trailing; }
+      });
+
+      var dependency = require('dependency');
+      Object.keys(dependency).forEach(function (key) {
+        if (key === 'default' || key === '__esModule') return;
+        Object.defineProperty(exports, key, {
+          enumerable: !0,
+          get: function () { return dependency[key]; }
+        });
+      });
+
+      var ignored = require('ignored');
+      Object.keys(ignored).forEach(function (key) {
+        if (key === 'default' || key === '__esModule') return;
+        Object.defineProperty(exports, key, {
+          enumerable: !1,
+          get: function () { return ignored[key]; }
+        });
+      });
+
+      var malformed = require('malformed');
+      Object.keys(malformed).forEach(function (key) {
+        if (key === 'default' || key === '__esModule') return;
+        Object.defineProperty(exports, key, {
+          enumerable: !rue,
+          get: function () { return malformed[key]; }
+        });
+      });
+    `);
+
+    assert.deepStrictEqual(exports, ['preserved', 'minified', 'minifiedValue']);
+    assert.deepStrictEqual(reexports, ['dependency']);
+  });
+
   test('Rollup Babel reexports', () => {
     var { exports, reexports } = parse(`
       "use strict";
