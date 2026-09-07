@@ -768,6 +768,51 @@ suite('Lexer', () => {
     });
   });
 
+  test('browser UTF-16 source copy', async () => {
+    const originalBuffer = global.Buffer;
+    global.Buffer = undefined;
+    let browserLexer;
+    try {
+      browserLexer = await import('../dist/lexer.mjs?browser-utf16-copy');
+    }
+    finally {
+      global.Buffer = originalBuffer;
+    }
+    browserLexer.initSync();
+    const source = `const value = '${'𓀀'.repeat(40000)}'; exports.value = value`;
+    const { exports, reexports } = browserLexer.parse(source);
+    assert.deepStrictEqual(exports, ['value']);
+    assert.deepStrictEqual(reexports, []);
+  });
+
+  test('Node.js UTF-16 source copy cutoff', async function testNodeUtf16CopyCutoff () {
+    const nodeLexer = await import('../dist/lexer.mjs?node-utf16-copy-cutoff');
+    nodeLexer.initSync();
+
+    const originalBuffer = global.Buffer;
+    let copies = 0;
+    global.Buffer = {
+      /**
+       * @param {ArrayBuffer} arrayBuffer
+       * @param {number} byteOffset
+       * @param {number} length
+       */
+      from (arrayBuffer, byteOffset, length) {
+        copies++;
+        return originalBuffer.from(arrayBuffer, byteOffset, length);
+      }
+    };
+    try {
+      nodeLexer.parse(' '.repeat(63));
+      assert.strictEqual(copies, 0);
+      nodeLexer.parse(' '.repeat(64));
+      assert.strictEqual(copies, 1);
+    }
+    finally {
+      global.Buffer = originalBuffer;
+    }
+  });
+
   test('Simple import', () => {
     const source = `
       import test from "test";
