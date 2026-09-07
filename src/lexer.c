@@ -44,6 +44,11 @@ void (*addReexport)(const uint16_t*, const uint16_t*);
 void (*addUnsafeGetter)(const uint16_t*, const uint16_t*);
 void (*clearReexports)();
 
+static inline __attribute__((always_inline)) bool isTokenRunChar (uint16_t ch) {
+  return (uint16_t)((ch | 32) - 'a') < 26 || (uint16_t)(ch - '0') < 10 ||
+    ch == '$' || ch == '_' || ch == '\\' || (ch > 127 && ch != 160);
+}
+
 // Note: parsing is based on the _assumption_ that the source is already valid
 uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const uint16_t*, const uint16_t*), void (*_addReexport)(const uint16_t*, const uint16_t*), void (*_addUnsafeGetter)(const uint16_t*, const uint16_t*), void (*_clearReexports)()) {
   source = _source;
@@ -94,14 +99,12 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
         case 'i':
           if (str_eq5(pos + 1, 'm', 'p', 'o', 'r', 't') && keywordStart(pos))
             throwIfImportStatement();
-          lastTokenPos = pos;
-          continue;
+          goto skipTokenRun;
         case 'r': {
           uint16_t* startPos = pos;
           if (tryParseRequire(Import) && keywordStart(startPos))
             tryBacktrackAddStarExportBinding(startPos - 1);
-          lastTokenPos = pos;
-          continue;
+          goto skipTokenRun;
         }
         case '_':
           if (str_eq22(pos + 1, 'i', 'n', 't', 'e', 'r', 'o', 'p', 'R', 'e', 'q', 'u', 'i', 'r', 'e', 'W', 'i', 'l', 'd', 'c', 'a', 'r', 'd') && (keywordStart(pos) || *(pos - 1) == '.')) {
@@ -126,8 +129,7 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
               }
             }
           }
-          lastTokenPos = pos;
-          continue;
+          goto skipTokenRun;
       }
     }
 
@@ -139,19 +141,19 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
           else if (openTokenDepth == 0)
             throwIfExportStatement();
         }
-        break;
+        goto skipTokenRun;
       case 'c':
         if (keywordStart(pos) && str_eq4(pos + 1, 'l', 'a', 's', 's') && isBrOrWs(*(pos + 5)))
           nextBraceIsClass = true;
-        break;
+        goto skipTokenRun;
       case 'm':
         if (str_eq5(pos + 1, 'o', 'd', 'u', 'l', 'e') && keywordStart(pos))
           tryParseModuleExportsDotAssign();
-        break;
+        goto skipTokenRun;
       case 'O':
         if (str_eq5(pos + 1, 'b', 'j', 'e', 'c', 't') && keywordStart(pos))
           tryParseObjectDefineOrKeys(openTokenDepth == 0);
-        break;
+        goto skipTokenRun;
       case '(':
         openTokenPosStack[openTokenDepth++] = lastTokenPos;
         break;
@@ -224,6 +226,12 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
           return syntaxError(4), error;
         templateString();
         break;
+      default:
+      skipTokenRun:
+        if (!isTokenRunChar(*pos))
+          break;
+        while (isTokenRunChar(*(pos + 1)))
+          pos++;
     }
     lastTokenPos = pos;
   }
