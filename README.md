@@ -59,11 +59,15 @@ When using the ESM version, Wasm is supported instead:
 
 ```js
 import { parse, init } from 'cjs-module-lexer';
-// init() needs to be called and waited upon, or use initSync() to compile
-// Wasm blockingly and synchronously.
+// In browsers, initialize the Wasm before parsing.
 await init();
 const { exports, reexports } = parse(source);
 ```
+
+`parse` calls `initSync()` on first use if initialization has not completed.
+Call `initSync()` directly to choose when the blocking initialization runs.
+Browser main threads can restrict synchronous Wasm compilation, so await
+`init()` before parsing in browsers.
 
 The Wasm build is around 1.5x faster and without a cold start.
 

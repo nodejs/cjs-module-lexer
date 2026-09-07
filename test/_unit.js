@@ -20,6 +20,16 @@ async function loadParser () {
 suite('Lexer', () => {
   suiteSetup(async () => await loadParser());
 
+  test('automatic Wasm initialization', async () => {
+    const lexer = await import('../dist/lexer.mjs?automatic-initialization');
+
+    assert.deepStrictEqual(lexer.parse('exports.value = 1'), {
+      exports: ['value'],
+      reexports: []
+    });
+    lexer.initSync();
+  });
+
   test('export star failure', () => {
     parse(`__exportStar((0));`);
   });
