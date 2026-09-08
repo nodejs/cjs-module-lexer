@@ -991,6 +991,69 @@ function x() {
     `));
   });
 
+  test('Nesting depth boundaries', () => {
+    const stackDepth = 2048;
+    const expressionNesting = [
+      ['(', ')'],
+      ['import(', ')'],
+      ['class A{a=', '}'],
+      ['`${', '}`']
+    ];
+
+    /**
+     * @param {number} depth
+     */
+    function mixedSource (depth) {
+      const braceDepth = Math.floor(depth / 5);
+      const expressionDepth = depth - braceDepth;
+      const openings = new Array(expressionDepth);
+      const closings = new Array(expressionDepth);
+      for (let index = 0; index < expressionDepth; index++) {
+        const [opening, closing] = expressionNesting[index % expressionNesting.length];
+        openings[index] = opening;
+        closings[expressionDepth - index - 1] = closing;
+      }
+      return '{'.repeat(braceDepth) + openings.join('') + '0' + closings.join('') +
+        ';' + '}'.repeat(braceDepth);
+    }
+
+    const sources = [
+      [
+        '('.repeat(stackDepth) + '0' + ')'.repeat(stackDepth),
+        '('.repeat(stackDepth + 1) + '0' + ')'.repeat(stackDepth + 1)
+      ],
+      [
+        '{'.repeat(stackDepth) + '0;' + '}'.repeat(stackDepth),
+        '{'.repeat(stackDepth + 1) + '0;' + '}'.repeat(stackDepth + 1)
+      ],
+      [
+        '`${'.repeat(stackDepth) + '0' + '}`'.repeat(stackDepth),
+        '`${'.repeat(stackDepth + 1) + '0' + '}`'.repeat(stackDepth + 1)
+      ],
+      [
+        'class A{a='.repeat(stackDepth) + '0' + '}'.repeat(stackDepth),
+        'class A{a='.repeat(stackDepth + 1) + '0' + '}'.repeat(stackDepth + 1)
+      ],
+      [
+        'import('.repeat(stackDepth) + '"x"' + ')'.repeat(stackDepth),
+        'import('.repeat(stackDepth + 1) + '"x"' + ')'.repeat(stackDepth + 1)
+      ],
+      [
+        mixedSource(stackDepth),
+        mixedSource(stackDepth + 1)
+      ]
+    ];
+    const expectedError = process.env.WASM || process.env.WASM_SYNC
+      ? /^Error: Parse error @/
+      : /^Error: Maximum nesting depth exceeded\./;
+
+    for (const [accepted, rejected] of sources) {
+      assert.deepStrictEqual(parse(accepted), { exports: [], reexports: [] });
+      assert.throws(() => parse(rejected), expectedError);
+      assert.deepStrictEqual(parse('exports.after = 1'), { exports: ['after'], reexports: [] });
+    }
+  });
+
   test('Division / Regex ambiguity', () => {
     const source = `
       /as)df/; x();
