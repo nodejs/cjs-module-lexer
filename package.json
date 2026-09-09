@@ -4,20 +4,38 @@
   "description": "Lexes CommonJS modules, returning their named exports metadata",
   "main": "lexer.js",
   "exports": {
-    "import": {
-      "types": "./lexer.d.mts",
-      "default": "./dist/lexer.mjs"
+    ".": {
+      "import": {
+        "types": "./lexer.d.mts",
+        "default": "./dist/lexer.mjs"
+      },
+      "default": "./lexer.js"
     },
-    "default": "./lexer.js"
+    "./external": {
+      "import": {
+        "types": "./lexer.d.mts",
+        "default": "./dist/lexer-external.mjs"
+      },
+      "default": {
+        "types": "./lexer.d.ts",
+        "default": "./dist/lexer-external.js"
+      }
+    }
   },
   "types": "lexer.d.ts",
   "scripts": {
-    "test-js": "cross-env NODE_OPTIONS=--disallow-code-generation-from-strings mocha -b -u tdd test/*.js",
-    "test-wasm": "cross-env WASM=1 NODE_OPTIONS=--disallow-code-generation-from-strings mocha -b -u tdd test/*.js",
-    "test-wasm-sync": "cross-env WASM_SYNC=1 NODE_OPTIONS=--disallow-code-generation-from-strings mocha -b -u tdd test/*.js",
-    "test": "npm run test-wasm && npm run test-wasm-sync && npm run test-js",
+    "test-run": "cross-env NODE_OPTIONS=--disallow-code-generation-from-strings mocha -b -u tdd test/*.js",
+    "test-js": "npm run test-run",
+    "test-wasm": "cross-env WASM=1 npm run test-run",
+    "test-wasm-sync": "cross-env WASM_SYNC=1 npm run test-run",
+    "test-wasm-inline": "npm run test-wasm && npm run test-wasm-sync",
+    "test-wasm-external": "cross-env WASM_EXTERNAL=1 npm run test-run",
+    "test-wasm-external-sync": "cross-env WASM_EXTERNAL_SYNC=1 npm run test-run",
+    "test-wasm-external-all": "npm run test-wasm-external && npm run test-wasm-external-sync",
+    "test-package": "node test/package/index.js",
+    "test": "npm run test-wasm-inline && npm run test-wasm-external-all && npm run test-js && npm run test-package",
     "bench": "node --expose-gc bench/index.mjs",
-    "build": "node build.js ; babel dist/lexer.mjs -o dist/lexer.js ; terser dist/lexer.js -o dist/lexer.js",
+    "build": "node build.js && babel dist/lexer.mjs -o dist/lexer.js && terser dist/lexer.js -o dist/lexer.js",
     "build-wasm": "make lib/lexer.wasm ; node build.js",
     "prepublishOnly": "make && npm run build",
     "footprint": "npm run build && cat dist/lexer.js | gzip -9f | wc -c"
@@ -35,6 +53,7 @@
   },
   "files": [
     "dist",
+    "lib/lexer.wasm",
     "lexer.d.ts",
     "lexer.d.mts"
   ],
