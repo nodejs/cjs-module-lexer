@@ -367,7 +367,8 @@ Where the `__export(require("external"))` statement is explicitly detected as a 
 
 ### Environment Support
 
-Node.js 10+, and [all browsers with Web Assembly support](https://caniuse.com/#feat=wasm).
+Node.js support follows the [`engines.node` requirement](./package.json).
+[All browsers with Web Assembly support](https://caniuse.com/#feat=wasm) are also supported.
 
 ### JS Grammar Support
 

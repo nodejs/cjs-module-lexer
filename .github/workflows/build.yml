@@ -15,25 +15,29 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 18.x
 
       - name: Prepare
         id: preparation
         run: |
-          export PWD=$(pwd);
-          echo "::set-output name=PROJ_ROOT::$PWD";
+          echo "PROJ_ROOT=$GITHUB_WORKSPACE" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker
         uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
 
       - name: Install
-        run: npm install
+        run: npm ci
 
       - name: Install wabt
         env:
           PROJ_ROOT: ${{ steps.preparation.outputs.PROJ_ROOT }}
         run: |
-          cd $PROJ_ROOT;
+          cd "$PROJ_ROOT";
           cd ../;
           if [[ "$RUNNER_OS" == "Linux" ]]; then
             export WABT_OS="ubuntu";
@@ -44,17 +48,17 @@ jobs:
           if [[ "$RUNNER_OS" == "Windows" ]]; then
             export WABT_OS="windows";
           fi
-          curl -sL https://github.com/WebAssembly/wabt/releases/download/${WABT_VERSION}/wabt-${WABT_VERSION}-${WABT_OS}.tar.gz -O
+          curl -fsSL "https://github.com/WebAssembly/wabt/releases/download/${WABT_VERSION}/wabt-${WABT_VERSION}-${WABT_OS}.tar.gz" -O
           # check if package downloaded
           ls -la
-          tar xvf wabt-${WABT_VERSION}-${WABT_OS}.tar.gz
+          tar xvf "wabt-${WABT_VERSION}-${WABT_OS}.tar.gz"
           # check if wabt binaries installed
-          ls -la ./wabt-${WABT_VERSION}/bin/
+          ls -la "./wabt-${WABT_VERSION}/bin/"
       - name: Compile to Wasm & Test Wasm
         env:
           PROJ_ROOT: ${{ steps.preparation.outputs.PROJ_ROOT }}
         run: |
-          cd $PROJ_ROOT;
+          cd "$PROJ_ROOT";
           rm lib/lexer.wasm;
           npm run build-wasm;
           npm run build;
@@ -64,5 +68,5 @@ jobs:
         env:
           PROJ_ROOT: ${{ steps.preparation.outputs.PROJ_ROOT }}
         run: |
-          cd $PROJ_ROOT;
+          cd "$PROJ_ROOT";
           npm run bench;
