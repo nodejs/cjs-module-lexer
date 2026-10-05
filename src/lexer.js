@@ -3,7 +3,13 @@ let wasm;
 const isLE = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
 const hasBuffer = typeof Buffer !== 'undefined';
 
-export function parse (source, name = '@') {
+/**
+ * @param {string} source
+ * @param {string} [name]
+ * @param {import('../lexer').ParseOptions} [options]
+ */
+export function parse (source, name = '@', options) {
+  const flags = options && options.allowMinifiedEnumerable === true ? 1 : 0;
   if (!wasm)
     initSync();
 
@@ -21,7 +27,7 @@ export function parse (source, name = '@') {
   else
     (isLE ? copyLE : copyBE)(source, new Uint16Array(wasm.memory.buffer, addr, len));
 
-  const err_code = wasm.parseCJS(addr, source.length, 0, 0, 0);
+  const err_code = wasm.parseCJSWithOptions(addr, source.length, 0, 0, 0, 0, flags);
 
   if (err_code) {
     const err = new Error(`Parse error ${name}${wasm.e()}:${source.slice(0, wasm.e()).split('\n').length}:${wasm.e() - source.lastIndexOf('\n', wasm.e() - 1)}`);

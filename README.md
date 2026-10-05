@@ -16,7 +16,7 @@ This project is used in Node.js core for detecting the named exports available w
 
 PRs will be accepted and upstreamed for parser bugs, performance improvements or new syntax support only.
 
-_Detection patterns for this project are **frozen**_. This is because adding any new export detection patterns would result in fragmented backwards-compatibility. Specifically, it would be very difficult to figure out why an ES module named export for CommonJS might work in newer Node.js versions but not older versions. This problem would only be discovered downstream of module authors, with the fix for module authors being to then have to understand which patterns in this project provide full backwards-compatibily. Rather, by fully freezing the detected patterns, if it works in any Node.js version it will work in any other. Build tools can also reliably treat the supported syntax for this project as a part of their output target for ensuring syntax support.
+_Default detection patterns for this project are **frozen**_. This is because adding any new export detection patterns would result in fragmented backwards-compatibility. Specifically, it would be very difficult to figure out why an ES module named export for CommonJS might work in newer Node.js versions but not older versions. This problem would only be discovered downstream of module authors, with the fix for module authors being to then have to understand which patterns in this project provide full backwards-compatibily. Rather, by fully freezing the detected patterns, if it works in any Node.js version it will work in any other. Build tools can also reliably treat the supported syntax for this project as a part of their output target for ensuring syntax support.
 
 ### Usage
 
@@ -71,9 +71,23 @@ Browser main threads can restrict synchronous Wasm compilation, so await
 
 The Wasm build is around 1.5x faster and without a cold start.
 
+The optional third argument to `parse(source, name, options)` controls detection extensions.
+`allowMinifiedEnumerable` defaults to `false`. Set it to `true` to recognize `enumerable: !0`
+in supported `Object.defineProperty` exports and star reexports. Whitespace and comments can separate `!` and `0`.
+This option does not change Node.js's built-in CommonJS named-export detection.
+
+```js
+const { exports } = parse(
+  "Object.defineProperty(exports, 'b', { enumerable: !0, value: 'b' });",
+  undefined,
+  { allowMinifiedEnumerable: true }
+);
+// exports === ['b']
+```
+
 ### Grammar
 
-CommonJS exports matches are run against the source token stream.
+CommonJS exports matches are run against the source token stream. The grammar below describes default detection.
 
 The token grammar is:
 

@@ -162,6 +162,7 @@ void (*addReexport)(const uint16_t*, const uint16_t*) = &_addReexport;
 void (*addUnsafeGetter)(const uint16_t*, const uint16_t*) = &_addUnsafeGetter;
 void (*clearReexports)() = &_clearReexports;
 uint32_t parseCJS (uint16_t* source, uint32_t sourceLen, void (*addExport)(const uint16_t* start, const uint16_t* end), void (*addReexport)(const uint16_t* start, const uint16_t* end), void (*addUnsafeGetter)(const uint16_t*, const uint16_t*), void (*clearReexports)());
+uint32_t parseCJSWithOptions (uint16_t* source, uint32_t sourceLen, void (*addExport)(const uint16_t* start, const uint16_t* end), void (*addReexport)(const uint16_t* start, const uint16_t* end), void (*addUnsafeGetter)(const uint16_t*, const uint16_t*), void (*clearReexports)(), uint32_t options);
 
 enum RequireType {
   Import,
