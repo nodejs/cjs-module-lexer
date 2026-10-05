@@ -14,6 +14,8 @@ export function parse (source, name = '@', options) {
     throw new TypeError('Expected options.mode to be "default" or "extended".');
   const flags = (options && options.allowMinifiedEnumerable === true ? 1 : 0) |
     (mode === 'extended' ? 2 : 0);
+  const analysis = options === undefined ? undefined : analyzeExports(source, options, decode);
+  if (analysis !== undefined) return analysis;
   if (!wasm)
     initSync();
 

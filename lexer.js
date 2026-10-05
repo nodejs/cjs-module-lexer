@@ -66,6 +66,8 @@ function parseCJS (source, name = '@', options) {
   if (mode !== undefined && mode !== 'default' && mode !== 'extended')
     throw new TypeError('Expected options.mode to be "default" or "extended".');
   const minifiedEnumerable = options ? options.allowMinifiedEnumerable === true : false;
+  const analysis = options === undefined ? undefined : require('./src/export-analysis.js')(source, options, decode);
+  if (analysis !== undefined) return analysis;
   resetState();
   allowMinifiedEnumerable = minifiedEnumerable;
   extended = mode === 'extended';

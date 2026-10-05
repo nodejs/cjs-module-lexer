@@ -7,7 +7,8 @@ try { fs.mkdirSync('./dist'); }
 catch (e) {}
 
 const wasmBuffer = fs.readFileSync('./lib/lexer.wasm');
-const jsSource = fs.readFileSync('./src/lexer.js').toString();
+const analysisSource = fs.readFileSync('./src/export-analysis.js', 'utf8').replace('module.exports = analyzeExports;', '');
+const jsSource = analysisSource + '\n' + fs.readFileSync('./src/lexer.js').toString();
 const pjson = JSON.parse(fs.readFileSync('./package.json').toString());
 
 const jsSourceProcessed = jsSource.replace('WASM_BINARY', wasmBuffer.toString('base64'));
