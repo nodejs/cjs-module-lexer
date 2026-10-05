@@ -1010,6 +1010,10 @@ void tryParseLiteralExports () {
         }
         ch = *pos;
       }
+      else if (ch != ',' && ch != '}' && ch != '=' && ch != '(') {
+        pos = revertPos;
+        return;
+      }
       addExport(startPos, endPos);
     }
     else if (ch == '\'' || ch == '"') {
@@ -1158,7 +1162,7 @@ uint32_t fullCharCode(uint16_t ch) {
 
 bool identifier (uint16_t startCh) {
   uint32_t ch = fullCharCode(startCh);
-  if (!isIdentifierStart(ch) && ch != '\\')
+  if (!isIdentifierStart(ch))
     return false;
   pos += charCodeByteLen(ch);
   while (ch = fullCharCode(*pos)) {

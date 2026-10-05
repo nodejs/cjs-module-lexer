@@ -20,6 +20,71 @@ async function loadParser () {
 suite('Lexer', () => {
   suiteSetup(async () => await loadParser());
 
+  test('does not detect method prefixes as object exports', () => {
+    for (const property of ['get value () { return value; }', 'set value (value) {}',
+      'async value () {}', 'async *value () {}',
+      'get "value" () { return value; }', 'get [value] () { return value; }',
+      'get /* comment */ value () { return value; }']) {
+      assert.deepStrictEqual(parse(`module.exports = { before, ${property}, after };`), {
+        exports: ['before'], reexports: []
+      });
+    }
+    for (const property of ['get', 'get: value', '"get": value', "'get': value"]) {
+      assert.deepStrictEqual(parse(`module.exports = { ${property}, after };`), {
+        exports: ['get', 'after'], reexports: []
+      });
+    }
+    for (const name of ['value', 'get', 'set', 'async']) {
+      assert.deepStrictEqual(parse(`module.exports = { before, ${name} () {}, after };`), {
+        exports: ['before', name], reexports: []
+      });
+    }
+  });
+
+  test('does not detect escaped identifiers', () => {
+    for (const name of ['\\u0061', '\\u{61}', 'a\\u0062', 'a\\u{62}']) {
+      assert.deepStrictEqual(parse(`exports.${name} = value; module.exports = { ${name} };`), {
+        exports: [], reexports: []
+      });
+    }
+    assert.deepStrictEqual(parse('exports.α = value; exports.𐊧 = value;'), {
+      exports: ['α', '𐊧'], reexports: []
+    });
+    assert.deepStrictEqual(parse('exports["\\u0061"] = value; module.exports = {"\\u0062": value};'), {
+      exports: ['a', 'b'], reexports: []
+    });
+  });
+
+  test('preserves empty reexport specifiers', () => {
+    for (const source of ['module.exports = require("");', "module.exports = require('');",
+      '__exportStar(require(""), exports);', 'module.exports = { ...require("") };']) {
+      assert.deepStrictEqual(parse(source), { exports: [], reexports: [''] });
+    }
+    assert.deepStrictEqual(parse('module.exports = require("\\uD800");'), {
+      exports: [], reexports: []
+    });
+  });
+
+  test('does not detect escaped identifier values or getters', () => {
+    for (const name of ['\\u0061', '\\u{61}', 'a\\u0062', 'a\\u{62}']) {
+      for (const key of ['value', '"value"']) {
+        assert.deepStrictEqual(parse(`module.exports = { ${key}: ${name} };`), {
+          exports: [], reexports: []
+        });
+      }
+      const getter = `Object.defineProperty(exports, 'value', { get () { return ${name}; } });`;
+      assert.deepStrictEqual(parse(getter), {
+        exports: [], reexports: []
+      });
+      assert.deepStrictEqual(parse(`exports.value = value; ${getter}`), {
+        exports: [], reexports: []
+      });
+    }
+    assert.deepStrictEqual(parse("Object.defineProperty(exports, 'value', { get () { return module['\\u0061']; } });"), {
+      exports: ['value'], reexports: []
+    });
+  });
+
   test('automatic Wasm initialization', async () => {
     const lexer = await import('../dist/lexer.mjs?automatic-initialization');
 
