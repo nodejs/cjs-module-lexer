@@ -1,4 +1,4 @@
-const assert = require('assert');
+const assert = require('node:assert/strict');
 
 let parse;
 async function loadParser () {
@@ -19,6 +19,92 @@ async function loadParser () {
 
 suite('Lexer', () => {
   suiteSetup(async () => await loadParser());
+
+  test('minified enumerable values and getters require an option', () => {
+    for (const enumerable of ['!0', '! 0', '!/*comment*/0', '!//comment\n0', '!\u00a00', '!0/*comment*/']) {
+      const source = `
+        Object.defineProperty(exports, 'literal', { enumerable: true, value: 1 });
+        Object.defineProperty(exports, 'value', { enumerable: ${enumerable}, value: 2 });
+        Object.defineProperty(module.exports, 'getter', { enumerable: ${enumerable}, get () { return value; } });
+        Object.defineProperty(exports, 'member', {
+          enumerable: ${enumerable}, get: function () { return external.value; }
+        });
+      `;
+
+      assert.deepStrictEqual(parse(source), { exports: ['literal'], reexports: [] });
+      assert.deepStrictEqual(parse(source, undefined, { allowMinifiedEnumerable: false }), {
+        exports: ['literal'], reexports: []
+      });
+      assert.deepStrictEqual(parse(source, undefined, { allowMinifiedEnumerable: true }), {
+        exports: ['literal', 'value', 'getter', 'member'], reexports: []
+      });
+      assert.deepStrictEqual(parse(source), { exports: ['literal'], reexports: [] });
+    }
+  });
+
+  test('minified enumerable reexports require an option', () => {
+    for (const enumerable of ['!0', '! /*comment*/ 0', '!1', '!0.1', '!0n', '!00', '!0 + 1', 'tfoo', 'xrue']) {
+      const legacy = enumerable === 'tfoo' || enumerable === 'xrue';
+      const minified = enumerable === '!0' || enumerable === '! /*comment*/ 0';
+      const source = `
+        var external = require('external');
+        Object.keys(external).forEach(function (key) {
+          if (key === 'default' || key === '__esModule') return;
+          Object.defineProperty(exports, key, {
+            enumerable: ${enumerable}, get: function () { return external[key]; }
+          });
+        });
+      `;
+
+      assert.deepStrictEqual(parse(source), { exports: [], reexports: legacy ? ['external'] : [] });
+      assert.deepStrictEqual(parse(source, undefined, { allowMinifiedEnumerable: true }), {
+        exports: [], reexports: legacy || minified ? ['external'] : []
+      });
+      assert.deepStrictEqual(parse(source), { exports: [], reexports: legacy ? ['external'] : [] });
+    }
+  });
+
+  test('minified enumerable detection preserves unsupported descriptors', () => {
+    for (const enumerable of ['!1', '!0.1', '!0n', '!00', '!0 + 1', '!0 || true', '!!0']) {
+      const source = `Object.defineProperty(exports, 'value', { enumerable: ${enumerable}, value: 1 });`;
+      assert.deepStrictEqual(parse(source, undefined, { allowMinifiedEnumerable: true }), {
+        exports: [], reexports: []
+      });
+    }
+
+    const source = `
+      Object.defineProperty(exports, 'value', { enumerable: !0, get () { return dynamic(); } });
+      exports.value = 1;
+    `;
+    assert.deepStrictEqual(parse(source, undefined, { allowMinifiedEnumerable: true }), {
+      exports: [], reexports: []
+    });
+    assert.throws(() => parse("import 'external';", 'broken.js', { allowMinifiedEnumerable: true }), {
+      code: 'ERR_LEXER_ESM_SYNTAX', message: /broken\.js/
+    });
+    assert.deepStrictEqual(parse("Object.defineProperty(exports, 'value', { enumerable: !0, value: 1 });"), {
+      exports: [], reexports: []
+    });
+  });
+
+  test('minified enumerable option getters can reenter the parser', () => {
+    const source = "Object.defineProperty(exports, 'outer', { enumerable: !0, value: 1 });";
+    for (const allowed of [false, true]) {
+      for (const nested of ['exports.inner = 1', '('.repeat(2049)]) {
+        const options = {
+          get allowMinifiedEnumerable () {
+            if (nested.startsWith('(')) {
+              assert.throws(() => parse(nested, 'nested.js'), /nested\.js/);
+            } else {
+              parse(nested);
+            }
+            return allowed;
+          }
+        };
+        assert.deepStrictEqual(parse(source, undefined, options), { exports: allowed ? ['outer'] : [], reexports: [] });
+      }
+    }
+  });
 
   test('automatic Wasm initialization', async () => {
     const lexer = await import('../dist/lexer.mjs?automatic-initialization');

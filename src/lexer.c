@@ -22,6 +22,7 @@ uint16_t* templateStack;
 uint16_t** openTokenPosStack;
 StarExportBinding* starExportStack;
 bool nextBraceIsClass;
+bool allowMinifiedEnumerable;
 
 uint16_t* lastReexportStart;
 uint16_t* lastReexportEnd;
@@ -68,10 +69,15 @@ static inline __attribute__((always_inline)) bool pushTemplate () {
   return true;
 }
 
-// Note: parsing is based on the _assumption_ that the source is already valid
 uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const uint16_t*, const uint16_t*), void (*_addReexport)(const uint16_t*, const uint16_t*), void (*_addUnsafeGetter)(const uint16_t*, const uint16_t*), void (*_clearReexports)()) {
+  return parseCJSWithOptions(_source, _sourceLen, _addExport, _addReexport, _addUnsafeGetter, _clearReexports, 0);
+}
+
+// Note: parsing is based on the _assumption_ that the source is already valid
+uint32_t parseCJSWithOptions (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const uint16_t*, const uint16_t*), void (*_addReexport)(const uint16_t*, const uint16_t*), void (*_addUnsafeGetter)(const uint16_t*, const uint16_t*), void (*_clearReexports)(), uint32_t options) {
   source = _source;
   sourceLen = _sourceLen;
+  allowMinifiedEnumerable = (options & 1) != 0;
   if (_addExport)
     addExport = _addExport;
   if (_addReexport)
@@ -349,6 +355,14 @@ bool tryParseObjectHasOwnProperty (uint16_t* it_id_start, ptrdiff_t it_id_len) {
   return true;
 }
 
+static inline bool tryParseMinifiedEnumerable (uint16_t ch) {
+  if (!allowMinifiedEnumerable || ch != '!') return false;
+  pos++;
+  if (commentWhitespace() != '0') return false;
+  pos++;
+  return true;
+}
+
 void tryParseObjectDefineOrKeys (bool keys) {
   pos += 6;
   uint16_t* revertPos = pos - 1;
@@ -389,8 +403,11 @@ void tryParseObjectDefineOrKeys (bool keys) {
           if (ch != ':') break;
           pos++;
           ch = commentWhitespace();
-          if (ch != 't' || !str_eq3(pos + 1, 'r', 'u', 'e')) break;
-          pos += 4;
+          if (ch == 't' && str_eq3(pos + 1, 'r', 'u', 'e')) {
+            pos += 4;
+          } else if (!tryParseMinifiedEnumerable(ch)) {
+            break;
+          }
           ch = commentWhitespace();
           if (ch != 44) break;
           pos++;
@@ -768,8 +785,11 @@ void tryParseObjectDefineOrKeys (bool keys) {
           if (ch != ':') break;
           pos++;
           ch = commentWhitespace();
-          if (ch != 't' && !str_eq3(pos + 1, 'r', 'u', 'e')) break;
-          pos += 4;
+          if (ch == 't' || str_eq3(pos + 1, 'r', 'u', 'e')) {
+            pos += 4;
+          } else if (!tryParseMinifiedEnumerable(ch)) {
+            break;
+          }
           ch = commentWhitespace();
           if (ch != ',') break;
           pos++;
