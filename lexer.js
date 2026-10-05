@@ -13,17 +13,18 @@ let openTokenDepth,
   lastStarExportSpecifier,
   _exports,
   unsafeGetters,
-  reexports;
+  reexports,
+  moduleExportCount;
 
 function resetState () {
   openTokenDepth = 0;
   templateDepth = -1;
   lastTokenPos = -1;
   lastSlashWasDivision = false;
-  templateStack = new Array(1024);
+  if (templateStack === undefined) templateStack = new Array(1024);
   templateStackDepth = 0;
-  openTokenPosStack = new Array(1024);
-  openClassPosStack = new Array(1024);
+  if (openTokenPosStack === undefined) openTokenPosStack = new Array(1024);
+  if (openClassPosStack === undefined) openClassPosStack = new Array(1024);
   nextBraceIsClass = false;
   starExportMap = Object.create(null);
   lastStarExportSpecifier = null;
@@ -31,6 +32,7 @@ function resetState () {
   _exports = new Set();
   unsafeGetters = new Set();
   reexports = new Set();
+  moduleExportCount = 0;
 }
 
 // RequireType
@@ -54,8 +56,11 @@ function pushTemplate () {
 
 /** @param {string} source @param {string} [name] @param {import('./lexer').ParseOptions} [options] */
 function parseCJS (source, name = '@', options) {
-  const analysis = options === undefined ? undefined : require('./src/export-analysis.js')(source, options, decode);
-  if (analysis !== undefined) return analysis;
+  const baseline = options === undefined ? undefined : options.baseline;
+  if (baseline === 'flow-v1') {
+    const report = require('./src/export-analysis.js')(source, 'flow-v1', undefined, decode);
+    if (report !== undefined) return report;
+  }
   resetState();
   try {
     parseSource(source);
@@ -66,8 +71,10 @@ function parseCJS (source, name = '@', options) {
     throw e;
   }
   const result = { exports: [..._exports].filter(expt => expt !== undefined && !unsafeGetters.has(expt)), reexports: [...reexports].filter(reexpt => reexpt !== undefined) };
+  const replacements = moduleExportCount;
   resetState();
-  return result;
+  return baseline === 'legacy' || (replacements < 2 && baseline === undefined) ? result :
+    require('./src/export-analysis.js')(source, baseline, replacements, decode, result);
 }
 
 function decode (str) {
@@ -900,6 +907,7 @@ function tryParseModuleExportsDotAssign () {
   pos = revertPos;
 }
 
+/** @param {boolean} assign */
 function tryParseExportsDotAssign (assign) {
   pos += 7;
   const revertPos = pos - 1;
@@ -940,6 +948,8 @@ function tryParseExportsDotAssign (assign) {
     // module.exports =
     case 61/*=*/: {
       if (assign) {
+        if (moduleExportCount < 2 && source.charCodeAt(pos + 1) !== 61)
+          moduleExportCount++;
         if (reexports.size)
           reexports = new Set();
         pos++;
@@ -954,6 +964,13 @@ function tryParseExportsDotAssign (assign) {
         if (ch === 114/*r*/)
           tryParseRequire(ExportAssign);
       }
+      break;
+    }
+    case 38/*&*/:
+    case 124/*|*/:
+    case 63/*?*/: {
+      if (assign && moduleExportCount < 2 && source.charCodeAt(pos + 1) === ch &&
+          source.charCodeAt(pos + 2) === 61) moduleExportCount++;
     }
   }
   pos = revertPos;

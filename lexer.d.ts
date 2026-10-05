@@ -1,6 +1,8 @@
 export interface Exports {
   exports: string[];
   reexports: string[];
+  /** Present for multiple detected replacements unless the legacy baseline is selected. Non-enumerable. */
+  readonly analysis?: ExportAnalysis;
 }
 
 export interface ParseOptions {

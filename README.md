@@ -73,8 +73,18 @@ The Wasm build is around 1.5x faster and without a cold start.
 
 ### Detection baselines (proof of concept)
 
-The optional third argument selects a detection baseline.
-Omit it, or select `legacy`, to retain the existing return value and detection patterns.
+Flow analysis runs only after the lexer detects more than one `module.exports` replacement.
+The counter ignores comments, strings, property writes, and comparisons.
+It includes direct assignments and logical assignments.
+The default result retains the legacy `exports` and `reexports` arrays.
+When the trigger applies, a non-enumerable `analysis` property provides the replacement report.
+The first read computes and caches the report. Legacy consumers do not run control-flow analysis.
+Object enumeration and JSON serialization retain their current output.
+Reflection can observe the new property.
+
+The optional third argument selects a versioned detection baseline.
+Select `legacy` to omit analysis, or `flow-v1` to return the report directly.
+The baseline name can combine detection rules without adding an option for each rule.
 
 ```js
 const report = parse(`
@@ -87,34 +97,33 @@ for (const outcome of report.outcomes) {
 }
 ```
 
-The selected baseline returns a flow report instead of the legacy arrays.
+You can also read `parse(source).analysis` when the trigger applies.
+With fewer than two detected replacements, explicit `flow-v1` reports `insufficient-replacements` as unknown.
+This includes a single assignment whose right-hand side contains a conditional expression.
 Each outcome describes the final export value under its conditions.
 Conditions identify source expressions with UTF-16 offsets and record truthiness or nullishness.
 Ranges include the start offset and exclude the end offset.
 They are analysis facts, not instructions to execute the source again.
 
-Use valid CommonJS source. The report describes successful synchronous completion under standard CommonJS bindings.
-It excludes replaced export objects, detached aliases, deleted properties, and uncalled function bodies.
+Use valid CommonJS source with standard CommonJS bindings and an ordinary writable `module.exports` property.
+The report describes successful synchronous completion.
+It reports final replacement values, rather than a union of every detected assignment.
 A module value identifies a direct re-export.
-An object value contains confirmed property names, including a property whose value is a required module.
+An object value contains its confirmed own literal property names.
 
-This PoC supports `if`, conditional expressions, logical expressions and assignments, primitive constants,
-local bindings, and owned object properties.
-It does not execute the source or resolve dependencies.
-Dependency spreads and unsupported syntax or effects produce an `unknown` value.
-Its source offsets identify the expression when available.
-An unknown outcome makes `complete` false.
-A complete report can still contain runtime conditions.
+The bounded heuristic distinguishes sequential replacements from conditional alternatives.
+Short sequences of bare re-export assignments identify the final module without parsing control flow.
+The conditional path supports `if`, conditional and logical expressions, primitive guards, and fresh literal values.
+It does not track local bindings or object aliases.
+Loops, `switch`, `try`, function bodies, property mutation, spreads, and unsupported effects produce an unknown report.
+Logical assignments with an unknown previous export value also remain unknown.
 
-Opaque reads can invoke getters. They invalidate exposed export state and can return different values on each read.
-The analyzer correlates stable local bindings.
-It does not assume that identical source expressions have identical results.
-Dependency execution also invalidates exposed state.
-Dependency calls combined with local function declarations remain unknown because callbacks can change captured bindings.
-Assignments to a fresh export value can establish a known result again.
-
-The parser limits tokens, source and AST nesting, branch expansion, and analysis work.
-Reaching a limit produces an unknown outcome rather than a partial export list.
+The analyzer does not execute source or resolve dependencies.
+Opaque reads and dependency calls can change exposed exports, so they invalidate earlier values.
+A fresh replacement can establish a known value again.
+Unknown outcomes make `complete` false. A complete report can still contain runtime conditions.
+Token, nesting, branch, and work limits produce unknown outcomes rather than partial export lists.
+When lexing is required, existing lexer errors still apply.
 
 ### Grammar
 
