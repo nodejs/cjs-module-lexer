@@ -39,6 +39,14 @@ bool openClassPosStack[STACK_DEPTH];
 StarExportBinding starExportStack_[MAX_STAR_EXPORTS];
 const StarExportBinding* STAR_EXPORT_STACK_END = &starExportStack_[MAX_STAR_EXPORTS - 1];
 
+struct StarExportOverflow {
+  StarExportBinding binding;
+  struct StarExportOverflow* next;
+};
+typedef struct StarExportOverflow StarExportOverflow;
+StarExportOverflow* firstStarExportOverflow;
+StarExportOverflow* lastStarExportOverflow;
+
 void (*addExport)(const uint16_t*, const uint16_t*);
 void (*addReexport)(const uint16_t*, const uint16_t*);
 void (*addUnsafeGetter)(const uint16_t*, const uint16_t*);
@@ -89,6 +97,8 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
   templateStack = &templateStack_[0];
   openTokenPosStack = &openTokenPosStack_[0];
   starExportStack = &starExportStack_[0];
+  firstStarExportOverflow = NULL;
+  lastStarExportOverflow = NULL;
   nextBraceIsClass = false;
 
   pos = (uint16_t*)(source - 1);
@@ -285,9 +295,6 @@ void tryBacktrackAddStarExportBinding (uint16_t* bPos) {
       bPos -= charCodeByteLen(charCode);
     }
     if (identifierStart && *bPos == ' ') {
-      // gracefully overflow if there are too many star export bindings to track
-      if (starExportStack == STAR_EXPORT_STACK_END)
-        return;
       starExportStack->id_start = bPos + 1;
       starExportStack->id_end = id_end + 1;
       while (*bPos == ' ' && bPos > source)
@@ -303,7 +310,23 @@ void tryBacktrackAddStarExportBinding (uint16_t* bPos) {
           break;
         default: return;
       }
-      starExportStack++;
+      if (starExportStack != STAR_EXPORT_STACK_END) {
+        starExportStack++;
+      }
+      else {
+        // A require declaration reserves more analysis space than this record consumes.
+        const uintptr_t alignment = _Alignof(StarExportOverflow);
+        const uintptr_t address = ((uintptr_t)analysis_head + alignment - 1) & ~(alignment - 1);
+        StarExportOverflow* overflow = (StarExportOverflow*)address;
+        analysis_head = (void*)(address + sizeof(StarExportOverflow));
+        overflow->binding = *starExportStack;
+        overflow->next = NULL;
+        if (lastStarExportOverflow)
+          lastStarExportOverflow->next = overflow;
+        else
+          firstStarExportOverflow = overflow;
+        lastStarExportOverflow = overflow;
+      }
     }
   }
 }
@@ -854,6 +877,17 @@ void tryParseObjectDefineOrKeys (bool keys) {
             return;
           }
           curCheckBinding++;
+        }
+        StarExportOverflow* overflow = firstStarExportOverflow;
+        while (overflow) {
+          StarExportBinding* binding = &overflow->binding;
+          if (id_len == binding->id_end - binding->id_start &&
+              0 == memcmp(id_start, binding->id_start, id_len * sizeof(uint16_t))) {
+            addReexport(binding->specifier_start, binding->specifier_end);
+            pos = revertPos;
+            return;
+          }
+          overflow = overflow->next;
         }
         return;
       }
