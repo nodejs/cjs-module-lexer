@@ -64,6 +64,30 @@ suite('Lexer', () => {
     assert.deepStrictEqual(first, { exports: ['first'], reexports: [] });
   });
 
+  test('rejects unterminated and unexpected nesting', () => {
+    for (const source of ['(', '{', ')', '}', '({', '{(', 'exports.value = 1; }']) {
+      assert.throws(() => parse(source, 'nesting.js'), { name: 'Error' });
+      assert.deepStrictEqual(parse('exports.recovery = 1;'), {
+        exports: ['recovery'],
+        reexports: []
+      });
+    }
+    assert.deepStrictEqual(parse('({}); exports.value = 1;'), {
+      exports: ['value'],
+      reexports: []
+    });
+  });
+
+  test('rejects unterminated templates with a parser error', () => {
+    for (const source of ['`open', '`open ${value', 'const value = `open']) {
+      assert.throws(() => parse(source, 'template.js'), { name: 'Error' });
+      assert.deepStrictEqual(parse('exports.recovery = 1;'), {
+        exports: ['recovery'],
+        reexports: []
+      });
+    }
+  });
+
   test('automatic Wasm initialization', async () => {
     const lexer = await import('../dist/lexer.mjs?automatic-initialization');
 

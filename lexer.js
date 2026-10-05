@@ -1413,7 +1413,7 @@ function templateString () {
     if (ch === 92/*\*/)
       pos++;
   }
-  syntaxError();
+  throw new Error('Unterminated template.');
 }
 
 function blockComment () {
