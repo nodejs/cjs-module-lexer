@@ -33,6 +33,7 @@ uint16_t* lastReexportEnd;
 uint32_t parse_error;
 uint32_t error = 0;
 uint32_t sourceLen;
+uint32_t moduleExportCount;
 
 uint16_t templateStack_[STACK_DEPTH];
 uint16_t* openTokenPosStack_[STACK_DEPTH];
@@ -85,6 +86,7 @@ uint32_t parseCJSWithOptions (uint16_t* _source, uint32_t _sourceLen, void (*_ad
   sourceLen = _sourceLen;
   allowMinifiedEnumerable = (options & 1) != 0;
   extended = (options & 2) != 0;
+  moduleExportCount = 0;
   if (_addExport)
     addExport = _addExport;
   if (_addReexport)
@@ -303,7 +305,12 @@ uint32_t parseCJSWithOptions (uint16_t* _source, uint32_t _sourceLen, void (*_ad
   }
 
   // success
+#ifdef __wasm__
+  // The low byte is reserved for parse errors in the host wrapper.
+  return moduleExportCount << 8;
+#else
   return 0;
+#endif
 }
 
 void tryBacktrackAddStarExportBinding (uint16_t* bPos) {
@@ -1004,6 +1011,8 @@ void tryParseExportsDotAssign (bool assign) {
     // module.exports =
     case '=': {
       if (assign) {
+        if (moduleExportCount < 2 && pos[1] != '=')
+          moduleExportCount++;
         if (!extended) clearReexports();
         pos++;
         ch = commentWhitespace();
@@ -1024,6 +1033,13 @@ void tryParseExportsDotAssign (bool assign) {
         if (ch == 'r')
           tryParseRequire(ExportAssign);
       }
+      break;
+    }
+    case '&':
+    case '|':
+    case '?': {
+      if (assign && moduleExportCount < 2 && end - pos >= 2 && pos[1] == ch && pos[2] == '=')
+        moduleExportCount++;
     }
   }
   pos = revertPos;

@@ -17,30 +17,19 @@
  * @typedef {{ type: 'block', body: FlowStatement[], start: number, end: number } |
  *   { type: 'if', test: FlowExpression, consequent: FlowStatement, alternate?: FlowStatement,
  *     start: number, end: number } |
- *   { type: 'declaration', mode: string, declarations: { name: string, value?: FlowExpression }[],
- *     start: number, end: number } |
- *   { type: 'function', name: string, start: number, end: number } |
  *   { type: 'expression', expression: FlowExpression, start: number, end: number } |
- *   { type: 'return' | 'throw' | 'empty', start: number, end: number }} FlowStatement
- * @typedef {{ kind: 'literal', value: FlowPrimitive } |
- *   { kind: 'object', id: number } | { kind: 'module', id: number, specifier: string } |
- *   { kind: 'unknown', id: number, reason?: string } |
- *   { kind: 'module-object' | 'require' | 'uninitialized' }} FlowValue
- * @typedef {{ properties: Map<string, FlowValue>, reason?: string, start?: number, end?: number }} FlowOwnedObject
- * @typedef {{ bindings: Map<string, FlowValue>, objects: Map<number, FlowOwnedObject>,
- *   facts: Map<string, boolean>, conditions: import('../lexer').FlowCondition[], value: FlowValue,
- *   declared: Set<string>, constants: Set<string>, prototypeUnknown: boolean,
- *   completion: 'normal' | 'return' | 'throw' }} FlowState
+ *   { type: 'empty', start: number, end: number }} FlowStatement
+ * @typedef {import('../lexer').FlowExportValue} FlowValue
+ * @typedef {{ value: FlowValue, conditions: import('../lexer').FlowCondition[] }} FlowState
  * @typedef {{ source: string, decode: (text: string) => string | undefined, tokens: FlowToken[], pos: number,
- *   depth: number, steps: number, branches: number, nextId: number, hasFunctions: boolean }} FlowContext
+ *   depth: number, steps: number, branches: number }} FlowContext
  * @typedef {{ state: FlowState, value: FlowValue }} FlowEvaluation
- * @typedef {{ kind: 'binding', name: string } | { kind: 'module' } |
- *   { kind: 'property', id: number, name: string }} FlowReference
  */
 
 let flowPowers;
 let flowPatterns;
 const flowLimits = { tokens: 8192, depth: 64, outcomes: 32, steps: 65536 };
+const flowSequence = /^(?:\s*module\.exports\s*=\s*require\(((['"])(?:\\.|(?!\2)[^\\])*\2)\);){2,}\s*$/;
 
 class FlowFailure extends Error {
   /** @param {string} reason @param {number} start @param {number} end */
@@ -54,17 +43,45 @@ class FlowFailure extends Error {
 
 /**
  * @param {string} source
- * @param {import('../lexer').ParseOptions} options
+ * @param {import('../lexer').ParseOptions['baseline']} baseline
+ * @param {number} [replacements]
  * @param {(text: string) => string | undefined} decode
+ * @param {import('../lexer').Exports} [legacy]
  */
-function analyzeExports (source, options, decode) {
-  const baseline = options.baseline;
-  if (baseline === undefined || baseline === 'legacy') return;
-  if (typeof baseline !== 'string') throw new TypeError('Detection baseline must be a string');
-  if (baseline !== 'flow-v1') throw new RangeError('Unknown detection baseline: ' + baseline);
+function analyzeExports (source, baseline, replacements, decode, legacy) {
+  if (baseline === 'legacy') return legacy;
+  if (baseline !== undefined && typeof baseline !== 'string')
+    throw new TypeError('Detection baseline must be a string');
+  if (baseline !== undefined && baseline !== 'flow-v1') throw new RangeError('Unknown detection baseline: ' + baseline);
+  if (baseline === undefined) {
+    // Legacy consumers do not read the report, so defer analysis until the first read.
+    Object.defineProperty(legacy, 'analysis', { configurable: true, get () {
+      const report = analyzeExports(source, 'flow-v1', replacements, decode);
+      Object.defineProperty(legacy, 'analysis', { value: report, configurable: false });
+      return report;
+    } });
+    return legacy;
+  }
+  const sequence = source.length <= 4096 ? flowSequence.exec(source) : undefined;
+  if (replacements === undefined) {
+    if (!sequence && source.indexOf('module', source.indexOf('module') + 6) !== -1) return;
+    replacements = sequence ? 2 : 0;
+  }
+  const specifier = sequence ? decode(sequence[1]) : undefined;
+  const report = replacements < 2 ? { baseline: 'flow-v1', complete: false,
+    outcomes: [{ conditions: [], value: { kind: 'unknown', reason: 'insufficient-replacements' } }] } :
+    specifier !== undefined ?
+    { baseline: 'flow-v1', complete: true,
+      outcomes: [{ conditions: [], value: { kind: 'module', specifier } }] } :
+    analyzeReplacements(source, decode);
+  return report;
+}
+
+/** @param {string} source @param {(text: string) => string | undefined} decode */
+function analyzeReplacements (source, decode) {
   if (flowPowers === undefined) {
     flowPatterns = {
-      whitespace: /\s/, lineBreak: /[\r\n]/, identifierStart: /[a-zA-Z_$]/,
+      whitespace: /\s/, lineBreak: /[\r\n\u2028\u2029]/, identifierStart: /[a-zA-Z_$]/,
       identifierPart: /[a-zA-Z0-9_$]/, identifier: /^[a-zA-Z_$][a-zA-Z0-9_$]*$/,
       digit: /[0-9]/, numericStart: /^\d/, legacyNumber: /^0\d/,
       number: /^(?:0[xX][\da-fA-F]+|0[bB][01]+|0[oO][0-7]+|\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/,
@@ -77,38 +94,19 @@ function analyzeExports (source, options, decode) {
     ]);
   }
   /** @type {FlowContext} */
-  const context = { source, decode, tokens: [], pos: 0, depth: 0, steps: 0, branches: 0, nextId: 1,
-    hasFunctions: false };
+  const context = { source, decode, tokens: [], pos: 0, depth: 0, steps: 0, branches: 0 };
   try {
     tokenizeFlow(context);
     const body = [];
     while (context.pos < context.tokens.length) body.push(readFlowStatement(context));
     validateFlowDepth(context, body);
-    /** @type {FlowValue} */
-    const initial = { kind: 'object', id: 0 };
-    /** @type {FlowState} */
-    const state = {
-      bindings: new Map([
-        ['module', { kind: 'module-object' }], ['exports', initial], ['require', { kind: 'require' }]
-      ]),
-      objects: new Map([[0, { properties: new Map() }]]), facts: new Map(), conditions: [], value: initial,
-      declared: new Set(['module', 'exports', 'require']), constants: new Set(), prototypeUnknown: false,
-      completion: 'normal'
-    };
-    hoistFlowVars(body, state);
-    const states = executeFlowBody(context, body, [state]);
-    const outcomes = [];
-    for (const result of states) {
-      if (result.completion === 'throw') continue;
-      outcomes.push({ conditions: result.conditions, value: reportFlowValue(result, result.value) });
-    }
-    return { baseline, complete: outcomes.every(
-      /** @param {import('../lexer').ExportAnalysis['outcomes'][number]} outcome */
-      outcome => outcome.value.kind !== 'unknown'
+    const outcomes = executeFlowBody(context, body, [{ conditions: [], value: { kind: 'object', properties: [] } }]);
+    return { baseline: 'flow-v1', complete: outcomes.every(
+      /** @param {FlowState} outcome */ outcome => outcome.value.kind !== 'unknown'
     ), outcomes };
   } catch (error) {
     if (!(error instanceof FlowFailure)) throw error;
-    return { baseline, complete: false, outcomes: [{ conditions: [],
+    return { baseline: 'flow-v1', complete: false, outcomes: [{ conditions: [],
       value: { kind: 'unknown', reason: error.reason, start: error.start, end: error.end } }] };
   }
 }
@@ -126,19 +124,23 @@ function stepFlow (context) {
   if (++context.steps > flowLimits.steps) failFlow(context, 'work-limit');
 }
 
+/** @param {string} source @param {number} start */
+function flowLineEnd (source, start) {
+  while (start < source.length && !flowPatterns.lineBreak.test(source[start])) start++;
+  return start;
+}
+
 /** @param {FlowContext} context */
 function tokenizeFlow (context) {
   const source = context.source;
-  let pos = source.startsWith('#!') ? source.indexOf('\n') : 0;
-  if (pos === -1) return;
+  let pos = source.startsWith('#!') ? flowLineEnd(source, 2) : 0;
   while (pos < source.length) {
     stepFlow(context);
     const start = pos;
     const ch = source[pos];
     if (flowPatterns.whitespace.test(ch)) { pos++; continue; }
     if (source.startsWith('//', pos)) {
-      const next = source.indexOf('\n', pos + 2);
-      pos = next === -1 ? source.length : next;
+      pos = flowLineEnd(source, pos + 2);
       continue;
     }
     if (source.startsWith('/*', pos)) {
@@ -218,31 +220,6 @@ function readFlowStatement (context) {
     const consequent = readFlowStatement(context);
     const alternate = takeFlow(context, 'else') ? readFlowStatement(context) : undefined;
     result = { type: 'if', test, consequent, alternate, start, end: alternate ? alternate.end : consequent.end };
-  } else if (['const', 'let', 'var'].includes(token.text)) {
-    const declarations = [];
-    do {
-      const name = context.tokens[context.pos++];
-      if (!name || !flowPatterns.identifier.test(name.text)) failFlow(context, 'unsupported-binding');
-      const value = takeFlow(context, '=') ? readFlowExpression(context, 2) : undefined;
-      declarations.push({ name: name.text, value });
-    } while (takeFlow(context, ','));
-    flowSemicolon(context);
-    result = { type: 'declaration', mode: token.text, declarations, start,
-      end: context.tokens[context.pos - 1].end };
-  } else if (token.text === 'function') {
-    context.hasFunctions = true;
-    const name = context.tokens[context.pos++];
-    if (!name || !flowPatterns.identifier.test(name.text)) failFlow(context, 'unsupported-function');
-    skipFlowGroup(context, '(', ')');
-    skipFlowGroup(context, '{', '}');
-    result = { type: 'function', name: name.text, start, end: context.tokens[context.pos - 1].end };
-  } else if (token.text === 'return' || token.text === 'throw') {
-    if (context.tokens[context.pos] && ![';', '}'].includes(context.tokens[context.pos].text) &&
-        !flowPatterns.lineBreak.test(context.source.slice(token.end, context.tokens[context.pos].start))) {
-      failFlow(context, 'unsupported-completion-value', start, token.end);
-    }
-    flowSemicolon(context);
-    result = { type: token.text, start, end: context.tokens[context.pos - 1].end };
   } else {
     context.pos--;
     const expression = readFlowExpression(context);
@@ -251,19 +228,6 @@ function readFlowStatement (context) {
   }
   context.depth--;
   return result;
-}
-
-/** @param {FlowContext} context @param {string} open @param {string} close */
-function skipFlowGroup (context, open, close) {
-  expectFlow(context, open);
-  let depth = 1;
-  while (depth) {
-    stepFlow(context);
-    const token = context.tokens[context.pos++];
-    if (!token) failFlow(context, 'unsupported-syntax');
-    if (token.text === open) depth++;
-    else if (token.text === close) depth--;
-  }
 }
 
 /** @param {FlowContext} context @param {number} [minimum] @returns {FlowExpression} */
@@ -279,7 +243,7 @@ function readFlowExpression (context, minimum = 1) {
   } else if (token.text === '{') {
     const entries = [];
     while (!takeFlow(context, '}')) {
-      if (takeFlow(context, '...')) entries.push({ value: readFlowExpression(context, 2) });
+      if (takeFlow(context, '...')) failFlow(context, 'unsupported-object');
       else {
         const key = context.tokens[context.pos++];
         if (!key) failFlow(context, 'unsupported-object');
@@ -293,7 +257,7 @@ function readFlowExpression (context, minimum = 1) {
       if (!takeFlow(context, ',')) { expectFlow(context, '}'); break; }
     }
     left = { type: 'object', entries, start: token.start, end: context.tokens[context.pos - 1].end };
-  } else if (['!', '+', '-', 'void', 'typeof', 'delete'].includes(token.text)) {
+  } else if (['!', '+', '-', 'void', 'typeof'].includes(token.text)) {
     const argument = readFlowExpression(context, 10);
     left = { type: 'unary', operator: token.text, argument, start: token.start, end: argument.end };
   } else if (token.text[0] === '"' || token.text[0] === "'" || flowPatterns.numericStart.test(token.text) ||
@@ -363,10 +327,6 @@ function validateFlowDepth (context, body) {
     } else if (node.type === 'if' || node.type === 'conditional') {
       pending.push({ node: node.test, depth }, { node: node.consequent, depth });
       if (node.alternate) pending.push({ node: node.alternate, depth });
-    } else if (node.type === 'declaration') {
-      for (const declaration of node.declarations) {
-        if (declaration.value) pending.push({ node: declaration.value, depth });
-      }
     } else if (node.type === 'expression') pending.push({ node: node.expression, depth });
     else if (node.type === 'member') {
       pending.push({ node: node.object, depth }, { node: node.key, depth });
@@ -382,67 +342,14 @@ function validateFlowDepth (context, body) {
   }
 }
 
-/** @param {FlowState} state */
-function cloneFlowState (state) {
-  const objects = new Map();
-  for (const [id, object] of state.objects) {
-    objects.set(id, {
-      properties: new Map(object.properties), reason: object.reason, start: object.start, end: object.end
-    });
-  }
-  return { bindings: new Map(state.bindings), objects, facts: new Map(state.facts),
-    conditions: state.conditions.slice(), value: state.value, declared: new Set(state.declared),
-    constants: new Set(state.constants), prototypeUnknown: state.prototypeUnknown, completion: state.completion };
-}
-
-/** @param {FlowStatement[]} body @param {FlowState} state */
-function hoistFlowVars (body, state) {
-  for (const statement of body) {
-    if (statement.type === 'declaration' && statement.mode === 'var') {
-      for (const declaration of statement.declarations) {
-        state.declared.add(declaration.name);
-        if (!state.bindings.has(declaration.name)) {
-          state.bindings.set(declaration.name, { kind: 'literal', value: undefined });
-        }
-      }
-    } else if (statement.type === 'block') hoistFlowVars(statement.body, state);
-    else if (statement.type === 'if') {
-      hoistFlowVars([statement.consequent], state);
-      if (statement.alternate) hoistFlowVars([statement.alternate], state);
-    }
-  }
-}
 
 /** @param {FlowContext} context @param {FlowStatement[]} body @param {FlowState[]} states */
 function executeFlowBody (context, body, states) {
   for (const statement of body) {
-    for (const state of states) {
-      if (statement.type === 'function') {
-        state.declared.add(statement.name);
-        state.bindings.set(statement.name, { kind: 'unknown', id: context.nextId++ });
-      }
-      if (statement.type === 'declaration') {
-        for (const declaration of statement.declarations) {
-          state.declared.add(declaration.name);
-          if (statement.mode !== 'var') {
-            state.constants.delete(declaration.name);
-            state.bindings.set(declaration.name, { kind: 'uninitialized' });
-          }
-          else if (!state.bindings.has(declaration.name)) {
-            state.bindings.set(declaration.name, { kind: 'literal', value: undefined });
-          }
-        }
-      }
-    }
-  }
-  for (const statement of body) {
     const next = [];
-    for (const state of states) {
-      if (state.completion !== 'normal') next.push(state);
-      else next.push(...executeFlowStatement(context, statement, state));
-    }
-    if (next.length > flowLimits.outcomes) failFlow(context, 'outcome-limit', statement.start, statement.end);
+    for (const state of states) next.push(...executeFlowStatement(context, statement, state));
     states = next;
+    if (states.length > flowLimits.outcomes) failFlow(context, 'outcome-limit');
   }
   return states;
 }
@@ -450,404 +357,136 @@ function executeFlowBody (context, body, states) {
 /** @param {FlowContext} context @param {FlowStatement} statement @param {FlowState} state */
 function executeFlowStatement (context, statement, state) {
   stepFlow(context);
-  if (statement.type === 'empty' || statement.type === 'function') return [state];
-  if (statement.type === 'return' || statement.type === 'throw') { state.completion = statement.type; return [state]; }
-  if (statement.type === 'block') {
-    const bindings = new Map();
-    for (const child of statement.body) {
-      if (child.type === 'declaration' && child.mode !== 'var') {
-        for (const declaration of child.declarations) bindings.set(declaration.name, {
-          value: state.bindings.get(declaration.name), declared: state.declared.has(declaration.name),
-          constant: state.constants.has(declaration.name)
-        });
-      }
-      if (child.type === 'function') failFlow(context, 'block-function', child.start, child.end);
-    }
-    const results = executeFlowBody(context, statement.body, [state]);
-    for (const result of results) {
-      for (const [name, binding] of bindings) {
-        const value = binding.value;
-        if (value === undefined) result.bindings.delete(name);
-        else result.bindings.set(name, value);
-        if (!binding.declared) result.declared.delete(name);
-        if (binding.constant) result.constants.add(name);
-        else result.constants.delete(name);
-      }
-    }
-    return results;
-  }
-  if (statement.type === 'declaration') {
-    let states = [state];
-    for (const declaration of statement.declarations) {
-      const next = [];
-      for (const current of states) {
-        if (statement.mode === 'var' && !declaration.value) { next.push(current); continue; }
-        const results = declaration.value ? evaluateFlow(context, declaration.value, current) :
-          [{ state: current, value: { kind: 'literal', value: undefined } }];
-        for (const result of results) {
-          result.state.bindings.set(declaration.name, result.value);
-          if (statement.mode === 'const') result.state.constants.add(declaration.name);
-          next.push(result.state);
-        }
-      }
-      states = next;
-    }
-    return states;
-  }
-  if (statement.type === 'expression') {
-    return evaluateFlow(context, statement.expression, state).map(
-      /** @param {FlowEvaluation} result */
-      result => result.state
-    );
-  }
+  if (statement.type === 'empty') return [state];
+  if (statement.type === 'block') return executeFlowBody(context, statement.body, [state]);
   const results = [];
-  for (const result of evaluateFlow(context, statement.test, state)) {
-    for (const branch of branchFlow(context, result, statement.test, 'truthy')) {
-      const child = branch.pass ? statement.consequent : statement.alternate;
-      if (child) results.push(...executeFlowStatement(context, child, branch.state));
-      else results.push(branch.state);
+  if (statement.type === 'expression') {
+    for (const result of evaluateFlow(context, statement.expression, state)) results.push(result.state);
+  } else {
+    for (const test of evaluateFlow(context, statement.test, state)) {
+      for (const branch of branchFlow(context, test, statement.test, false)) {
+        const arm = branch.active ? statement.consequent : statement.alternate;
+        results.push(...(arm ? executeFlowStatement(context, arm, branch.state) : [branch.state]));
+      }
     }
   }
   return results;
 }
 
-/**
- * @param {FlowContext} context
- * @param {FlowEvaluation} result
- * @param {FlowExpression} test
- * @param {string} predicate
- */
-function branchFlow (context, result, test, predicate) {
-  const value = result.value;
-  if (value.kind === 'literal' || value.kind === 'object' ||
-      value.kind === 'module-object' || value.kind === 'require') {
-    const pass = predicate === 'nullish' ? value.kind === 'literal' && value.value == null :
-      value.kind !== 'literal' || Boolean(value.value);
-    return [{ state: result.state, value, pass }];
-  }
-  const fact = predicate + ':' + value.id;
-  if (predicate === 'truthy' && result.state.facts.get('nullish:' + value.id) === true) {
-    return [{ state: result.state, value, pass: false }];
-  }
-  if (predicate === 'nullish' && result.state.facts.get('truthy:' + value.id) === true) {
-    return [{ state: result.state, value, pass: false }];
-  }
-  if (result.state.facts.has(fact)) return [{ state: result.state, value, pass: result.state.facts.get(fact) }];
-  const branches = [];
-  context.branches += 2;
-  if (context.branches > flowLimits.outcomes * 2) failFlow(context, 'outcome-limit', test.start, test.end);
-  for (const pass of [true, false]) {
-    const state = cloneFlowState(result.state);
-    state.facts.set(fact, pass);
-    state.conditions.push({ start: test.start, end: test.end,
-      when: predicate === 'nullish' ? pass ? 'nullish' : 'non-nullish' : pass ? 'truthy' : 'falsy' });
-    branches.push({ state, value, pass });
-  }
-  return branches;
+/** @param {FlowExpression} node */
+function isFlowReplacement (node) {
+  return node.type === 'member' && node.object.type === 'identifier' && node.object.name === 'module' &&
+    node.key.type === 'literal' && node.key.value === 'exports';
 }
 
-/**
- * @param {FlowContext} context
- * @param {FlowExpression} expression
- * @param {FlowState} state
- * @returns {FlowEvaluation[]}
- */
-function evaluateFlow (context, expression, state) {
+/** @param {FlowContext} context @param {FlowEvaluation} result @param {FlowExpression} test
+ * @param {boolean} nullish */
+function branchFlow (context, result, test, nullish) {
+  const value = result.value;
+  if (value.kind === 'literal' || value.kind === 'object') {
+    const active = value.kind === 'object' ? !nullish : nullish ? value.value == null : !!value.value;
+    return [{ state: result.state, active }];
+  }
+  if (++context.branches >= flowLimits.outcomes) failFlow(context, 'outcome-limit', test.start, test.end);
+  return [true, false].map(/** @param {boolean} active */ active => ({ active, state: {
+    value: result.state.value,
+    conditions: result.state.conditions.concat({ start: test.start, end: test.end,
+      when: nullish ? active ? 'nullish' : 'non-nullish' : active ? 'truthy' : 'falsy' })
+  } }));
+}
+
+/** @param {FlowContext} context @param {FlowExpression} node @param {FlowState} state
+ * @returns {FlowEvaluation[]} */
+function evaluateFlow (context, node, state) {
   stepFlow(context);
-  if (expression.type === 'literal') return [{ state, value: { kind: 'literal', value: expression.value } }];
-  if (expression.type === 'identifier') {
-    let value = state.bindings.get(expression.name);
-    if (!value) {
-      if (expression.name === 'undefined') value = { kind: 'literal', value: undefined };
-      else {
-        invalidateFlowEffects(context, state, 'opaque-read-effects');
-        value = { kind: 'unknown', id: context.nextId++ };
-      }
-    }
-    if (value.kind === 'uninitialized') failFlow(context, 'uninitialized-binding', expression.start, expression.end);
-    return [{ state, value }];
+  if (node.type === 'literal') return [{ state, value: { kind: 'literal', value: node.value } }];
+  if (node.type === 'identifier' || node.type === 'member') {
+    if (node.type === 'identifier' &&
+        ['module', 'exports', 'require', 'function', 'return', 'throw'].includes(node.name))
+      failFlow(context, 'unsupported-reference', node.start, node.end);
+    if (isFlowReplacement(node)) failFlow(context, 'unsupported-reference', node.start, node.end);
+    state.value = { kind: 'unknown', reason: 'opaque-read-effects' };
+    return [{ state, value: state.value }];
   }
-  if (expression.type === 'object') {
-    const id = context.nextId++;
-    state.objects.set(id, { properties: new Map(), start: expression.start, end: expression.end });
-    let states = [state];
-    for (const entry of expression.entries) {
+  if (node.type === 'call') {
+    if (node.callee.type !== 'identifier' || node.callee.name !== 'require' || node.args.length !== 1 ||
+        node.args[0].type !== 'literal' || typeof node.args[0].value !== 'string')
+      failFlow(context, 'unsupported-call', node.start, node.end);
+    state.value = { kind: 'unknown', reason: 'dependency-effects' };
+    return [{ state, value: { kind: 'module', specifier: node.args[0].value } }];
+  }
+  if (node.type === 'object') {
+    let results = [{ state, value: { kind: 'object', properties: [] } }];
+    for (const entry of node.entries) {
       const next = [];
-      for (const current of states) {
-        for (const result of evaluateFlow(context, entry.value, current)) {
-          const object = result.state.objects.get(id);
-          if (entry.key !== undefined) object.properties.set(entry.key, result.value);
-          else if (result.value.kind === 'object' && !result.state.objects.get(result.value.id).reason) {
-            for (const [key, value] of result.state.objects.get(result.value.id).properties) {
-              object.properties.set(key, value);
-            }
-          } else {
-            if (result.value.kind !== 'literal') {
-              invalidateFlowEffects(context, result.state, 'opaque-spread-effects');
-            }
-            object.reason = 'unresolved-spread';
-          }
-          next.push(result.state);
+      for (const result of results) {
+        for (const value of evaluateFlow(context, entry.value, result.state)) {
+          const properties = result.value.properties.slice();
+          if (!properties.includes(entry.key)) properties.push(entry.key);
+          next.push({ state: value.state, value: { kind: 'object', properties } });
         }
       }
-      states = next;
+      results = next;
     }
-    return states.map(
-      /** @param {FlowState} current */
-      current => ({ state: current, value: { kind: 'object', id } })
-    );
+    return results;
   }
-  if (expression.type === 'member') {
+  if (node.type === 'conditional') {
     const results = [];
-    for (const receiver of evaluateFlow(context, expression.object, state)) {
-      for (const key of evaluateFlow(context, expression.key, receiver.state)) {
-        const name = flowPropertyName(context, key.value, expression);
-        let value;
-        if (receiver.value.kind === 'module-object' && name === 'exports') value = key.state.value;
-        else if (receiver.value.kind === 'object') {
-          const object = key.state.objects.get(receiver.value.id);
-          if (object.reason) failFlow(context, object.reason, expression.start, expression.end);
-          value = object.properties.get(name);
-          if (value === undefined) invalidateFlowEffects(context, key.state, 'opaque-read-effects');
-        } else invalidateFlowEffects(context, key.state, 'opaque-read-effects');
-        results.push({ state: key.state, value: value || { kind: 'unknown', id: context.nextId++ } });
+    for (const test of evaluateFlow(context, node.test, state)) {
+      for (const branch of branchFlow(context, test, node.test, false)) {
+        results.push(...evaluateFlow(context, branch.active ? node.consequent : node.alternate, branch.state));
       }
     }
     return results;
   }
-  if (expression.type === 'call') {
-    const requireBinding = state.bindings.get('require');
-    if (expression.callee.type !== 'identifier' || expression.callee.name !== 'require' ||
-        !requireBinding || requireBinding.kind !== 'require' || expression.args.length !== 1) {
-      failFlow(context, 'unsupported-call', expression.start, expression.end);
-    }
+  if (node.type === 'unary') {
     const results = [];
-    for (const argument of evaluateFlow(context, expression.args[0], state)) {
-      if (argument.value.kind !== 'literal' || typeof argument.value.value !== 'string') {
-        failFlow(context, 'dynamic-require', expression.start, expression.end);
-      }
-      invalidateFlowEffects(context, argument.state, 'dependency-effects');
-      results.push({ state: argument.state,
-        value: { kind: 'module', id: context.nextId++, specifier: argument.value.value } });
+    for (const result of evaluateFlow(context, node.argument, state)) {
+      const primitive = result.value.kind === 'literal';
+      const value = primitive ? result.value.value : undefined;
+      if (!primitive && (node.operator === '+' || node.operator === '-'))
+        failFlow(context, 'unsupported-coercion', node.start, node.end);
+      const computed = node.operator === 'void' ? undefined : node.operator === 'typeof' ?
+        primitive ? typeof value : undefined : node.operator === '!' ? !value : node.operator === '+' ? +value : -value;
+      results.push({ state: result.state, value: !primitive && node.operator !== 'void' ?
+        { kind: 'unknown', reason: 'unknown-condition' } : { kind: 'literal', value: computed } });
     }
     return results;
   }
-  if (expression.type === 'conditional') {
-    const results = [];
-    for (const test of evaluateFlow(context, expression.test, state)) {
-      for (const branch of branchFlow(context, test, expression.test, 'truthy')) {
-        const child = branch.pass ? expression.consequent : expression.alternate;
-        results.push(...evaluateFlow(context, child, branch.state));
-      }
-    }
-    return results;
-  }
-  if (expression.type === 'unary') {
-    if (expression.operator === 'delete') {
-      if (expression.argument.type !== 'member') {
-        failFlow(context, 'unsupported-delete', expression.start, expression.end);
-      }
-      return writeFlow(context, expression.argument, undefined, state);
-    }
-    const results = [];
-    for (const result of evaluateFlow(context, expression.argument, state)) {
-      if (expression.operator === '!') {
-        for (const branch of branchFlow(context, result, expression.argument, 'truthy')) {
-          results.push({ state: branch.state, value: { kind: 'literal', value: !branch.pass } });
-        }
-      } else if (expression.operator === 'void') {
-        results.push({ state: result.state, value: { kind: 'literal', value: undefined } });
-      }
-      else if (result.value.kind === 'literal') {
-        const value = expression.operator === '+' ? +result.value.value : expression.operator === '-' ?
-          -result.value.value : typeof result.value.value;
-        results.push({ state: result.state, value: { kind: 'literal', value } });
-      } else {
-        if (expression.operator === '+' || expression.operator === '-') {
-          invalidateFlowEffects(context, result.state, 'opaque-coercion-effects');
-        }
-        results.push({ state: result.state, value: { kind: 'unknown', id: context.nextId++ } });
-      }
-    }
-    return results;
-  }
-  if (expression.operator === '=') {
-    const results = [];
-    for (const target of referenceFlow(context, expression.left, state)) {
-      for (const right of evaluateFlow(context, expression.right, target.state)) {
-        assignFlowReference(context, target.reference, right.value, right.state);
-        results.push(right);
-      }
-    }
-    return results;
-  }
-  if (['&&=', '||=', '??='].includes(expression.operator)) {
-    const results = [];
-    for (const target of referenceFlow(context, expression.left, state)) {
-      const reference = target.reference;
-      const value = reference.kind === 'binding' ? target.state.bindings.get(reference.name) :
-        reference.kind === 'module' ? target.state.value :
-          target.state.objects.get(reference.id).properties.get(reference.name);
-      if (reference.kind === 'property' && value === undefined) {
-        invalidateFlowEffects(context, target.state, 'opaque-read-effects');
-      }
-      const left = { state: target.state, value: value || { kind: 'unknown', id: context.nextId++ } };
-      for (const branch of branchFlow(context, left, expression.left,
-        expression.operator === '??=' ? 'nullish' : 'truthy')) {
-        const evaluateRight = expression.operator === '||=' ? !branch.pass : branch.pass;
-        if (!evaluateRight) { results.push({ state: branch.state, value: left.value }); continue; }
-        for (const right of evaluateFlow(context, expression.right, branch.state)) {
-          assignFlowReference(context, reference, right.value, right.state);
-          results.push(right);
-        }
-      }
-    }
-    return results;
-  }
+  const assignment = ['=', '&&=', '||=', '??='].includes(node.operator);
+  if (assignment && !isFlowReplacement(node.left)) failFlow(context, 'unsupported-assignment', node.start, node.end);
+  const logical = ['&&', '||', '??', '&&=', '||=', '??='].includes(node.operator);
+  const leftResults = assignment ? [{ state, value: state.value }] : evaluateFlow(context, node.left, state);
   const results = [];
-  for (const left of evaluateFlow(context, expression.left, state)) {
-    const logical = ['&&', '||', '??'].includes(expression.operator);
+  for (const left of leftResults) {
     if (logical) {
-      const predicate = expression.operator.startsWith('??') ? 'nullish' : 'truthy';
-      for (const branch of branchFlow(context, left, expression.left, predicate)) {
-        const evaluateRight = expression.operator.startsWith('||') ? !branch.pass : branch.pass;
-        if (!evaluateRight) { results.push({ state: branch.state, value: left.value }); continue; }
-        for (const right of evaluateFlow(context, expression.right, branch.state)) {
+      if (assignment && left.value.kind !== 'literal' && left.value.kind !== 'object')
+        failFlow(context, 'unknown-logical-assignment', node.start, node.end);
+      for (const branch of branchFlow(context, left, node.left, node.operator.startsWith('??'))) {
+        const active = node.operator.startsWith('||') ? !branch.active : branch.active;
+        if (!active) results.push({ state: branch.state, value: left.value });
+        else for (const right of evaluateFlow(context, node.right, branch.state)) {
+          if (assignment) right.state.value = right.value;
           results.push(right);
         }
       }
     } else {
-      for (const right of evaluateFlow(context, expression.right, left.state)) {
-        if (expression.operator !== ',' && expression.operator !== '===' && expression.operator !== '!==' &&
-            (left.value.kind !== 'literal' || right.value.kind !== 'literal')) {
-          invalidateFlowEffects(context, right.state, 'opaque-coercion-effects');
+      for (const right of evaluateFlow(context, node.right, left.state)) {
+        if (assignment) right.state.value = right.value;
+        if (assignment || node.operator === ',') results.push(right);
+        else {
+          if (left.value.kind !== 'literal' || right.value.kind !== 'literal') {
+            failFlow(context, 'unsupported-comparison', node.start, node.end);
+          }
+          const value = node.operator === '===' ? left.value.value === right.value.value :
+            node.operator === '!==' ? left.value.value !== right.value.value : undefined;
+          if (value === undefined) failFlow(context, 'unsupported-operator', node.start, node.end);
+          results.push({ state: right.state, value: { kind: 'literal', value } });
         }
-        const value = expression.operator === ',' ? right.value :
-          left.value.kind === 'literal' && right.value.kind === 'literal' ?
-            foldFlowBinary(expression.operator, left.value.value, right.value.value) :
-            { kind: 'unknown', id: context.nextId++ };
-        results.push({ state: right.state, value });
       }
     }
   }
   return results;
-}
-
-/** @param {FlowContext} context @param {FlowValue} value @param {FlowExpression} expression */
-function flowPropertyName (context, value, expression) {
-  if (value.kind !== 'literal') failFlow(context, 'dynamic-property', expression.start, expression.end);
-  const name = String(value.value);
-  if (name === '__proto__') failFlow(context, 'prototype-mutation', expression.start, expression.end);
-  return name;
-}
-
-/**
- * @param {FlowContext} context
- * @param {FlowExpression} target
- * @param {FlowValue | undefined} value
- * @param {FlowState} state
- */
-function writeFlow (context, target, value, state) {
-  const results = [];
-  for (const result of referenceFlow(context, target, state)) {
-    assignFlowReference(context, result.reference, value, result.state);
-    results.push({ state: result.state, value: value || { kind: 'literal', value: true } });
-  }
-  return results;
-}
-
-/** @param {FlowContext} context @param {FlowExpression} target @param {FlowState} state */
-function referenceFlow (context, target, state) {
-  if (target.type === 'identifier') {
-    const binding = state.bindings.get(target.name);
-    if (!state.declared.has(target.name) || state.constants.has(target.name) ||
-        binding && binding.kind === 'uninitialized') {
-      failFlow(context, 'unsupported-binding-write', target.start, target.end);
-    }
-    return [{ state, reference: { kind: 'binding', name: target.name } }];
-  }
-  if (target.type !== 'member') failFlow(context, 'unsupported-assignment', target.start, target.end);
-  const results = [];
-  for (const receiver of evaluateFlow(context, target.object, state)) {
-    for (const key of evaluateFlow(context, target.key, receiver.state)) {
-      const name = flowPropertyName(context, key.value, target);
-      let reference;
-      if (receiver.value.kind === 'module-object' && name === 'exports') reference = { kind: 'module' };
-      else if (receiver.value.kind === 'object') {
-        const object = key.state.objects.get(receiver.value.id);
-        if (object.reason) failFlow(context, object.reason, target.start, target.end);
-        reference = { kind: 'property', id: receiver.value.id, name };
-      }
-      else failFlow(context, 'unknown-mutation', target.start, target.end);
-      results.push({ state: key.state, reference });
-    }
-  }
-  return results;
-}
-
-/** @param {FlowContext} context @param {FlowReference} reference
- * @param {FlowValue | undefined} value @param {FlowState} state */
-function assignFlowReference (context, reference, value, state) {
-  if (reference.kind === 'binding') state.bindings.set(reference.name, value);
-  else if (reference.kind === 'module') state.value = value || { kind: 'literal', value: undefined };
-  else {
-    const object = state.objects.get(reference.id);
-    if (object.reason) failFlow(context, object.reason);
-    if (value === undefined) object.properties.delete(reference.name);
-    else {
-      if (state.prototypeUnknown && !object.properties.has(reference.name)) failFlow(context, 'dependency-effects');
-      object.properties.set(reference.name, value);
-    }
-  }
-}
-
-/** @param {FlowContext} context @param {FlowState} state @param {string} reason */
-function invalidateFlowEffects (context, state, reason) {
-  if (context.hasFunctions) failFlow(context, 'unresolved-function-effects');
-  const pending = [state.value];
-  const visited = new Set();
-  while (pending.length) {
-    const value = pending.pop();
-    if (value.kind !== 'object' || visited.has(value.id)) continue;
-    visited.add(value.id);
-    const object = state.objects.get(value.id);
-    object.reason = reason;
-    for (const child of object.properties.values()) pending.push(child);
-  }
-  state.value = { kind: 'unknown', id: context.nextId++, reason };
-  state.prototypeUnknown = true;
-}
-
-/** @param {string} operator @param {FlowPrimitive} left @param {FlowPrimitive} right @returns {FlowValue} */
-function foldFlowBinary (operator, left, right) {
-  let value;
-  switch (operator) {
-    case '===': value = left === right; break;
-    case '!==': value = left !== right; break;
-    case '==': value = left == right; break;
-    case '!=': value = left != right; break;
-    case '<': value = left < right; break;
-    case '>': value = left > right; break;
-    case '<=': value = left <= right; break;
-    case '>=': value = left >= right; break;
-    case '+': value = left + right; break;
-    case '-': value = left - right; break;
-    case '*': value = left * right; break;
-    case '%': value = left % right; break;
-  }
-  return { kind: 'literal', value };
-}
-
-/** @param {FlowState} state @param {FlowValue} value @returns {import('../lexer').FlowExportValue} */
-function reportFlowValue (state, value) {
-  if (value.kind === 'module') return { kind: 'module', specifier: value.specifier };
-  if (value.kind === 'object') {
-    const object = state.objects.get(value.id);
-    if (object.reason) return { kind: 'unknown', reason: object.reason, start: object.start, end: object.end };
-    return { kind: 'object', properties: [...object.properties.keys()] };
-  }
-  if (value.kind === 'literal') return { kind: 'literal', value: value.value };
-  return { kind: 'unknown', reason: value.kind === 'unknown' && value.reason || 'unknown-export-value' };
 }
 
 module.exports = analyzeExports;

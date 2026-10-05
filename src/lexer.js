@@ -14,8 +14,11 @@ export function parse (source, name = '@', options) {
     throw new TypeError('Expected options.mode to be "default" or "extended".');
   const flags = (options && options.allowMinifiedEnumerable === true ? 1 : 0) |
     (mode === 'extended' ? 2 : 0);
-  const analysis = options === undefined ? undefined : analyzeExports(source, options, decode);
-  if (analysis !== undefined) return analysis;
+  const baseline = options === undefined ? undefined : options.baseline;
+  if (baseline === 'flow-v1') {
+    const report = analyzeExports(source, 'flow-v1', undefined, decode);
+    if (report !== undefined) return report;
+  }
   if (!wasm)
     initSync();
 
@@ -36,7 +39,8 @@ export function parse (source, name = '@', options) {
   else
     (isLE ? copyLE : copyBE)(source, new Uint16Array(memory, addr, len));
 
-  const err_code = wasm.parseCJSWithOptions(addr, len, 0, 0, 0, 0, flags);
+  const status = wasm.parseCJSWithOptions(addr, len, 0, 0, 0, 0, flags);
+  const err_code = status & 255;
 
   if (err_code) {
     const err = new Error(`Parse error ${name}${wasm.e()}:${source.slice(0, wasm.e()).split('\n').length}:${wasm.e() - source.lastIndexOf('\n', wasm.e() - 1)}`);
@@ -63,7 +67,11 @@ export function parse (source, name = '@', options) {
       exports.add(exptStr);
   }
 
-  return { exports: [...exports], reexports: [...reexports] };
+  const result = { exports: [...exports], reexports: [...reexports] };
+  if (baseline === 'legacy') return result;
+  const replacements = status >>> 8;
+  return replacements < 2 && baseline === undefined ? result :
+    analyzeExports(source, baseline, replacements, decode, result);
 }
 
 function decode (str) {

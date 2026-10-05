@@ -17,7 +17,8 @@ let openTokenDepth,
   lastStarExportSpecifier,
   _exports,
   unsafeGetters,
-  reexports;
+  reexports,
+  moduleExportCount;
 
 function resetState () {
   openTokenDepth = 0;
@@ -33,6 +34,7 @@ function resetState () {
   _exports = new Set();
   unsafeGetters = new Set();
   reexports = new Set();
+  moduleExportCount = 0;
 }
 
 // RequireType
@@ -66,8 +68,11 @@ function parseCJS (source, name = '@', options) {
   if (mode !== undefined && mode !== 'default' && mode !== 'extended')
     throw new TypeError('Expected options.mode to be "default" or "extended".');
   const minifiedEnumerable = options ? options.allowMinifiedEnumerable === true : false;
-  const analysis = options === undefined ? undefined : require('./src/export-analysis.js')(source, options, decode);
-  if (analysis !== undefined) return analysis;
+  const baseline = options === undefined ? undefined : options.baseline;
+  if (baseline === 'flow-v1') {
+    const report = require('./src/export-analysis.js')(source, 'flow-v1', undefined, decode);
+    if (report !== undefined) return report;
+  }
   resetState();
   allowMinifiedEnumerable = minifiedEnumerable;
   extended = mode === 'extended';
@@ -81,8 +86,10 @@ function parseCJS (source, name = '@', options) {
     throw error;
   }
   const result = { exports: [..._exports].filter(expt => expt !== undefined && !unsafeGetters.has(expt)), reexports: [...reexports].filter(reexpt => reexpt !== undefined) };
+  const replacements = moduleExportCount;
   resetState();
-  return result;
+  return baseline === 'legacy' || (replacements < 2 && baseline === undefined) ? result :
+    require('./src/export-analysis.js')(source, baseline, replacements, decode, result);
 }
 
 /** @param {string} str */
@@ -1001,6 +1008,8 @@ function tryParseExportsDotAssign (assign) {
     // module.exports =
     case 61/*=*/: {
       if (assign) {
+        if (moduleExportCount < 2 && source.charCodeAt(pos + 1) !== 61)
+          moduleExportCount++;
         if (!extended && reexports.size)
           reexports = new Set();
         pos++;
@@ -1022,6 +1031,13 @@ function tryParseExportsDotAssign (assign) {
         if (ch === 114/*r*/)
           tryParseRequire(ExportAssign);
       }
+      break;
+    }
+    case 38/*&*/:
+    case 124/*|*/:
+    case 63/*?*/: {
+      if (assign && moduleExportCount < 2 && source.charCodeAt(pos + 1) === ch &&
+          source.charCodeAt(pos + 2) === 61) moduleExportCount++;
     }
   }
   pos = revertPos;
