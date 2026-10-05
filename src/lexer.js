@@ -3,7 +3,10 @@ let wasm;
 const isLE = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
 const hasBuffer = typeof Buffer !== 'undefined';
 
-export function parse (source, name = '@') {
+/** @param {string} source @param {string} [name] @param {import('../lexer').ParseOptions} [options] */
+export function parse (source, name = '@', options) {
+  const analysis = options === undefined ? undefined : analyzeExports(source, options, decode);
+  if (analysis !== undefined) return analysis;
   if (!wasm)
     initSync();
 

@@ -71,6 +71,51 @@ Browser main threads can restrict synchronous Wasm compilation, so await
 
 The Wasm build is around 1.5x faster and without a cold start.
 
+### Detection baselines (proof of concept)
+
+The optional third argument selects a detection baseline.
+Omit it, or select `legacy`, to retain the existing return value and detection patterns.
+
+```js
+const report = parse(`
+  if (production) module.exports = require('./production.cjs');
+  else module.exports = require('./development.cjs');
+`, 'entry.cjs', { baseline: 'flow-v1' });
+
+for (const outcome of report.outcomes) {
+  console.log(outcome.conditions, outcome.value);
+}
+```
+
+The selected baseline returns a flow report instead of the legacy arrays.
+Each outcome describes the final export value under its conditions.
+Conditions identify source expressions with UTF-16 offsets and record truthiness or nullishness.
+Ranges include the start offset and exclude the end offset.
+They are analysis facts, not instructions to execute the source again.
+
+Use valid CommonJS source. The report describes successful synchronous completion under standard CommonJS bindings.
+It excludes replaced export objects, detached aliases, deleted properties, and uncalled function bodies.
+A module value identifies a direct re-export.
+An object value contains confirmed property names, including a property whose value is a required module.
+
+This PoC supports `if`, conditional expressions, logical expressions and assignments, primitive constants,
+local bindings, and owned object properties.
+It does not execute the source or resolve dependencies.
+Dependency spreads and unsupported syntax or effects produce an `unknown` value.
+Its source offsets identify the expression when available.
+An unknown outcome makes `complete` false.
+A complete report can still contain runtime conditions.
+
+Opaque reads can invoke getters. They invalidate exposed export state and can return different values on each read.
+The analyzer correlates stable local bindings.
+It does not assume that identical source expressions have identical results.
+Dependency execution also invalidates exposed state.
+Dependency calls combined with local function declarations remain unknown because callbacks can change captured bindings.
+Assignments to a fresh export value can establish a known result again.
+
+The parser limits tokens, source and AST nesting, branch expansion, and analysis work.
+Reaching a limit produces an unknown outcome rather than a partial export list.
+
 ### Grammar
 
 CommonJS exports matches are run against the source token stream.

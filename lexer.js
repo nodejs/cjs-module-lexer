@@ -52,7 +52,10 @@ function pushTemplate () {
   templateDepth = ++openTokenDepth;
 }
 
-function parseCJS (source, name = '@') {
+/** @param {string} source @param {string} [name] @param {import('./lexer').ParseOptions} [options] */
+function parseCJS (source, name = '@', options) {
+  const analysis = options === undefined ? undefined : require('./src/export-analysis.js')(source, options, decode);
+  if (analysis !== undefined) return analysis;
   resetState();
   try {
     parseSource(source);
