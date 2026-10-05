@@ -448,7 +448,8 @@ test/samples/*.js (3635 KiB)
 
 The build uses docker and make, they must be installed first.
 
-To build the lexer wasm run `npm run build-wasm`.
+To build the lexer wasm run `npm run build-wasm`. To build without docker, `npm run build-wasm-local`
+downloads the same pinned wasi-sdk and binaryen releases into `build/toolchain` and builds with those.
 
 Optimization passes are run with [Binaryen](https://github.com/WebAssembly/binaryen)
 prior to publish to reduce the Web Assembly footprint.

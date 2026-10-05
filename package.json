@@ -1,6 +1,6 @@
 {
   "name": "cjs-module-lexer",
-  "version": "2.2.1",
+  "version": "2.3.0",
   "description": "Lexes CommonJS modules, returning their named exports metadata",
   "main": "lexer.js",
   "exports": {
@@ -19,6 +19,7 @@
     "bench": "node --expose-gc bench/index.mjs",
     "build": "node build.js ; babel dist/lexer.mjs -o dist/lexer.js ; terser dist/lexer.js -o dist/lexer.js",
     "build-wasm": "make lib/lexer.wasm ; node build.js",
+    "build-wasm-local": "node build/wasm.js --local",
     "prepublishOnly": "make && npm run build",
     "footprint": "npm run build && cat dist/lexer.js | gzip -9f | wc -c"
   },
