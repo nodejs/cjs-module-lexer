@@ -172,6 +172,9 @@ enum RequireType {
 void tryBacktrackAddStarExportBinding (uint16_t* pos);
 bool tryParseRequire (enum RequireType requireType);
 void tryParseLiteralExports ();
+uint32_t parseCJSExtended (uint16_t* source, uint32_t sourceLen);
+void readExportDefinition ();
+void readExportProperty ();
 bool readExportsOrModuleDotExports (uint16_t ch);
 void tryParseModuleExportsDotAssign ();
 void tryParseExportsDotAssign (bool assign);

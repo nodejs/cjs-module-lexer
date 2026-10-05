@@ -6,6 +6,7 @@ const uint16_t __empty_char = '\0';
 const uint16_t* EMPTY_CHAR = &__empty_char;
 // tracked depth of template and brackets
 #define STACK_DEPTH 2048
+enum TokenType { ClassToken = 1, ExportObjectToken = 2 };
 // tracked number of star exports
 #define MAX_STAR_EXPORTS 256
 const uint16_t* source;
@@ -22,6 +23,8 @@ uint16_t* templateStack;
 uint16_t** openTokenPosStack;
 StarExportBinding* starExportStack;
 bool nextBraceIsClass;
+static bool extended;
+static uint16_t* exportObjectPos;
 
 uint16_t* lastReexportStart;
 uint16_t* lastReexportEnd;
@@ -35,7 +38,7 @@ uint32_t sourceLen;
 
 uint16_t templateStack_[STACK_DEPTH];
 uint16_t* openTokenPosStack_[STACK_DEPTH];
-bool openClassPosStack[STACK_DEPTH];
+uint8_t openTokenTypeStack[STACK_DEPTH];
 StarExportBinding starExportStack_[MAX_STAR_EXPORTS];
 const StarExportBinding* STAR_EXPORT_STACK_END = &starExportStack_[MAX_STAR_EXPORTS - 1];
 
@@ -54,6 +57,7 @@ static inline __attribute__((always_inline)) bool pushOpenToken (uint16_t* token
     syntaxError(12);
     return false;
   }
+  if (extended) openTokenTypeStack[openTokenDepth] = 0;
   openTokenPosStack[openTokenDepth++] = tokenPos;
   return true;
 }
@@ -64,6 +68,7 @@ static inline __attribute__((always_inline)) bool pushTemplate () {
     return false;
   }
   templateStack[templateStackDepth++] = templateDepth;
+  if (extended) openTokenTypeStack[openTokenDepth] = 0;
   templateDepth = ++openTokenDepth;
   return true;
 }
@@ -90,6 +95,7 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
   openTokenPosStack = &openTokenPosStack_[0];
   starExportStack = &starExportStack_[0];
   nextBraceIsClass = false;
+  exportObjectPos = 0;
 
   pos = (uint16_t*)(source - 1);
   uint16_t ch = '\0';
@@ -179,6 +185,21 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
         if (!pushOpenToken(lastTokenPos))
           return error;
         break;
+      case '[':
+        if (extended && !pushOpenToken(lastTokenPos))
+          return error;
+        break;
+      case ']':
+        if (extended) {
+          if (openTokenDepth == 0)
+            return syntaxError(8), error;
+          openTokenDepth--;
+        }
+        break;
+      case ',':
+        if (extended && openTokenDepth && (openTokenTypeStack[openTokenDepth - 1] & ExportObjectToken))
+          readExportProperty();
+        break;
       case ')':
         if (openTokenDepth == 0)
           return syntaxError(8), error;
@@ -187,8 +208,13 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
       case '{':
         if (!pushOpenToken(lastTokenPos))
           return error;
-        openClassPosStack[openTokenDepth - 1] = nextBraceIsClass;
+        openTokenTypeStack[openTokenDepth - 1] = nextBraceIsClass ? ClassToken : 0;
         nextBraceIsClass = false;
+        if (extended && pos == exportObjectPos) {
+          openTokenTypeStack[openTokenDepth - 1] |= ExportObjectToken;
+          exportObjectPos = 0;
+          readExportProperty();
+        }
         break;
       case '}':
         if (openTokenDepth == 0)
@@ -231,7 +257,8 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
               !(lastToken == '.' && (*(lastTokenPos - 1) >= '0' && *(lastTokenPos - 1) <= '9')) &&
               !(lastToken == '+' && *(lastTokenPos - 1) == '+') && !(lastToken == '-' && *(lastTokenPos - 1) == '-') ||
               lastToken == ')' && isParenKeyword(openTokenPosStack[openTokenDepth]) ||
-              lastToken == '}' && (isExpressionTerminator(openTokenPosStack[openTokenDepth]) || openClassPosStack[openTokenDepth]) ||
+              lastToken == '}' && (isExpressionTerminator(openTokenPosStack[openTokenDepth]) ||
+              (openTokenTypeStack[openTokenDepth] & ClassToken)) ||
               lastToken == '/' && lastSlashWasDivision ||
               isExpressionKeyword(lastTokenPos) ||
               !lastToken) {
@@ -264,6 +291,19 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
 
   // success
   return 0;
+}
+
+// The source and result slices retain the parseCJS ownership contract.
+uint32_t parseCJSExtended (uint16_t* source, uint32_t sourceLen) {
+  extended = true;
+  uint32_t result = parseCJS(source, sourceLen, 0, 0, 0, 0);
+  if (!result) result = error;
+  if (!result && (openTokenDepth || templateDepth != UINT16_MAX)) {
+    syntaxError(8);
+    result = error;
+  }
+  extended = false;
+  return result;
 }
 
 void tryBacktrackAddStarExportBinding (uint16_t* bPos) {
@@ -356,6 +396,11 @@ void tryParseObjectDefineOrKeys (bool keys) {
   if (ch == '.') {
     pos++;
     ch = commentWhitespace();
+    if (extended && ch == 'd') {
+      readExportDefinition();
+      pos = revertPos;
+      return;
+    }
     if (ch == 'd' && str_eq13(pos + 1, 'e', 'f', 'i', 'n', 'e', 'P', 'r', 'o', 'p', 'e', 'r', 't', 'y')) {
       uint16_t* exportStart = 0;
       uint16_t* exportEnd = 0;
@@ -939,9 +984,19 @@ void tryParseExportsDotAssign (bool assign) {
     // module.exports =
     case '=': {
       if (assign) {
-        clearReexports();
+        if (!extended) clearReexports();
         pos++;
         ch = commentWhitespace();
+        if (extended) {
+          while (ch == '(') {
+            pos++;
+            ch = commentWhitespace();
+          }
+          if (ch == '{') exportObjectPos = pos;
+          else if (ch == 'r') tryParseRequire(ExportAssign);
+          pos = revertPos;
+          return;
+        }
         // { ... }
         if (ch == '{') {
           tryParseLiteralExports();
@@ -990,6 +1045,105 @@ bool tryParseRequire (enum RequireType requireType) {
     pos = revertPos;
   }
   return false;
+}
+
+static bool matchesKeyword (const char* keyword, uint32_t length) {
+  if (pos > end || (uint32_t)(end - pos + 1) < length) return false;
+  for (uint32_t i = 0; i < length; i++) {
+    if (pos[i] != keyword[i]) return false;
+  }
+  return true;
+}
+
+void readExportDefinition () {
+  bool property = matchesKeyword("defineProperty", 14);
+  bool properties = matchesKeyword("defineProperties", 16);
+  if (!property && !properties) return;
+  pos += property ? 14 : 16;
+  uint16_t ch = commentWhitespace();
+  if (ch != '(') return;
+  pos++;
+  ch = commentWhitespace();
+  if (!readExportsOrModuleDotExports(ch)) return;
+  if (commentWhitespace() != ',') return;
+  pos++;
+  ch = commentWhitespace();
+  if (properties) {
+    while (ch == '(') {
+      pos++;
+      ch = commentWhitespace();
+    }
+    if (ch == '{') exportObjectPos = pos;
+  }
+  else if (ch == '\'' || ch == '"') {
+    uint16_t* nameStart = pos;
+    stringLiteral(ch);
+    uint16_t* nameEnd = ++pos;
+    if (commentWhitespace() == ',') addExport(nameStart, nameEnd);
+  }
+}
+
+void readExportProperty () {
+  uint16_t* revertPos = pos;
+  pos++;
+  uint16_t ch = commentWhitespace();
+  if (ch == '.' && end - pos >= 2 && str_eq2(pos + 1, '.', '.')) {
+    pos += 3;
+    ch = commentWhitespace();
+    if (ch == 'r') tryParseRequire(ExportAssign);
+    pos = revertPos;
+    return;
+  }
+  if (ch == '*') {
+    pos++;
+    ch = commentWhitespace();
+  }
+  bool computed = ch == '[';
+  if (computed) {
+    pos++;
+    ch = commentWhitespace();
+  }
+  uint16_t* nameStart = pos;
+  uint16_t* nameEnd = 0;
+  if (ch == '\'' || ch == '"') {
+    stringLiteral(ch);
+    nameEnd = ++pos;
+  }
+  else if (!computed && identifier(ch)) {
+    nameEnd = pos;
+    ch = commentWhitespace();
+    if ((nameEnd - nameStart == 3 && (str_eq3(nameStart, 'g', 'e', 't') || str_eq3(nameStart, 's', 'e', 't')) ||
+         nameEnd - nameStart == 5 && str_eq5(nameStart, 'a', 's', 'y', 'n', 'c')) &&
+        ch != ':' && ch != '(' && ch != ',' && ch != '}') {
+      if (ch == '*') {
+        pos++;
+        ch = commentWhitespace();
+      }
+      computed = ch == '[';
+      if (computed) {
+        pos++;
+        ch = commentWhitespace();
+      }
+      nameStart = pos;
+      if (ch == '\'' || ch == '"') {
+        stringLiteral(ch);
+        nameEnd = ++pos;
+      }
+      else if (!computed && identifier(ch)) nameEnd = pos;
+      else nameEnd = 0;
+    }
+  }
+  ch = commentWhitespace();
+  if (computed) {
+    if (ch != ']') nameEnd = 0;
+    else {
+      pos++;
+      ch = commentWhitespace();
+    }
+  }
+  if (nameEnd && (ch == ':' || ch == '(' || !computed && (ch == ',' || ch == '}')))
+    addExport(nameStart, nameEnd);
+  pos = revertPos;
 }
 
 void tryParseLiteralExports () {
