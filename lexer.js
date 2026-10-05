@@ -1,5 +1,8 @@
 let source, pos, end;
+let extended, exportObjectPos;
 const STACK_DEPTH = 2048;
+const ClassToken = 1;
+const ExportObjectToken = 2;
 let openTokenDepth,
   templateDepth,
   lastTokenPos,
@@ -7,7 +10,7 @@ let openTokenDepth,
   templateStack,
   templateStackDepth,
   openTokenPosStack,
-  openClassPosStack,
+  openTokenTypeStack,
   nextBraceIsClass,
   starExportMap,
   lastStarExportSpecifier,
@@ -23,7 +26,7 @@ function resetState () {
   templateStack = new Array(1024);
   templateStackDepth = 0;
   openTokenPosStack = new Array(1024);
-  openClassPosStack = new Array(1024);
+  openTokenTypeStack = new Array(1024);
   nextBraceIsClass = false;
   starExportMap = Object.create(null);
   lastStarExportSpecifier = null;
@@ -42,6 +45,7 @@ const ExportStar = 2;
 function pushOpenToken (tokenPos) {
   if (openTokenDepth === STACK_DEPTH)
     throw new Error('Maximum nesting depth exceeded.');
+  if (extended) openTokenTypeStack[openTokenDepth] = 0;
   openTokenPosStack[openTokenDepth++] = tokenPos;
 }
 
@@ -49,24 +53,41 @@ function pushTemplate () {
   if (templateStackDepth === STACK_DEPTH || openTokenDepth === STACK_DEPTH)
     throw new Error('Maximum nesting depth exceeded.');
   templateStack[templateStackDepth++] = templateDepth;
+  if (extended) openTokenTypeStack[openTokenDepth] = 0;
   templateDepth = ++openTokenDepth;
 }
 
-function parseCJS (source, name = '@') {
+/**
+ * @param {string} source
+ * @param {string} name
+ * @param {import('./lexer').ParseOptions} [options]
+ */
+function parseCJS (source, name = '@', options) {
+  let mode;
+  if (options !== undefined) {
+    if (options === null || typeof options !== 'object' || Array.isArray(options))
+      throw new TypeError('Expected an options object.');
+    mode = options.mode;
+    if (mode !== undefined && mode !== 'legacy' && mode !== 'extended')
+      throw new TypeError('Expected options.mode to be "legacy" or "extended".');
+  }
+  extended = mode === 'extended';
+  exportObjectPos = -1;
   resetState();
   try {
     parseSource(source);
   }
-  catch (e) {
-    e.message += `\n  at ${name}:${source.slice(0, pos).split('\n').length}:${pos - source.lastIndexOf('\n', pos - 1)}`;
-    e.loc = pos;
-    throw e;
+  catch (error) {
+    error.message += `\n  at ${name}:${source.slice(0, pos).split('\n').length}:${pos - source.lastIndexOf('\n', pos - 1)}`;
+    error.loc = pos;
+    throw error;
   }
   const result = { exports: [..._exports].filter(expt => expt !== undefined && !unsafeGetters.has(expt)), reexports: [...reexports].filter(reexpt => reexpt !== undefined) };
   resetState();
   return result;
 }
 
+/** @param {string} str */
 function decode (str) {
   if (str[0] === '"' || str[0] === '\'') {
     try {
@@ -97,6 +118,7 @@ function decode (str) {
   }
 }
 
+/** @param {string} cjsSource */
 function parseSource (cjsSource) {
   source = cjsSource;
   pos = -1;
@@ -195,6 +217,21 @@ function parseSource (cjsSource) {
       case 40/*(*/:
         pushOpenToken(lastTokenPos);
         break;
+      case 91/*[*/:
+        if (extended) {
+          pushOpenToken(lastTokenPos);
+        }
+        break;
+      case 93/*]*/:
+        if (extended) {
+          if (openTokenDepth === 0) throw new Error('Unexpected closing bracket.');
+          openTokenDepth--;
+        }
+        break;
+      case 44/*,*/:
+        if (extended && (openTokenTypeStack[openTokenDepth - 1] & ExportObjectToken))
+          readExportProperty();
+        break;
       case 41/*)*/:
         if (openTokenDepth === 0)
           throw new Error('Unexpected closing bracket.');
@@ -202,8 +239,13 @@ function parseSource (cjsSource) {
         break;
       case 123/*{*/:
         pushOpenToken(lastTokenPos);
-        openClassPosStack[openTokenDepth - 1] = nextBraceIsClass;
+        openTokenTypeStack[openTokenDepth - 1] = nextBraceIsClass ? ClassToken : 0;
         nextBraceIsClass = false;
+        if (extended && pos === exportObjectPos) {
+          openTokenTypeStack[openTokenDepth - 1] |= ExportObjectToken;
+          exportObjectPos = -1;
+          readExportProperty();
+        }
         break;
       case 125/*}*/:
         if (openTokenDepth === 0)
@@ -246,7 +288,8 @@ function parseSource (cjsSource) {
               !(lastToken === 46/*.*/ && (source.charCodeAt(lastTokenPos - 1) >= 48/*0*/ && source.charCodeAt(lastTokenPos - 1) <= 57/*9*/)) &&
               !(lastToken === 43/*+*/ && source.charCodeAt(lastTokenPos - 1) === 43/*+*/) && !(lastToken === 45/*-*/ && source.charCodeAt(lastTokenPos - 1) === 45/*-*/) ||
               lastToken === 41/*)*/ && isParenKeyword(openTokenPosStack[openTokenDepth]) ||
-              lastToken === 125/*}*/ && (isExpressionTerminator(openTokenPosStack[openTokenDepth]) || openClassPosStack[openTokenDepth]) ||
+              lastToken === 125/*}*/ && (isExpressionTerminator(openTokenPosStack[openTokenDepth]) ||
+              (openTokenTypeStack[openTokenDepth] & ClassToken)) ||
               lastToken === 47/*/*/ && lastSlashWasDivision ||
               isExpressionKeyword(lastTokenPos) ||
               !lastToken) {
@@ -356,6 +399,7 @@ function tryParseObjectHasOwnProperty (it_id) {
   return true;
 }
 
+/** @param {boolean} keys */
 function tryParseObjectDefineOrKeys (keys) {
   pos += 6;
   let revertPos = pos - 1;
@@ -363,6 +407,11 @@ function tryParseObjectDefineOrKeys (keys) {
   if (ch === 46/*.*/) {
     pos++;
     ch = commentWhitespace();
+    if (extended && ch === 100/*d*/) {
+      readExportDefinition();
+      pos = revertPos;
+      return;
+    }
     if (ch === 100/*d*/ && source.startsWith('efineProperty', pos + 1)) {
       let expt;
       while (true) {
@@ -897,6 +946,7 @@ function tryParseModuleExportsDotAssign () {
   pos = revertPos;
 }
 
+/** @param {boolean} assign */
 function tryParseExportsDotAssign (assign) {
   pos += 7;
   const revertPos = pos - 1;
@@ -937,10 +987,20 @@ function tryParseExportsDotAssign (assign) {
     // module.exports =
     case 61/*=*/: {
       if (assign) {
-        if (reexports.size)
+        if (!extended && reexports.size)
           reexports = new Set();
         pos++;
         ch = commentWhitespace();
+        if (extended) {
+          while (ch === 40/*(*/) {
+            pos++;
+            ch = commentWhitespace();
+          }
+          if (ch === 123/*{*/) exportObjectPos = pos;
+          else if (ch === 114/*r*/) tryParseRequire(ExportAssign);
+          pos = revertPos;
+          return;
+        }
         // { ... }
         if (ch === 123/*{*/) {
           tryParseLiteralExports();
@@ -988,6 +1048,102 @@ function tryParseRequire (requireType) {
     pos = revertPos;
   }
   return false;
+}
+
+function readExportDefinition () {
+  const start = pos;
+  const property = source.startsWith('defineProperty', pos);
+  const properties = source.startsWith('defineProperties', pos);
+  if (!property && !properties) return;
+  pos += property ? 14 : 16;
+  let ch = commentWhitespace();
+  if (ch !== 40/*(*/) return;
+  pos++;
+  ch = commentWhitespace();
+  if (!readExportsOrModuleDotExports(ch)) return;
+  if (commentWhitespace() !== 44/*,*/) return;
+  pos++;
+  ch = commentWhitespace();
+  if (properties) {
+    while (ch === 40/*(*/) {
+      pos++;
+      ch = commentWhitespace();
+    }
+    if (ch === 123/*{*/) exportObjectPos = pos;
+  }
+  else if (ch === 39/*'*/ || ch === 34/*"*/) {
+    const nameStart = pos;
+    stringLiteral(ch);
+    const nameEnd = ++pos;
+    if (commentWhitespace() === 44/*,*/)
+      _exports.add(decode(source.slice(nameStart, nameEnd)));
+  }
+  pos = start;
+}
+
+function readExportProperty () {
+  const revertPos = pos;
+  pos++;
+  let ch = commentWhitespace();
+  if (ch === 46/*.*/ && source.startsWith('..', pos + 1)) {
+    pos += 3;
+    ch = commentWhitespace();
+    if (ch === 114/*r*/) tryParseRequire(ExportAssign);
+    pos = revertPos;
+    return;
+  }
+  if (ch === 42/***/) {
+    pos++;
+    ch = commentWhitespace();
+  }
+  let computed = ch === 91/*[*/;
+  if (computed) {
+    pos++;
+    ch = commentWhitespace();
+  }
+  let nameStart = pos;
+  let nameEnd;
+  if (ch === 39/*'*/ || ch === 34/*"*/) {
+    stringLiteral(ch);
+    nameEnd = ++pos;
+  }
+  else if (!computed && identifier()) {
+    nameEnd = pos;
+    ch = commentWhitespace();
+    if ((source.startsWith('get', nameStart) && nameEnd - nameStart === 3 ||
+         source.startsWith('set', nameStart) && nameEnd - nameStart === 3 ||
+         source.startsWith('async', nameStart) && nameEnd - nameStart === 5) &&
+        ch !== 58/*:*/ && ch !== 40/*(*/ && ch !== 44/*,*/ && ch !== 125/*}*/) {
+      if (ch === 42/***/) {
+        pos++;
+        ch = commentWhitespace();
+      }
+      computed = ch === 91/*[*/;
+      if (computed) {
+        pos++;
+        ch = commentWhitespace();
+      }
+      nameStart = pos;
+      if (ch === 39/*'*/ || ch === 34/*"*/) {
+        stringLiteral(ch);
+        nameEnd = ++pos;
+      }
+      else if (!computed && identifier()) nameEnd = pos;
+      else nameEnd = undefined;
+    }
+  }
+  ch = commentWhitespace();
+  if (computed) {
+    if (ch !== 93/*]*/) nameEnd = undefined;
+    else {
+      pos++;
+      ch = commentWhitespace();
+    }
+  }
+  if (nameEnd !== undefined && (ch === 58/*:*/ || ch === 40/*(*/ ||
+      !computed && (ch === 44/*,*/ || ch === 125/*}*/)))
+    _exports.add(decode(source.slice(nameStart, nameEnd)));
+  pos = revertPos;
 }
 
 function tryParseLiteralExports () {

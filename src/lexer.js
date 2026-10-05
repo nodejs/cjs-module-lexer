@@ -3,7 +3,21 @@ let wasm;
 const isLE = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
 const hasBuffer = typeof Buffer !== 'undefined';
 
-export function parse (source, name = '@') {
+/**
+ * @param {string} source
+ * @param {string} name
+ * @param {import('../lexer').ParseOptions} [options]
+ */
+export function parse (source, name = '@', options) {
+  let mode;
+  if (options !== undefined) {
+    if (options === null || typeof options !== 'object' || Array.isArray(options))
+      throw new TypeError('Expected an options object.');
+    mode = options.mode;
+    if (mode !== undefined && mode !== 'legacy' && mode !== 'extended')
+      throw new TypeError('Expected options.mode to be "legacy" or "extended".');
+  }
+  const extended = mode === 'extended';
   if (!wasm)
     initSync();
 
@@ -21,7 +35,7 @@ export function parse (source, name = '@') {
   else
     (isLE ? copyLE : copyBE)(source, new Uint16Array(wasm.memory.buffer, addr, len));
 
-  const err_code = wasm.parseCJS(addr, source.length, 0, 0, 0);
+  const err_code = extended ? wasm.parseCJSExtended(addr, source.length) : wasm.parseCJS(addr, source.length, 0, 0, 0);
 
   if (err_code) {
     const err = new Error(`Parse error ${name}${wasm.e()}:${source.slice(0, wasm.e()).split('\n').length}:${wasm.e() - source.lastIndexOf('\n', wasm.e() - 1)}`);
