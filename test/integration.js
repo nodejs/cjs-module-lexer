@@ -4,14 +4,22 @@ const assert = require('assert');
 let parse;
 async function loadParser () {
   if (parse) return;
-  if (process.env.WASM) {
-    const m = await import('../dist/lexer.mjs');
-    await m.init();
-    parse = m.parse;
+  if (process.env.WASM_EXTERNAL) {
+    const lexer = await import('cjs-module-lexer/external');
+    await lexer.init();
+    parse = lexer.parse;
+  } else if (process.env.WASM_EXTERNAL_SYNC) {
+    const lexer = require('cjs-module-lexer/external');
+    lexer.initSync();
+    parse = lexer.parse;
+  } else if (process.env.WASM) {
+    const lexer = await import('../dist/lexer.mjs');
+    await lexer.init();
+    parse = lexer.parse;
   } else if (process.env.WASM_SYNC) {
-    const m = require('../dist/lexer.js');
-    m.initSync();
-    parse = m.parse;
+    const lexer = require('../dist/lexer.js');
+    lexer.initSync();
+    parse = lexer.parse;
   }
   else {
     parse = require('../lexer.js').parse;
