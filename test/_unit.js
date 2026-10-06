@@ -20,6 +20,50 @@ async function loadParser () {
 suite('Lexer', () => {
   suiteSetup(async () => await loadParser());
 
+  test('tracks reexport bindings beyond the static capacity', () => {
+    for (const count of [254, 255, 256, 257, 512, 4096]) {
+      let source = '';
+      for (let index = 0; index < count; index++) {
+        source += `var dep${index} = require("dep${index}");\n`;
+      }
+      for (const index of [0, 254, count - 1]) {
+        if (index >= count) continue;
+        const reexport = `Object.keys(dep${index}).forEach(function (key) {` +
+          ` if (key === "default" || key === "__esModule") return; exports[key] = dep${index}[key]; });`;
+        assert.deepStrictEqual(parse(source + reexport), {
+          exports: [], reexports: [`dep${index}`]
+        });
+      }
+      assert.deepStrictEqual(parse('exports.recovery = 1;'), {
+        exports: ['recovery'], reexports: []
+      });
+      assert.throws(() => parse(source + 'const value = "open'), { name: 'Error' });
+      assert.deepStrictEqual(parse('exports.recovery = 1;'), {
+        exports: ['recovery'], reexports: []
+      });
+    }
+  });
+
+  test('shares analysis space between overflow bindings and results', () => {
+    let source = '';
+    for (let index = 0; index < 2048; index++) {
+      source += 'var a=require("");exports.value=1;__exportStar(require("side"),exports);';
+    }
+    const reexport = 'Object.keys(last).forEach(function (key) {' +
+      ' if (key === "default" || key === "__esModule") return; exports[key] = last[key]; });';
+    source += 'var last=require("last");' + reexport;
+    assert.deepStrictEqual(parse(source), { exports: ['value'], reexports: ['side', 'last'] });
+    const hiddenBindings = '/*' + source.slice(2, source.length - reexport.length - 2) + '*/' + reexport;
+    assert.deepStrictEqual(parse(hiddenBindings), {
+      exports: [], reexports: []
+    });
+    parse(source);
+    const missingBinding = '/*' + 'x'.repeat(source.length * 2) + '*/' + reexport;
+    assert.deepStrictEqual(parse(missingBinding), {
+      exports: [], reexports: []
+    });
+  });
+
   test('automatic Wasm initialization', async () => {
     const lexer = await import('../dist/lexer.mjs?automatic-initialization');
 
