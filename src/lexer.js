@@ -3,6 +3,10 @@ let wasm;
 const isLE = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
 const hasBuffer = typeof Buffer !== 'undefined';
 
+/**
+ * @param {string} source
+ * @param {string} name
+ */
 export function parse (source, name = '@') {
   if (!wasm)
     initSync();
@@ -35,7 +39,7 @@ export function parse (source, name = '@') {
   
   while (wasm.rre()) {
     const reexptStr = decode(source.slice(wasm.res(), wasm.ree()));
-    if (reexptStr)
+    if (reexptStr !== undefined)
       reexports.add(reexptStr);
   }
   while (wasm.ru())
