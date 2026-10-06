@@ -3,7 +3,13 @@ let wasm;
 const isLE = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
 const hasBuffer = typeof Buffer !== 'undefined';
 
-export function parse (source, name = '@') {
+/** @param {string} source @param {string} [name] @param {import('../lexer').ParseOptions} [options] */
+export function parse (source, name = '@', options) {
+  const baseline = options === undefined ? undefined : options.baseline;
+  if (baseline !== undefined && typeof baseline !== 'string')
+    throw new TypeError('Detection baseline must be a string');
+  if (baseline !== undefined && baseline !== 'legacy' && baseline !== 'flow-v1')
+    throw new RangeError('Unknown detection baseline: ' + baseline);
   if (!wasm)
     initSync();
 
@@ -21,7 +27,9 @@ export function parse (source, name = '@') {
   else
     (isLE ? copyLE : copyBE)(source, new Uint16Array(wasm.memory.buffer, addr, len));
 
-  const err_code = wasm.parseCJS(addr, source.length, 0, 0, 0);
+  const status = baseline === 'legacy' ? wasm.parseCJS(addr, source.length, 0, 0, 0) :
+    wasm.parseCJSGrouped(addr, source.length);
+  const err_code = status & 255;
 
   if (err_code) {
     const err = new Error(`Parse error ${name}${wasm.e()}:${source.slice(0, wasm.e()).split('\n').length}:${wasm.e() - source.lastIndexOf('\n', wasm.e() - 1)}`);
@@ -32,21 +40,49 @@ export function parse (source, name = '@') {
   }
 
   let exports = new Set(), reexports = new Set(), unsafeGetters = new Set();
+  const groups = status & 1024 ? [] : undefined;
+  let complete = !(status & 2048);
   
   while (wasm.rre()) {
-    const reexptStr = decode(source.slice(wasm.res(), wasm.ree()));
+    const start = wasm.res();
+    if (start === -1) {
+      reexports = new Set();
+      groups.push(reexports);
+      continue;
+    }
+    const reexptStr = decode(source.slice(start, wasm.ree()));
     if (reexptStr)
       reexports.add(reexptStr);
+    else if (reexptStr === undefined)
+      complete = false;
   }
   while (wasm.ru())
     unsafeGetters.add(decode(source.slice(wasm.us(), wasm.ue())));
   while (wasm.re()) {
-    let exptStr = decode(source.slice(wasm.es(), wasm.ee()));
+    const text = source.slice(wasm.es(), wasm.ee());
+    let exptStr = status & 1024 && text.charCodeAt(0) >= 48 && text.charCodeAt(0) <= 57 ?
+      String(Number(text)) : decode(text);
     if (exptStr !== undefined && !unsafeGetters.has(exptStr))
       exports.add(exptStr);
+    else if (exptStr === undefined)
+      complete = false;
   }
 
-  return { exports: [...exports], reexports: [...reexports] };
+  if (!(status & 1024)) return { exports: [...exports], reexports: [...reexports] };
+  if (groups.length === 1)
+    return { exports: [...exports], reexports: [...reexports], complete };
+  const alternatives = [];
+  const seen = new Set();
+  let hasDependencies = false;
+  for (const group of groups) {
+    const values = [...group];
+    const key = JSON.stringify(values);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    alternatives.push(values);
+    if (values.length) hasDependencies = true;
+  }
+  return { exports: [...exports], reexports: hasDependencies ? alternatives.length === 1 ? alternatives[0] : alternatives : [], complete };
 }
 
 function decode (str) {

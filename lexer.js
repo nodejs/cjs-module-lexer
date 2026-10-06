@@ -13,17 +13,18 @@ let openTokenDepth,
   lastStarExportSpecifier,
   _exports,
   unsafeGetters,
-  reexports;
+  reexports,
+  moduleExportCount;
 
 function resetState () {
   openTokenDepth = 0;
   templateDepth = -1;
   lastTokenPos = -1;
   lastSlashWasDivision = false;
-  templateStack = new Array(1024);
+  if (templateStack === undefined) templateStack = new Array(1024);
   templateStackDepth = 0;
-  openTokenPosStack = new Array(1024);
-  openClassPosStack = new Array(1024);
+  if (openTokenPosStack === undefined) openTokenPosStack = new Array(1024);
+  if (openClassPosStack === undefined) openClassPosStack = new Array(1024);
   nextBraceIsClass = false;
   starExportMap = Object.create(null);
   lastStarExportSpecifier = null;
@@ -31,6 +32,7 @@ function resetState () {
   _exports = new Set();
   unsafeGetters = new Set();
   reexports = new Set();
+  moduleExportCount = 0;
 }
 
 // RequireType
@@ -52,7 +54,13 @@ function pushTemplate () {
   templateDepth = ++openTokenDepth;
 }
 
-function parseCJS (source, name = '@') {
+/** @param {string} source @param {string} [name] @param {import('./lexer').ParseOptions} [options] */
+function parseCJS (source, name = '@', options) {
+  const baseline = options === undefined ? undefined : options.baseline;
+  if (baseline !== undefined && typeof baseline !== 'string')
+    throw new TypeError('Detection baseline must be a string');
+  if (baseline !== undefined && baseline !== 'legacy' && baseline !== 'flow-v1')
+    throw new RangeError('Unknown detection baseline: ' + baseline);
   resetState();
   try {
     parseSource(source);
@@ -61,6 +69,10 @@ function parseCJS (source, name = '@') {
     e.message += `\n  at ${name}:${source.slice(0, pos).split('\n').length}:${pos - source.lastIndexOf('\n', pos - 1)}`;
     e.loc = pos;
     throw e;
+  }
+  if (baseline !== 'legacy' && moduleExportCount > 1) {
+    resetState();
+    return require('./dist/lexer.js').parse(source, name, baseline === undefined ? undefined : { baseline });
   }
   const result = { exports: [..._exports].filter(expt => expt !== undefined && !unsafeGetters.has(expt)), reexports: [...reexports].filter(reexpt => reexpt !== undefined) };
   resetState();
@@ -897,6 +909,7 @@ function tryParseModuleExportsDotAssign () {
   pos = revertPos;
 }
 
+/** @param {boolean} assign */
 function tryParseExportsDotAssign (assign) {
   pos += 7;
   const revertPos = pos - 1;
@@ -937,6 +950,8 @@ function tryParseExportsDotAssign (assign) {
     // module.exports =
     case 61/*=*/: {
       if (assign) {
+        if (moduleExportCount < 2 && source.charCodeAt(pos + 1) !== 61)
+          moduleExportCount++;
         if (reexports.size)
           reexports = new Set();
         pos++;
@@ -951,6 +966,13 @@ function tryParseExportsDotAssign (assign) {
         if (ch === 114/*r*/)
           tryParseRequire(ExportAssign);
       }
+      break;
+    }
+    case 38/*&*/:
+    case 124/*|*/:
+    case 63/*?*/: {
+      if (assign && moduleExportCount < 2 && source.charCodeAt(pos + 1) === ch &&
+          source.charCodeAt(pos + 2) === 61) moduleExportCount++;
     }
   }
   pos = revertPos;
@@ -1639,8 +1661,6 @@ function isExpressionTerminator (curPos) {
   return false;
 }
 
-const initPromise = Promise.resolve();
-
-module.exports.init = () => initPromise;
-module.exports.initSync = () => {};
+module.exports.init = () => require('./dist/lexer.js').init();
+module.exports.initSync = () => require('./dist/lexer.js').initSync();
 module.exports.parse = parseCJS;

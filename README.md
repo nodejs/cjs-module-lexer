@@ -16,7 +16,7 @@ This project is used in Node.js core for detecting the named exports available w
 
 PRs will be accepted and upstreamed for parser bugs, performance improvements or new syntax support only.
 
-_Detection patterns for this project are **frozen**_. This is because adding any new export detection patterns would result in fragmented backwards-compatibility. Specifically, it would be very difficult to figure out why an ES module named export for CommonJS might work in newer Node.js versions but not older versions. This problem would only be discovered downstream of module authors, with the fix for module authors being to then have to understand which patterns in this project provide full backwards-compatibily. Rather, by fully freezing the detected patterns, if it works in any Node.js version it will work in any other. Build tools can also reliably treat the supported syntax for this project as a part of their output target for ensuring syntax support.
+_Detection patterns for the `legacy` baseline are **frozen**_. This is because adding any new export detection patterns would result in fragmented backwards-compatibility. Specifically, it would be very difficult to figure out why an ES module named export for CommonJS might work in newer Node.js versions but not older versions. This problem would only be discovered downstream of module authors, with the fix for module authors being to then have to understand which patterns in this project provide full backwards-compatibily. Rather, by fully freezing the detected patterns, if it works in any Node.js version it will work in any other. Build tools can also reliably treat the supported syntax for this project as a part of their output target for ensuring syntax support.
 
 ### Usage
 
@@ -29,30 +29,16 @@ For use in CommonJS:
 ```js
 const { parse } = require('cjs-module-lexer');
 
-// `init` return a promise for parity with the ESM API, but you do not have to call it
+// Parsing initializes Wasm on demand. Await init() to initialize it in advance.
 
-const { exports, reexports } = parse(`
-  // named exports detection
-  module.exports.a = 'a';
-  (function () {
-    exports.b = 'b';
-  })();
-  Object.defineProperty(exports, 'c', { value: 'c' });
-  /* exports.d = 'not detected'; */
-
-  // reexports detection
-  if (maybe) module.exports = require('./dep1.js');
-  if (another) module.exports = require('./dep2.js');
-
-  // literal exports assignments
-  module.exports = { a, b: c, d, 'e': f }
-
-  // __esModule detection
-  Object.defineProperty(module.exports, '__esModule', { value: true })
+const { exports, reexports, complete } = parse(`
+  if (mode) module.exports = { own: 1, ...require('./dep1.js') };
+  else module.exports = { own: 2, ...require('./dep2.js') };
 `);
 
-// exports === ['a', 'b', 'c', '__esModule']
-// reexports === ['./dep1.js', './dep2.js']
+// exports: ['own']
+// reexports: [['./dep1.js'], ['./dep2.js']]
+// complete: true
 ```
 
 When using the ESM version, Wasm is supported instead:
@@ -69,9 +55,51 @@ Call `initSync()` directly to choose when the blocking initialization runs.
 Browser main threads can restrict synchronous Wasm compilation, so await
 `init()` before parsing in browsers.
 
-The Wasm build is around 1.5x faster and without a cold start.
+### Detection baselines (proof of concept)
+
+The default `reexports` value stays flat for one distinct final dependency list.
+Different conditional lists produce an array of arrays.
+Each inner array contains dependencies combined in one final export value.
+The outer array contains alternative final values.
+Identical lists are deduplicated before choosing the return shape.
+Conditional nesting changes the return type and requires a major release.
+
+```js
+const { reexports, complete } = parse(`
+  if (production) module.exports = {...require('./a.cjs'), ...require('./b.cjs')};
+  else module.exports = {...require('./c.cjs'), ...require('./d.cjs')};
+`);
+// reexports: [['./a.cjs', './b.cjs'], ['./c.cjs', './d.cjs']]
+// complete: true
+```
+
+Sequential replacements retain only the final value.
+Pure guards remove unreachable branches. Unknown guards retain their possible alternatives.
+Object spreads of direct `require` calls combine dependencies in one group.
+The `exports` array contains detected literal names from surviving values.
+
+Flow analysis runs only after the lexer detects more than one `module.exports` replacement.
+The counter ignores comments, strings, property writes, and comparisons.
+With fewer replacements, existing detection patterns run and their reexports stay flat.
+The optional third argument selects a versioned detection baseline.
+Select `legacy` for frozen detection, or `flow-v1` for the default conditional analysis.
+A baseline can combine detection rules without an option for each rule.
+
+The C lexer compiled to Wasm owns flow analysis.
+The JavaScript entry point invokes it only for competing replacements.
+Use valid CommonJS source with standard CommonJS bindings and an ordinary writable `module.exports` property.
+Analysis describes successful synchronous completion and does not execute source or resolve dependencies.
+Opaque reads and dependency execution invalidate earlier exposed values. A fresh replacement can establish a known value again.
+
+Results include `complete` only when flow analysis runs.
+Unsupported syntax, effects, bindings, filtered string literals, and analysis limits make it false.
+An incomplete result contains confirmed alternatives and omits unknown values.
+Token, nesting, outcome, and work limits bound the analyzer.
+Existing lexer errors still apply.
 
 ### Grammar
+
+The grammar below describes the `legacy` baseline.
 
 CommonJS exports matches are run against the source token stream.
 

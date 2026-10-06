@@ -10,6 +10,7 @@ const uint16_t* EMPTY_CHAR = &__empty_char;
 #define MAX_STAR_EXPORTS 256
 const uint16_t* source;
 
+
 bool lastSlashWasDivision;
 uint16_t templateStackDepth;
 uint16_t openTokenDepth;
@@ -32,6 +33,11 @@ uint16_t* lastReexportEnd;
 uint32_t parse_error;
 uint32_t error = 0;
 uint32_t sourceLen;
+uint32_t moduleExportCount;
+
+#ifdef __wasm__
+#include "reexport-analysis.h"
+#endif
 
 uint16_t templateStack_[STACK_DEPTH];
 uint16_t* openTokenPosStack_[STACK_DEPTH];
@@ -72,6 +78,7 @@ static inline __attribute__((always_inline)) bool pushTemplate () {
 uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const uint16_t*, const uint16_t*), void (*_addReexport)(const uint16_t*, const uint16_t*), void (*_addUnsafeGetter)(const uint16_t*, const uint16_t*), void (*_clearReexports)()) {
   source = _source;
   sourceLen = _sourceLen;
+  moduleExportCount = 0;
   if (_addExport)
     addExport = _addExport;
   if (_addReexport)
@@ -263,7 +270,12 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
     return error;
 
   // success
+#ifdef __wasm__
+  // The low byte is reserved for parse errors in the host wrapper.
+  return moduleExportCount << 8;
+#else
   return 0;
+#endif
 }
 
 void tryBacktrackAddStarExportBinding (uint16_t* bPos) {
@@ -939,6 +951,8 @@ void tryParseExportsDotAssign (bool assign) {
     // module.exports =
     case '=': {
       if (assign) {
+        if (moduleExportCount < 2 && pos[1] != '=')
+          moduleExportCount++;
         clearReexports();
         pos++;
         ch = commentWhitespace();
@@ -952,6 +966,13 @@ void tryParseExportsDotAssign (bool assign) {
         if (ch == 'r')
           tryParseRequire(ExportAssign);
       }
+      break;
+    }
+    case '&':
+    case '|':
+    case '?': {
+      if (assign && moduleExportCount < 2 && end - pos >= 2 && pos[1] == ch && pos[2] == '=')
+        moduleExportCount++;
     }
   }
   pos = revertPos;
