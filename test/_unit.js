@@ -30,6 +30,48 @@ suite('Lexer', () => {
     lexer.initSync();
   });
 
+  test('dense object exports in fresh Wasm instances', async () => {
+    const letters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const keys = [];
+    for (const first of letters) {
+      for (const second of letters) keys.push(first + second);
+    }
+    keys.length = 1475;
+    let source = 'var v=0;module.exports={';
+    for (const key of keys) source += key + ':v,';
+    source = source.slice(0, -1) + '};';
+    assert.strictEqual(source.length, 7400);
+
+    for (const mode of ['automatic', 'async', 'sync']) {
+      for (const padding of [0, 2, 3, 4, 19, 20]) {
+        const lexer = await import(`../dist/lexer.mjs?dense-object-${mode}-${padding}`);
+        if (mode === 'async') await lexer.init();
+        if (mode === 'sync') lexer.initSync();
+        assert.deepStrictEqual(lexer.parse(source + ' '.repeat(padding)), {
+          exports: keys,
+          reexports: []
+        });
+      }
+    }
+  });
+
+  test('repeated shorthand exports in fresh Wasm instances', async () => {
+    const source = 'var v=0;module.exports={' + 'v,'.repeat(2047) + 'v};';
+    for (const mode of ['automatic', 'async', 'sync']) {
+      const lexer = await import(`../dist/lexer.mjs?dense-shorthand-${mode}`);
+      if (mode === 'async') await lexer.init();
+      if (mode === 'sync') lexer.initSync();
+      assert.deepStrictEqual(lexer.parse(source), {
+        exports: ['v'],
+        reexports: []
+      });
+      assert.deepStrictEqual(lexer.parse('exports.after = 1'), {
+        exports: ['after'],
+        reexports: []
+      });
+    }
+  });
+
   test('export star failure', () => {
     parse(`__exportStar((0));`);
   });
