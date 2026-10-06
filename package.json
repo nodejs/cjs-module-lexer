@@ -38,7 +38,6 @@
   },
   "files": [
     "dist",
-    "src/export-analysis.js",
     "lexer.d.ts",
     "lexer.d.mts"
   ],

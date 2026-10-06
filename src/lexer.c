@@ -9,6 +9,7 @@ const uint16_t* EMPTY_CHAR = &__empty_char;
 enum TokenType { ClassToken = 1, ExportObjectToken = 2 };
 const uint16_t* source;
 
+
 bool lastSlashWasDivision;
 uint16_t templateStackDepth;
 uint16_t openTokenDepth;
@@ -34,6 +35,10 @@ uint32_t parse_error;
 uint32_t error = 0;
 uint32_t sourceLen;
 uint32_t moduleExportCount;
+
+#ifdef __wasm__
+#include "reexport-analysis.h"
+#endif
 
 uint16_t templateStack_[STACK_DEPTH];
 uint16_t* openTokenPosStack_[STACK_DEPTH];

@@ -69,10 +69,10 @@ function parseCJS (source, name = '@', options) {
     throw new TypeError('Expected options.mode to be "default" or "extended".');
   const minifiedEnumerable = options ? options.allowMinifiedEnumerable === true : false;
   const baseline = options === undefined ? undefined : options.baseline;
-  if (baseline === 'flow-v1') {
-    const report = require('./src/export-analysis.js')(source, 'flow-v1', undefined, decode);
-    if (report !== undefined) return report;
-  }
+  if (baseline !== undefined && typeof baseline !== 'string')
+    throw new TypeError('Detection baseline must be a string');
+  if (baseline !== undefined && baseline !== 'legacy' && baseline !== 'flow-v1')
+    throw new RangeError('Unknown detection baseline: ' + baseline);
   resetState();
   allowMinifiedEnumerable = minifiedEnumerable;
   extended = mode === 'extended';
@@ -85,11 +85,15 @@ function parseCJS (source, name = '@', options) {
     error.loc = pos;
     throw error;
   }
+  if (baseline !== 'legacy' && moduleExportCount > 1) {
+    resetState();
+    return require('./dist/lexer.js').parse(source, name, baseline === undefined ? undefined : { baseline });
+  }
   const result = { exports: [..._exports].filter(expt => expt !== undefined && !unsafeGetters.has(expt)), reexports: [...reexports].filter(reexpt => reexpt !== undefined) };
-  const replacements = moduleExportCount;
   resetState();
-  return baseline === 'legacy' || (replacements < 2 && baseline === undefined) ? result :
-    require('./src/export-analysis.js')(source, baseline, replacements, decode, result);
+  if (baseline === 'legacy') return result;
+  result.reexports = result.reexports.length ? [result.reexports] : [];
+  return result;
 }
 
 /** @param {string} str */
@@ -1908,8 +1912,6 @@ function isExpressionTerminator (curPos) {
   return false;
 }
 
-const initPromise = Promise.resolve();
-
-module.exports.init = () => initPromise;
-module.exports.initSync = () => {};
+module.exports.init = () => require('./dist/lexer.js').init();
+module.exports.initSync = () => require('./dist/lexer.js').initSync();
 module.exports.parse = parseCJS;

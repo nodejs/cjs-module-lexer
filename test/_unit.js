@@ -15,6 +15,9 @@ async function loadParser () {
   else {
     parse = require('../lexer.js').parse;
   }
+  const parseSource = parse;
+  parse = /** @param {string} source @param {string} [name] */ (source, name) =>
+    parseSource(source, name, { baseline: 'legacy' });
 }
 
 /**
@@ -47,7 +50,7 @@ function createRequireDeclarations (count) {
   return source;
 }
 
-suite('Lexer', () => {
+suite('Legacy lexer', () => {
   suiteSetup(async () => await loadParser());
 
   test('Repeated parsing preserves scanner state and earlier results', () => {
