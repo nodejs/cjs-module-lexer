@@ -9,8 +9,9 @@ export function parse (source, name = '@') {
 
   const len = source.length + 1;
 
-  // need 2 bytes per code point plus analysis space so we double again
-  const extraMem = (wasm.__heap_base.value || wasm.__heap_base) + len * 4 - wasm.memory.buffer.byteLength;
+  // A 12-byte result node can occur every two code units in object exports.
+  // Reserve six analysis bytes and two source bytes per code unit.
+  const extraMem = (wasm.__heap_base.value || wasm.__heap_base) + len * 8 - wasm.memory.buffer.byteLength;
   if (extraMem > 0)
     wasm.memory.grow(Math.ceil(extraMem / 65536));
     
