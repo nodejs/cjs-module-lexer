@@ -6,7 +6,9 @@ WASM_LDFLAGS := -nostartfiles
 # These are project-specific and are expected to be kept intact
 WASM_TARGET := -target wasm32-unknown-wasi
 WASM_EXTRA_CFLAGS := -I include-wasm/ -Wno-logical-op-parentheses -Wno-parentheses -Oz
+WASM_EXTRA_CFLAGS += -flto -mllvm -inline-threshold=150
 WASM_EXTRA_LDFLAGS := -Wl,-z,stack-size=13312,--no-entry,--compress-relocations,--strip-all
+WASM_EXTRA_LDFLAGS += -Wl,--mllvm=-inline-threshold=150
 WASM_EXTRA_LDFLAGS += -Wl,--export=__heap_base,--export=parseCJS,--export=sa
 WASM_EXTRA_LDFLAGS += -Wl,--export=e,--export=re,--export=es,--export=ee
 WASM_EXTRA_LDFLAGS += -Wl,--export=rre,--export=ree,--export=res,--export=ru,--export=us,--export=ue
