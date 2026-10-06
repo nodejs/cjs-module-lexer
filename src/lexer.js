@@ -68,10 +68,9 @@ export function parse (source, name = '@', options) {
       complete = false;
   }
 
-  if (baseline === 'legacy') return { exports: [...exports], reexports: [...reexports] };
-  if (!(status & 1024)) return { exports: [...exports], reexports: reexports.size ? [[...reexports]] : [] };
+  if (!(status & 1024)) return { exports: [...exports], reexports: [...reexports] };
   if (groups.length === 1)
-    return { exports: [...exports], reexports: reexports.size ? [[...reexports]] : [], complete };
+    return { exports: [...exports], reexports: [...reexports], complete };
   const alternatives = [];
   const seen = new Set();
   let hasDependencies = false;
@@ -83,7 +82,7 @@ export function parse (source, name = '@', options) {
     alternatives.push(values);
     if (values.length) hasDependencies = true;
   }
-  return { exports: [...exports], reexports: hasDependencies ? alternatives : [], complete };
+  return { exports: [...exports], reexports: hasDependencies ? alternatives.length === 1 ? alternatives[0] : alternatives : [], complete };
 }
 
 function decode (str) {

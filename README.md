@@ -57,10 +57,12 @@ Browser main threads can restrict synchronous Wasm compilation, so await
 
 ### Detection baselines (proof of concept)
 
-The default `reexports` value is an array of arrays.
+The default `reexports` value stays flat for one distinct final dependency list.
+Different conditional lists produce an array of arrays.
 Each inner array contains dependencies combined in one final export value.
 The outer array contains alternative final values.
-This changes the return type and requires a major release.
+Identical lists are deduplicated before choosing the return shape.
+Conditional nesting changes the return type and requires a major release.
 
 ```js
 const { reexports, complete } = parse(`
@@ -78,9 +80,9 @@ The `exports` array contains detected literal names from surviving values.
 
 Flow analysis runs only after the lexer detects more than one `module.exports` replacement.
 The counter ignores comments, strings, property writes, and comparisons.
-With fewer replacements, existing detection patterns run and their reexports form one group.
+With fewer replacements, existing detection patterns run and their reexports stay flat.
 The optional third argument selects a versioned detection baseline.
-Select `legacy` for the previous flat result, or `flow-v1` for the default grouped result.
+Select `legacy` for frozen detection, or `flow-v1` for the default conditional analysis.
 A baseline can combine detection rules without an option for each rule.
 
 The C lexer compiled to Wasm owns flow analysis.

@@ -1,7 +1,7 @@
 export interface Exports {
   exports: string[];
-  /** Alternative final values; each group contains dependencies combined in one value. */
-  reexports: string[][];
+  /** Flat dependencies, or alternative lists when conditional final dependencies differ. */
+  reexports: string[] | string[][];
   /** Present when competing replacements are analyzed. False for unsupported effects, filtered names, or limits. */
   complete?: boolean;
 }
@@ -16,8 +16,8 @@ export interface ParseOptions {
 }
 
 export declare function parse(source: string, name: string | undefined, options: { baseline: 'legacy' }): LegacyExports;
-export declare function parse(source: string, name: string | undefined, options: { baseline?: 'flow-v1' }): Exports;
-export declare function parse(source: string, name: string | undefined, options: ParseOptions): Exports | LegacyExports;
+export declare function parse(source: string, name: string | undefined, options?: { baseline?: 'flow-v1' }): Exports;
+export declare function parse(source: string, name: string | undefined, options?: ParseOptions): Exports | LegacyExports;
 export declare function parse(source: string, name?: string): Exports;
 export declare function init(): Promise<void>;
 export declare function initSync(): void;

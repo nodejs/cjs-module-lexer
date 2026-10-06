@@ -16,18 +16,36 @@ suite('Grouped reexports', () => {
     else parse = require('../lexer.js').parse;
   });
 
+  test('keeps flat results unless final dependency lists differ', () => {
+    for (const source of ['', 'exports.name = 1;', "module.exports = require('./one');",
+      "module.exports = {...require('./a'), ...require('./b')};"]) {
+      assert.deepStrictEqual(parse(source), parse(source, '@', { baseline: 'legacy' }));
+    }
+    assert.deepStrictEqual(parse("module.exports = require('./a'); module.exports = require('./b');").reexports,
+      ['./b']);
+  });
+  test('deduplicates identical alternatives before choosing the result shape', () => {
+    assert.deepStrictEqual(parse("if (flag) module.exports = require('./same'); " +
+      'else module.exports = require("./same");').reexports, ['./same']);
+    assert.deepStrictEqual(parse("if (flag) module.exports = {...require('./a'), ...require('./b'), ...require('./a')}; " +
+      "else module.exports = {...require('./a'), ...require('./b')};").reexports, ['./a', './b']);
+    assert.deepStrictEqual(parse("if (flag) module.exports = {}; else module.exports = require('./optional');").reexports,
+      [[], ['./optional']]);
+    assert.deepStrictEqual(parse('if (flag) module.exports = { first: 1 }; else module.exports = { second: 1 };').reexports,
+      []);
+  });
   test('groups conditional alternatives and drops overwritten dependencies by default', () => {
     assert.deepStrictEqual(parse("if (flag) module.exports = require('./a'); else module.exports = require('./b');"),
       { exports: [], reexports: [['./a'], ['./b']], complete: true });
     assert.deepStrictEqual(parse("module.exports = require('./a'); module.exports = require('./b');"),
-      { exports: [], reexports: [['./b']], complete: true });
+      { exports: [], reexports: ['./b'], complete: true });
   });
   test('groups dependencies combined in a final object', () => {
     const source = "if (flag) module.exports = {...require('./a'), ...require('./b')}; " +
       "else module.exports = {...require('./c'), ...require('./d')};";
     assert.deepStrictEqual(parse(source), { exports: [], reexports: [['./a', './b'], ['./c', './d']], complete: true });
     assert.deepStrictEqual(parse(source.replace('flag', 'true')),
-      { exports: [], reexports: [['./a', './b']], complete: true });
+      { exports: [], reexports: ['./a', './b'], complete: true });
   });
   test('keeps the count gate and the explicit legacy baseline', () => {
     for (const source of ['', 'exports.name = 1;', "module.exports = require('./one');"]) {
@@ -36,7 +54,7 @@ suite('Grouped reexports', () => {
       assert.equal(Object.prototype.hasOwnProperty.call(result, 'analysis'), false);
     }
     assert.deepStrictEqual(parse("module.exports = {...require('./a'), ...require('./b')};").reexports,
-      [['./a', './b']]);
+      ['./a', './b']);
     for (const extra of ['// module.exports = 2;', '/* module.exports = 2; */', "'module.exports = 2;'",
       'module.exports.name = 2;', 'module.exports === 2;', 'module.exports == 2;']) {
       assert.equal(Object.prototype.hasOwnProperty.call(parse('module.exports = {}; ' + extra), 'complete'), false);
@@ -51,9 +69,9 @@ suite('Grouped reexports', () => {
     const result = parse(source, '@', { get baseline () { reads++; return 'flow-v1'; } });
     assert.equal(reads, 1);
     assert.equal(Object.prototype.hasOwnProperty.call(result, 'analysis'), false);
-    assert.deepStrictEqual(Object.freeze(result).reexports, [['./final']]);
-    result.reexports[0][0] = './mutated';
-    assert.deepStrictEqual(parse(source).reexports, [['./final']]);
+    assert.deepStrictEqual(Object.freeze(result).reexports, ['./final']);
+    result.reexports[0] = './mutated';
+    assert.deepStrictEqual(parse(source).reexports, ['./final']);
     assert.throws(() => parse('', '@', { baseline: 'future' }), { name: 'RangeError' });
     assert.throws(() => parse('', '@', { baseline: 1 }), { name: 'TypeError' });
   });
@@ -75,7 +93,7 @@ suite('Grouped reexports', () => {
       await lexer.init();
       assert.equal(calls, 0);
       assert.deepStrictEqual(lexer.parse("module.exports = require('./old'); module.exports = require('./final');")
-        .reexports, [['./final']]);
+        .reexports, ['./final']);
       assert.equal(calls, 0);
     } finally {
       WebAssembly.Module = constructor;
@@ -89,12 +107,12 @@ suite('Grouped reexports', () => {
     for (const condition of ['false', '0', "''", 'null', 'void 0', '!true', '1 === 2', "'a' === 'b'",
       "'\\x61' !== 'a'", "'\\u{61}' !== 'a'", "'\\141' !== 'a'", "'\\\r\n'", '0x0', '0b0', '0o0']) {
       const source = 'if (' + condition + ") module.exports = require('./dead'); else module.exports = require('./live');";
-      assert.deepStrictEqual(parse(source), { exports: [], reexports: [['./live']], complete: true }, condition);
+      assert.deepStrictEqual(parse(source), { exports: [], reexports: ['./live'], complete: true }, condition);
     }
     for (const condition of ['true', '1e2 === 100', '0.1 === 0.1', "typeof 1 === 'number'",
       "typeof typeof flag === 'string'", 'require', 'module', 'exports']) {
       const source = 'if (' + condition + ") module.exports = require('./live'); else module.exports = require('./dead');";
-      assert.deepStrictEqual(parse(source).reexports, [['./live']], condition);
+      assert.deepStrictEqual(parse(source).reexports, ['./live'], condition);
     }
     assert.deepStrictEqual(parse("module.exports = {}; module.exports = typeof flag ?? require('./dead');").reexports, []);
   });
@@ -107,16 +125,16 @@ suite('Grouped reexports', () => {
     for (const operator of ['&&', '||', '??']) {
       const result = parse("module.exports = {}; flag " + operator + " (module.exports = require('./active'));");
       assert.equal(result.complete, false);
-      assert.deepStrictEqual(result.reexports, [['./active']]);
+      assert.deepStrictEqual(result.reexports, ['./active']);
     }
     for (const [operator, initial] of [['&&=', 'true'], ['||=', 'false'], ['??=', 'null']]) {
       assert.deepStrictEqual(parse('module.exports = ' + initial + '; module.exports ' + operator +
-        " require('./active');").reexports, [['./active']]);
+        " require('./active');").reexports, ['./active']);
     }
     assert.deepStrictEqual(parse("module.exports = require('./a'); module.exports ||= require('./b');").reexports,
       [['./a'], ['./b']]);
     assert.deepStrictEqual(parse("if (flag) module.exports = require('./a'); else module.exports = require('./b'); " +
-      "module.exports = require('./final');").reexports, [['./final']]);
+      "module.exports = require('./final');").reexports, ['./final']);
   });
   test('reports only surviving literal names and combined dependency spreads', () => {
     assert.deepStrictEqual(parse('module.exports = { removed: 1 }; module.exports = { final: 1 };'),
@@ -125,12 +143,12 @@ suite('Grouped reexports', () => {
       { exports: ['16', '100', '1.5', 'final'], reexports: [], complete: true });
     assert.deepStrictEqual(parse("module.exports = {}; module.exports = { own: require('./value'), " +
       "...{ nested: 1, ...require('./spread') }, ...require('./spread') };"),
-    { exports: ['own', 'nested'], reexports: [['./spread']], complete: true });
+    { exports: ['own', 'nested'], reexports: ['./spread'], complete: true });
     assert.deepStrictEqual(parse("if (flag) module.exports = require('./same'); else module.exports = require(\"./same\");"),
-      { exports: [], reexports: [['./same']], complete: true });
+      { exports: [], reexports: ['./same'], complete: true });
     assert.deepStrictEqual(parse("module.exports = {}; module.exports = { own: 1 }; " +
       "if (module.exports === module.exports) module.exports = require('./live'); else module.exports = require('./dead');")
-      .reexports, [['./live']]);
+      .reexports, ['./live']);
   });
   test('does not guess across unsupported scopes, mutation, or dynamic spreads', () => {
     for (const middle of ['for (;;) { break; }', 'while (flag) {}', 'switch (flag) { case 1: break; }',
@@ -222,7 +240,7 @@ suite('Grouped reexports', () => {
         assert.deepStrictEqual(parse(prefix + separator + operator + '1;'),
           { exports: [], reexports: [], complete: false });
         assert.deepStrictEqual(parse(prefix + ';' + separator + operator + '1;'),
-          { exports: [], reexports: [['./n']], complete: true });
+          { exports: [], reexports: ['./n'], complete: true });
       }
     }
     assert.deepStrictEqual(parse('module.exports = {}; module.exports = 1\n+ 1; ' +
