@@ -72,6 +72,8 @@ uint32_t ee () {
 }
 // getReexportStart
 uint32_t res () {
+  // A null slice starts a group; Wasm exposes this sentinel as signed -1.
+  if (reexport_read_head->start == NULL) return UINT32_MAX;
   return reexport_read_head->start - source;
 }
 // getReexportEnd

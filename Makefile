@@ -6,7 +6,7 @@ WASM_OPT ?= ../binaryen/bin/wasm-opt
 lib/lexer.wat: lib/lexer.wasm
 	$(WASM2WAT) lib/lexer.wasm -o lib/lexer.wat
 
-lib/lexer.wasm: include-wasm/cjs-module-lexer.h src/lexer.c | lib/
+lib/lexer.wasm: include-wasm/cjs-module-lexer.h src/lexer.c src/reexport-analysis.h | lib/
 	node build/wasm.js --docker
 
 lib/:

@@ -1,35 +1,23 @@
 export interface Exports {
   exports: string[];
+  /** Alternative final values; each group contains dependencies combined in one value. */
+  reexports: string[][];
+  /** Present when competing replacements are analyzed. False for unsupported effects, filtered names, or limits. */
+  complete?: boolean;
+}
+
+export interface LegacyExports {
+  exports: string[];
   reexports: string[];
-  /** Present for multiple detected replacements unless the legacy baseline is selected. Non-enumerable. */
-  readonly analysis?: ExportAnalysis;
 }
 
 export interface ParseOptions {
   baseline?: 'legacy' | 'flow-v1';
 }
 
-export interface FlowCondition {
-  start: number;
-  end: number;
-  when: 'truthy' | 'falsy' | 'nullish' | 'non-nullish';
-}
-
-export type FlowExportValue =
-  | { kind: 'module'; specifier: string }
-  | { kind: 'object'; properties: string[] }
-  | { kind: 'literal'; value: string | number | boolean | null | undefined }
-  | { kind: 'unknown'; reason: string; start?: number; end?: number };
-
-export interface ExportAnalysis {
-  baseline: 'flow-v1';
-  complete: boolean;
-  outcomes: { conditions: FlowCondition[]; value: FlowExportValue }[];
-}
-
-export declare function parse(source: string, name: string | undefined, options: { baseline: 'flow-v1' }): ExportAnalysis;
-export declare function parse(source: string, name: string | undefined, options: { baseline?: 'legacy' }): Exports;
-export declare function parse(source: string, name: string | undefined, options: ParseOptions): Exports | ExportAnalysis;
+export declare function parse(source: string, name: string | undefined, options: { baseline: 'legacy' }): LegacyExports;
+export declare function parse(source: string, name: string | undefined, options: { baseline?: 'flow-v1' }): Exports;
+export declare function parse(source: string, name: string | undefined, options: ParseOptions): Exports | LegacyExports;
 export declare function parse(source: string, name?: string): Exports;
 export declare function init(): Promise<void>;
 export declare function initSync(): void;
