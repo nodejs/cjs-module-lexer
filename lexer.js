@@ -91,8 +91,6 @@ function parseCJS (source, name = '@', options) {
   }
   const result = { exports: [..._exports].filter(expt => expt !== undefined && !unsafeGetters.has(expt)), reexports: [...reexports].filter(reexpt => reexpt !== undefined) };
   resetState();
-  if (baseline === 'legacy') return result;
-  result.reexports = result.reexports.length ? [result.reexports] : [];
   return result;
 }
 
