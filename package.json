@@ -11,13 +11,16 @@
     "default": "./lexer.js"
   },
   "types": "lexer.d.ts",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "test-js": "cross-env NODE_OPTIONS=--disallow-code-generation-from-strings mocha -b -u tdd test/*.js",
     "test-wasm": "cross-env WASM=1 NODE_OPTIONS=--disallow-code-generation-from-strings mocha -b -u tdd test/*.js",
     "test-wasm-sync": "cross-env WASM_SYNC=1 NODE_OPTIONS=--disallow-code-generation-from-strings mocha -b -u tdd test/*.js",
     "test": "npm run test-wasm && npm run test-wasm-sync && npm run test-js",
     "bench": "node --expose-gc bench/index.mjs",
-    "build": "node build.js ; babel dist/lexer.mjs -o dist/lexer.js ; terser dist/lexer.js -o dist/lexer.js",
+    "build": "node build.js",
     "build-wasm": "make lib/lexer.wasm ; node build.js",
     "build-wasm-local": "node build/wasm.js --local",
     "prepublishOnly": "make && npm run build",
@@ -26,13 +29,12 @@
   "author": "Guy Bedford",
   "license": "MIT",
   "devDependencies": {
-    "@babel/cli": "^7.5.5",
-    "@babel/core": "^7.5.5",
-    "@babel/plugin-transform-modules-commonjs": "^7.5.0",
+    "@babel/core": "^7.29.7",
+    "@babel/plugin-transform-modules-commonjs": "^7.29.7",
     "cross-env": "^7.0.3",
-    "kleur": "^2.0.2",
+    "kleur": "^4.1.5",
     "mocha": "^11.8.0",
-    "terser": "^4.1.4"
+    "terser": "^5.51.2"
   },
   "files": [
     "dist",

@@ -19,7 +19,8 @@ const files = fs.readdirSync('test/samples')
 		};
 	});
 
-Promise.resolve().then(async () => {
+{
+	/** @param {string} code */
 	function timeRun (code) {
 		const start = process.hrtime.bigint();
 		const parsed = parse(code);
@@ -32,7 +33,7 @@ Promise.resolve().then(async () => {
 	{
 		const start = process.hrtime.bigint();
 		var { parse } = await import('../lexer.js');
-		console.log(`> ${c.bold.green(Math.round(Number(process.hrtime.bigint() - start) / 1e6) + 'ms')}`);
+		console.log(`> ${c.bold().green(Math.round(Number(process.hrtime.bigint() - start) / 1e6) + 'ms')}`);
 	}
 
 	doRun();
@@ -43,7 +44,7 @@ Promise.resolve().then(async () => {
 		const start = process.hrtime.bigint();
 		var { parse, init } = await import('../dist/lexer.mjs');
 		await init();
-		console.log(`> ${c.bold.green(Math.round(Number(process.hrtime.bigint() - start) / 1e6) + 'ms')}`);
+		console.log(`> ${c.bold().green(Math.round(Number(process.hrtime.bigint() - start) / 1e6) + 'ms')}`);
 	}
 
 	doRun();
@@ -57,14 +58,14 @@ Promise.resolve().then(async () => {
 				totalSize += size;
 				total += timeRun(code);
 			});
-			console.log(c.bold.cyan(`test/samples/*.js (${Math.round(totalSize / 1e3)} KiB)`));
-			console.log(`> ${c.bold.green(total + 'ms')}`);
+			console.log(c.bold().cyan(`test/samples/*.js (${Math.round(totalSize / 1e3)} KiB)`));
+			console.log(`> ${c.bold().green(total + 'ms')}`);
 			gc();
 		}
 	
 		console.log(`\nWarm Runs (average of ${n} runs)`);
 		files.forEach(({ file, code, size }) => {
-			console.log(c.bold.cyan(`${file} (${Math.round(size / 1e3)} KiB)`));
+			console.log(c.bold().cyan(`${file} (${Math.round(size / 1e3)} KiB)`));
 	
 			let total = 0;
 			for (let i = 0; i < n; i++) {
@@ -72,7 +73,7 @@ Promise.resolve().then(async () => {
 				gc();
 			}
 	
-			console.log(`> ${c.bold.green((total / n) + 'ms')}`);
+			console.log(`> ${c.bold().green((total / n) + 'ms')}`);
 		});
 	
 		console.log(`\nWarm Runs, All Samples (average of ${n} runs)`);
@@ -83,8 +84,8 @@ Promise.resolve().then(async () => {
 					total += timeRun(code);
 				});
 			}
-			console.log(c.bold.cyan(`test/samples/*.js (${Math.round(totalSize / 1e3)} KiB)`));
-			console.log(`> ${c.bold.green((total / n) + 'ms')}`);
+			console.log(c.bold().cyan(`test/samples/*.js (${Math.round(totalSize / 1e3)} KiB)`));
+			console.log(`> ${c.bold().green((total / n) + 'ms')}`);
 		}
 	}
-});
+}
