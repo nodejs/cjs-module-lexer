@@ -192,7 +192,7 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
         break;
       case '}':
         if (openTokenDepth == 0)
-          return syntaxError(2), false;
+          return syntaxError(2), error;
         if (openTokenDepth-- == templateDepth) {
           templateDepth = templateStack[--templateStackDepth];
           templateString();
@@ -259,8 +259,11 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
     lastTokenPos = pos;
   }
 
-  if (templateDepth != UINT16_MAX || openTokenDepth || error)
+  if (templateDepth != UINT16_MAX || openTokenDepth || error) {
+    if (!error)
+      syntaxError(1);
     return error;
+  }
 
   // success
   return 0;
