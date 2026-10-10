@@ -20,6 +20,50 @@ async function loadParser () {
 suite('Lexer', () => {
   suiteSetup(async () => await loadParser());
 
+  test('Repeated parsing preserves scanner state and earlier results', () => {
+    const first = parse("exports.first = 1; __exportStar(require('first'));");
+    const nested = '('.repeat(1536) + '0' + ')'.repeat(1536) + '; exports.deep = 1;';
+    for (let i = 0; i < 3; i++) {
+      assert.deepStrictEqual(parse(nested), { exports: ['deep'], reexports: [] });
+      assert.deepStrictEqual(parse('class C {} /exports.fake/.test("x"); exports.regex = 1;'),
+        { exports: ['regex'], reexports: [] });
+      assert.deepStrictEqual(parse('const value = `${`${1}`}`; exports.template = value;'),
+        { exports: ['template'], reexports: [] });
+      assert.throws(() => parse('class C { method () { return "unfinished'),
+        process.env.WASM || process.env.WASM_SYNC ? /^Error: Parse error @/ : /^Error: Unterminated string\./);
+      assert.deepStrictEqual(parse('const value = {} / 2; exports.after = value;'),
+        { exports: ['after'], reexports: [] });
+    }
+    assert.deepStrictEqual(first, { exports: ['first'], reexports: ['first'] });
+  });
+
+  test('Unsafe getter filtering remains local to each parse', () => {
+    const source = `
+      exports.hidden = 1;
+      Object.defineProperty(exports, 'hidden', { enumerable: true, get () { return effect(); } });
+      Object.defineProperty(exports, 'other', { enumerable: true, get () { return effect(); } });
+      exports.visible = 1;
+      exports['\\u0076isible'] = 2;
+      exports.other = 1;
+    `;
+    for (let i = 0; i < 3; i++) {
+      assert.deepStrictEqual(parse('exports.hidden = 1; exports.other = 1;'),
+        { exports: ['hidden', 'other'], reexports: [] });
+      assert.deepStrictEqual(parse(source), { exports: ['visible'], reexports: [] });
+      assert.deepStrictEqual(parse(''), { exports: [], reexports: [] });
+    }
+  });
+
+  test('Large source copies remain correct across repeated parses', () => {
+    const large = '/*' + ' '.repeat(1024 * 1024) + '*/ exports["caf\\u00e9"] = 1;';
+    const first = parse('exports.first = 1;');
+    for (let i = 0; i < 3; i++) {
+      assert.deepStrictEqual(parse(large), { exports: ['café'], reexports: [] });
+      assert.deepStrictEqual(parse('exports.small = 1;'), { exports: ['small'], reexports: [] });
+    }
+    assert.deepStrictEqual(first, { exports: ['first'], reexports: [] });
+  });
+
   test('automatic Wasm initialization', async () => {
     const lexer = await import('../dist/lexer.mjs?automatic-initialization');
 

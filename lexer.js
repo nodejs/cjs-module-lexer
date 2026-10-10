@@ -1,13 +1,13 @@
 let source, pos, end;
 const STACK_DEPTH = 2048;
+const templateStack = new Array(1024);
+const openTokenPosStack = new Array(1024);
+const openClassPosStack = new Array(1024);
 let openTokenDepth,
   templateDepth,
   lastTokenPos,
   lastSlashWasDivision,
-  templateStack,
   templateStackDepth,
-  openTokenPosStack,
-  openClassPosStack,
   nextBraceIsClass,
   starExportMap,
   lastStarExportSpecifier,
@@ -20,10 +20,7 @@ function resetState () {
   templateDepth = -1;
   lastTokenPos = -1;
   lastSlashWasDivision = false;
-  templateStack = new Array(1024);
   templateStackDepth = 0;
-  openTokenPosStack = new Array(1024);
-  openClassPosStack = new Array(1024);
   nextBraceIsClass = false;
   starExportMap = Object.create(null);
   lastStarExportSpecifier = null;
