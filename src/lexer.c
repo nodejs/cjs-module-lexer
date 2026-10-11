@@ -6,8 +6,6 @@ const uint16_t __empty_char = '\0';
 const uint16_t* EMPTY_CHAR = &__empty_char;
 // tracked depth of template and brackets
 #define STACK_DEPTH 2048
-// tracked number of star exports
-#define MAX_STAR_EXPORTS 256
 const uint16_t* source;
 
 bool lastSlashWasDivision;
@@ -20,7 +18,6 @@ uint16_t* pos;
 uint16_t* end;
 uint16_t* templateStack;
 uint16_t** openTokenPosStack;
-StarExportBinding* starExportStack;
 bool nextBraceIsClass;
 
 uint16_t* lastReexportStart;
@@ -36,16 +33,9 @@ uint32_t sourceLen;
 uint16_t templateStack_[STACK_DEPTH];
 uint16_t* openTokenPosStack_[STACK_DEPTH];
 bool openClassPosStack[STACK_DEPTH];
-StarExportBinding starExportStack_[MAX_STAR_EXPORTS];
-const StarExportBinding* STAR_EXPORT_STACK_END = &starExportStack_[MAX_STAR_EXPORTS - 1];
-
-struct StarExportOverflow {
-  StarExportBinding binding;
-  struct StarExportOverflow* next;
-};
-typedef struct StarExportOverflow StarExportOverflow;
-StarExportOverflow* firstStarExportOverflow;
-StarExportOverflow* lastStarExportOverflow;
+StarExportBinding starExportBinding_;
+StarExportBinding* firstStarExport;
+StarExportBinding* lastStarExport;
 
 void (*addExport)(const uint16_t*, const uint16_t*);
 void (*addReexport)(const uint16_t*, const uint16_t*);
@@ -96,9 +86,8 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
   error = 0;
   templateStack = &templateStack_[0];
   openTokenPosStack = &openTokenPosStack_[0];
-  starExportStack = &starExportStack_[0];
-  firstStarExportOverflow = NULL;
-  lastStarExportOverflow = NULL;
+  firstStarExport = NULL;
+  lastStarExport = NULL;
   nextBraceIsClass = false;
 
   pos = (uint16_t*)(source - 1);
@@ -298,8 +287,8 @@ void tryBacktrackAddStarExportBinding (uint16_t* bPos) {
       bPos -= charCodeByteLen(charCode);
     }
     if (identifierStart && *bPos == ' ') {
-      starExportStack->id_start = bPos + 1;
-      starExportStack->id_end = id_end + 1;
+      starExportBinding_.id_start = bPos + 1;
+      starExportBinding_.id_end = id_end + 1;
       while (*bPos == ' ' && bPos > source)
         bPos--;
       switch (*bPos) {
@@ -313,23 +302,15 @@ void tryBacktrackAddStarExportBinding (uint16_t* bPos) {
           break;
         default: return;
       }
-      if (starExportStack != STAR_EXPORT_STACK_END) {
-        starExportStack++;
-      }
-      else {
-        // A require declaration reserves more analysis space than this record consumes.
-        const uintptr_t alignment = _Alignof(StarExportOverflow);
-        const uintptr_t address = ((uintptr_t)analysis_head + alignment - 1) & ~(alignment - 1);
-        StarExportOverflow* overflow = (StarExportOverflow*)address;
-        analysis_head = (void*)(address + sizeof(StarExportOverflow));
-        overflow->binding = *starExportStack;
-        overflow->next = NULL;
-        if (lastStarExportOverflow)
-          lastStarExportOverflow->next = overflow;
-        else
-          firstStarExportOverflow = overflow;
-        lastStarExportOverflow = overflow;
-      }
+      StarExportBinding* binding = (StarExportBinding*)analysis_head;
+      analysis_head += sizeof(StarExportBinding);
+      *binding = starExportBinding_;
+      binding->next = NULL;
+      if (lastStarExport)
+        lastStarExport->next = binding;
+      else
+        firstStarExport = binding;
+      lastStarExport = binding;
     }
   }
 }
@@ -871,26 +852,15 @@ void tryParseObjectDefineOrKeys (bool keys) {
         // this is done last because it is a linear search through all require bindings
         // and by doing this search last after verifying the structure match,
         // we don't have to worry about the slow search algorithm
-        StarExportBinding* curCheckBinding = &starExportStack_[0];
-        while (curCheckBinding != starExportStack) {
-          if (id_len == curCheckBinding->id_end - curCheckBinding->id_start &&
-              0 == memcmp(id_start, curCheckBinding->id_start, id_len * sizeof(uint16_t))) {
-            addReexport(curCheckBinding->specifier_start, curCheckBinding->specifier_end);
-            pos = revertPos;
-            return;
-          }
-          curCheckBinding++;
-        }
-        StarExportOverflow* overflow = firstStarExportOverflow;
-        while (overflow) {
-          StarExportBinding* binding = &overflow->binding;
+        StarExportBinding* binding = firstStarExport;
+        while (binding) {
           if (id_len == binding->id_end - binding->id_start &&
               0 == memcmp(id_start, binding->id_start, id_len * sizeof(uint16_t))) {
             addReexport(binding->specifier_start, binding->specifier_end);
             pos = revertPos;
             return;
           }
-          overflow = overflow->next;
+          binding = binding->next;
         }
         return;
       }
@@ -1017,8 +987,8 @@ bool tryParseRequire (enum RequireType requireType) {
               addReexport(reexportStart, reexportEnd);
               return true;
             default:
-              starExportStack->specifier_start = reexportStart;
-              starExportStack->specifier_end = reexportEnd;
+              starExportBinding_.specifier_start = reexportStart;
+              starExportBinding_.specifier_end = reexportEnd;
               return true;
           }
         }
