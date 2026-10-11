@@ -17,6 +17,17 @@ async function loadParser () {
   }
 }
 
+/**
+ * @param {string} name
+ * @param {'automatic' | 'async' | 'sync'} mode
+ */
+async function loadWasmParser (name, mode) {
+  const lexer = await import(`../dist/lexer.mjs?${name}-${mode}`);
+  if (mode === 'async') await lexer.init();
+  if (mode === 'sync') lexer.initSync();
+  return lexer;
+}
+
 suite('Lexer', () => {
   suiteSetup(async () => await loadParser());
 
@@ -112,9 +123,7 @@ suite('Lexer', () => {
 
     for (const mode of ['automatic', 'async', 'sync']) {
       for (const padding of [0, 2, 3, 4, 19, 20]) {
-        const lexer = await import(`../dist/lexer.mjs?dense-object-${mode}-${padding}`);
-        if (mode === 'async') await lexer.init();
-        if (mode === 'sync') lexer.initSync();
+        const lexer = await loadWasmParser(`dense-object-${padding}`, mode);
         assert.deepStrictEqual(lexer.parse(source + ' '.repeat(padding)), {
           exports: keys,
           reexports: []
@@ -126,9 +135,7 @@ suite('Lexer', () => {
   test('repeated shorthand exports in fresh Wasm instances', async () => {
     const source = 'var v=0;module.exports={' + 'v,'.repeat(2047) + 'v};';
     for (const mode of ['automatic', 'async', 'sync']) {
-      const lexer = await import(`../dist/lexer.mjs?dense-shorthand-${mode}`);
-      if (mode === 'async') await lexer.init();
-      if (mode === 'sync') lexer.initSync();
+      const lexer = await loadWasmParser('dense-shorthand', mode);
       assert.deepStrictEqual(lexer.parse(source), {
         exports: ['v'],
         reexports: []
@@ -137,6 +144,19 @@ suite('Lexer', () => {
         exports: ['after'],
         reexports: []
       });
+    }
+  });
+
+  test('mixed results after repeated Wasm memory growth', async () => {
+    const source = 'exports.hidden=1;var v=0;module.exports={' + 'v,'.repeat(65536) + 'v};' +
+      '__exportStar(require("target"));' +
+      'Object.defineProperty(exports,"hidden",{get:function(){return effect();}});';
+    for (const mode of ['automatic', 'async', 'sync']) {
+      const lexer = await loadWasmParser('mixed-growth', mode);
+      const first = lexer.parse(source);
+      assert.deepStrictEqual(first, { exports: ['v'], reexports: ['target'] });
+      assert.deepStrictEqual(lexer.parse('exports.hidden=1'), { exports: ['hidden'], reexports: [] });
+      assert.deepStrictEqual(first, { exports: ['v'], reexports: ['target'] });
     }
   });
 

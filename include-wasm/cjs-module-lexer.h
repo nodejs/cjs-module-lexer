@@ -34,7 +34,9 @@ Slice* first_unsafe_getter = NULL;
 Slice* unsafe_getter_read_head = NULL;
 Slice* unsafe_getter_write_head = NULL;
 void* analysis_base;
-void* analysis_head;
+// The end of a full Wasm32 memory does not fit in uintptr_t.
+uint64_t analysis_head;
+uint64_t analysis_limit;
 
 void bail (uint32_t err);
 
@@ -44,7 +46,8 @@ const uint16_t* sa (uint32_t utf16Len) {
   // ensure source is null terminated
   *(uint16_t*)(source + utf16Len) = '\0';
   analysis_base = (void*)sourceEnd;
-  analysis_head = analysis_base;
+  analysis_head = (uintptr_t)analysis_base;
+  analysis_limit = (uint64_t)__builtin_wasm_memory_size(0) << 16;
   first_export = NULL;
   export_write_head = NULL;
   export_read_head = NULL;
@@ -117,8 +120,22 @@ bool ru () {
   return true;
 }
 
+static __attribute__((noinline)) void growAnalysis (uint64_t required) {
+  uint32_t pages = (required - analysis_limit + 65535) >> 16;
+  if (__builtin_wasm_memory_grow(0, pages) == (size_t)-1)
+    __builtin_trap();
+  analysis_limit += (uint64_t)pages << 16;
+}
+
+static inline __attribute__((always_inline)) void ensureAnalysisCapacity (size_t size) {
+  uint64_t required = analysis_head + size;
+  if (required > analysis_limit)
+    growAnalysis(required);
+}
+
 void _addExport (const uint16_t* start, const uint16_t* end) {
-  Slice* export = (Slice*)(analysis_head);
+  ensureAnalysisCapacity(sizeof(Slice));
+  Slice* export = (Slice*)(uintptr_t)analysis_head;
   analysis_head = analysis_head + sizeof(Slice);
   if (export_write_head == NULL)
     first_export = export;
@@ -130,7 +147,8 @@ void _addExport (const uint16_t* start, const uint16_t* end) {
   export->next = NULL;
 }
 void _addReexport (const uint16_t* start, const uint16_t* end) {
-  Slice* reexport = (Slice*)(analysis_head);
+  ensureAnalysisCapacity(sizeof(Slice));
+  Slice* reexport = (Slice*)(uintptr_t)analysis_head;
   analysis_head = analysis_head + sizeof(Slice);
   if (reexport_write_head == NULL)
     first_reexport = reexport;
@@ -142,7 +160,8 @@ void _addReexport (const uint16_t* start, const uint16_t* end) {
   reexport->next = NULL;
 }
 void _addUnsafeGetter (const uint16_t* start, const uint16_t* end) {
-  Slice* unsafe_getter = (Slice*)(analysis_head);
+  ensureAnalysisCapacity(sizeof(Slice));
+  Slice* unsafe_getter = (Slice*)(uintptr_t)analysis_head;
   analysis_head = analysis_head + sizeof(Slice);
   if (unsafe_getter_write_head == NULL)
     first_unsafe_getter = unsafe_getter;
