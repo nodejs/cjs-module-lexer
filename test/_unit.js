@@ -110,9 +110,9 @@ suite('Lexer', () => {
     }
   });
 
-  test('minified enumerable reexports require an option', () => {
-    for (const enumerable of ['!0', '! /*comment*/ 0', '!1', '!0.1', '!0n', '!00', '!0 + 1', 'tfoo', 'xrue']) {
-      const legacy = enumerable === 'tfoo' || enumerable === 'xrue';
+  test('enumerable reexports require true or an enabled minified value', () => {
+    for (const enumerable of ['true', '!0', '! /*comment*/ 0', '!1', '!0.1', '!0n', '!00', '!0 + 1', 'tfoo', 'xrue', 'truex']) {
+      const literal = enumerable === 'true';
       const minified = enumerable === '!0' || enumerable === '! /*comment*/ 0';
       const source = `
         var external = require('external');
@@ -124,16 +124,19 @@ suite('Lexer', () => {
         });
       `;
 
-      assert.deepStrictEqual(parse(source), { exports: [], reexports: legacy ? ['external'] : [] });
-      assert.deepStrictEqual(parse(source, undefined, { allowMinifiedEnumerable: true }), {
-        exports: [], reexports: legacy || minified ? ['external'] : []
+      assert.deepStrictEqual(parse(source), { exports: [], reexports: literal ? ['external'] : [] });
+      assert.deepStrictEqual(parse(source, undefined, { allowMinifiedEnumerable: false }), {
+        exports: [], reexports: literal ? ['external'] : []
       });
-      assert.deepStrictEqual(parse(source), { exports: [], reexports: legacy ? ['external'] : [] });
+      assert.deepStrictEqual(parse(source, undefined, { allowMinifiedEnumerable: true }), {
+        exports: [], reexports: literal || minified ? ['external'] : []
+      });
+      assert.deepStrictEqual(parse(source), { exports: [], reexports: literal ? ['external'] : [] });
     }
   });
 
   test('minified enumerable detection preserves unsupported descriptors', () => {
-    for (const enumerable of ['!1', '!0.1', '!0n', '!00', '!0 + 1', '!0 || true', '!!0']) {
+    for (const enumerable of ['!1', '!0.1', '!0n', '!00', '!0 + 1', '!0 || true', '!!0', 'tfoo', 'xrue', 'truex']) {
       const source = `Object.defineProperty(exports, 'value', { enumerable: ${enumerable}, value: 1 });`;
       assert.deepStrictEqual(parse(source, undefined, { allowMinifiedEnumerable: true }), {
         exports: [], reexports: []

@@ -788,7 +788,7 @@ void tryParseObjectDefineOrKeys (bool keys) {
           if (ch != ':') break;
           pos++;
           ch = commentWhitespace();
-          if (ch == 't' || str_eq3(pos + 1, 'r', 'u', 'e')) {
+          if (ch == 't' && str_eq3(pos + 1, 'r', 'u', 'e')) {
             pos += 4;
           } else if (!tryParseMinifiedEnumerable(ch)) {
             break;

@@ -793,7 +793,7 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 58/*:*/) break;
           pos++;
           ch = commentWhitespace();
-          if (ch === 116/*t*/ || source.startsWith('rue', pos + 1)) {
+          if (ch === 116/*t*/ && source.startsWith('rue', pos + 1)) {
             pos += 4;
           } else if (!tryParseMinifiedEnumerable(ch)) {
             break;
