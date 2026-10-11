@@ -42,7 +42,7 @@ export function parse (source, name = '@') {
   
   while (wasm.rre()) {
     const reexptStr = decode(source.slice(wasm.res(), wasm.ree()));
-    if (reexptStr)
+    if (reexptStr !== undefined)
       reexports.add(reexptStr);
   }
   while (wasm.ru()) {
