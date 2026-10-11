@@ -999,7 +999,7 @@ function tryParseLiteralExports () {
         pos++;
         ch = commentWhitespace();
         // nothing more complex than identifier expressions for now
-        if (!identifier()) {
+        if (!identifier() && source.charCodeAt(pos) !== 92/*\*/) {
           pos = revertPos;
           return;
         }
@@ -1031,7 +1031,7 @@ function tryParseLiteralExports () {
         pos++;
         ch = commentWhitespace();
         // nothing more complex than identifier expressions for now
-        if (!identifier()) {
+        if (!identifier() && source.charCodeAt(pos) !== 92/*\*/) {
           pos = revertPos;
           return;
         }

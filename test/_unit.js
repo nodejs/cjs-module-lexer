@@ -133,13 +133,21 @@ suite('Lexer', () => {
     });
   });
 
-  test('does not detect escaped identifier values or getters', () => {
-    for (const name of ['\\u0061', '\\u{61}', 'a\\u0062', 'a\\u{62}']) {
-      for (const key of ['value', '"value"']) {
-        assert.deepStrictEqual(parse(`module.exports = { ${key}: ${name} };`), {
-          exports: [], reexports: []
+  test('preserves export keys before unsupported identifier value expressions', () => {
+    for (const value of ['a.b', '\\u0061', '\\u{61}', 'a\\u0062', 'a\\u{62}']) {
+      for (const key of ['value', '"value"', "'value'"]) {
+        assert.deepStrictEqual(parse(`module.exports = { ${key}: ${value} };`), {
+          exports: ['value'], reexports: []
+        });
+        assert.deepStrictEqual(parse(`module.exports = { before, ${key}: ${value}, after }; exports.later = later;`), {
+          exports: ['before', 'value', 'later'], reexports: []
         });
       }
+    }
+  });
+
+  test('does not detect getters with escaped identifier returns', () => {
+    for (const name of ['\\u0061', '\\u{61}', 'a\\u0062', 'a\\u{62}']) {
       const getter = `Object.defineProperty(exports, 'value', { get () { return ${name}; } });`;
       assert.deepStrictEqual(parse(getter), {
         exports: [], reexports: []
