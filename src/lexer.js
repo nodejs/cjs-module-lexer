@@ -15,9 +15,9 @@ export function parse (source, name = '@', options) {
 
   const len = source.length + 1;
 
-  // Reserve source space and an initial analysis allowance.
+  // sa(len) writes a terminator at index len.
   let memory = wasm.memory.buffer;
-  const extraMem = (wasm.__heap_base.value || wasm.__heap_base) + len * 4 - memory.byteLength;
+  const extraMem = (wasm.__heap_base.value || wasm.__heap_base) + (len + 1) * 2 - memory.byteLength;
   if (extraMem > 0) {
     wasm.memory.grow(Math.ceil(extraMem / 65536));
     memory = wasm.memory.buffer;
