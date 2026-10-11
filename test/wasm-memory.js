@@ -48,3 +48,72 @@ suite('Wasm analysis capacity', () => {
     }
   }
 });
+
+suite('Wasm source reservation', () => {
+  const reference = new WebAssembly.Instance(new WebAssembly.Module(binary)).exports;
+  const bytes = reference.memory.buffer.byteLength;
+  const heap = reference.__heap_base.value;
+  const cases = [];
+  for (const remaining of [12, 10, 0, -2]) {
+    cases.push({ remaining, tail: ';', expected: { exports: [], reexports: [] } });
+    cases.push({ remaining, tail: 'module.exports={π}', expected: { exports: ['π'], reexports: [] } });
+  }
+  for (const tail of ['_', 'module', 'Object', '_interopRequireWildcard']) {
+    cases.push({ remaining: 0, tail, expected: { exports: [], reexports: [] } });
+  }
+
+  for (const mode of ['automatic', 'async', 'sync']) {
+    for (const copyLoop of [false, true]) {
+      test(`${mode} initialization with ${copyLoop ? 'UTF-16 loop' : 'Buffer'} copying`, async () => {
+        const originalInstance = WebAssembly.Instance;
+        const originalInstantiate = WebAssembly.instantiate;
+        const originalBuffer = globalThis.Buffer;
+        let instance;
+        WebAssembly.Instance = new Proxy(originalInstance, {
+          /**
+           * @param {typeof WebAssembly.Instance} target
+           * @param {ConstructorParameters<typeof WebAssembly.Instance>} args
+           */
+          construct(target, args) {
+            instance = Reflect.construct(target, args);
+            return instance;
+          }
+        });
+        WebAssembly.instantiate = new Proxy(originalInstantiate, {
+          /**
+           * @param {typeof WebAssembly.instantiate} target
+           * @param {typeof WebAssembly} receiver
+           * @param {Parameters<typeof WebAssembly.instantiate>} args
+           */
+          async apply(target, receiver, args) {
+            const result = await Reflect.apply(target, receiver, args);
+            instance = result.instance ?? result;
+            return result;
+          }
+        });
+        try {
+          let count = 0;
+          for (const { remaining, tail, expected } of cases) {
+            if (copyLoop) globalThis.Buffer = undefined;
+            const lexer = await import(`../dist/lexer.mjs?source-${mode}-${copyLoop}-${count++}`);
+            globalThis.Buffer = originalBuffer;
+            if (mode === 'async') await lexer.init();
+            if (mode === 'sync') lexer.initSync();
+            const length = (bytes - heap - remaining) / 2 - 2;
+            const source = ' '.repeat(length - tail.length) + tail;
+            const result = lexer.parse(source);
+            assert.deepStrictEqual(result, expected);
+            const grows = remaining < 0 || (expected.exports.length > 0 && remaining < 12);
+            assert.equal(instance.exports.memory.buffer.byteLength, bytes + (grows ? 65536 : 0));
+            assert.deepStrictEqual(lexer.parse('exports.next=1;'), { exports: ['next'], reexports: [] });
+            assert.deepStrictEqual(result, expected);
+          }
+        } finally {
+          WebAssembly.Instance = originalInstance;
+          WebAssembly.instantiate = originalInstantiate;
+          globalThis.Buffer = originalBuffer;
+        }
+      });
+    }
+  }
+});
