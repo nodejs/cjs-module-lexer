@@ -28,6 +28,25 @@ async function loadWasmParser (name, mode) {
   return lexer;
 }
 
+/**
+ * @param {string} identifier
+ */
+function createStarReexport (identifier) {
+  return `Object.keys(${identifier}).forEach(function (key) {` +
+    ` if (key === "default" || key === "__esModule") return; exports[key] = ${identifier}[key]; });`;
+}
+
+/**
+ * @param {number} count
+ */
+function createRequireDeclarations (count) {
+  let source = '';
+  for (let index = 0; index < count; index++) {
+    source += `var dep${index} = require("dep${index}");\n`;
+  }
+  return source;
+}
+
 suite('Lexer', () => {
   suiteSetup(async () => await loadParser());
 
@@ -276,49 +295,68 @@ suite('Lexer', () => {
     });
   });
 
-  test('tracks reexport bindings beyond the static capacity', () => {
-    for (const count of [254, 255, 256, 257, 512, 4096]) {
-      let source = '';
-      for (let index = 0; index < count; index++) {
-        source += `var dep${index} = require("dep${index}");\n`;
-      }
+  test('tracks reexports across small and large binding sets', () => {
+    for (const count of [1, 2, 254, 255, 256, 257, 512, 4096]) {
+      const source = createRequireDeclarations(count);
       for (const index of [0, 254, count - 1]) {
         if (index >= count) continue;
-        const reexport = `Object.keys(dep${index}).forEach(function (key) {` +
-          ` if (key === "default" || key === "__esModule") return; exports[key] = dep${index}[key]; });`;
-        assert.deepStrictEqual(parse(source + reexport), {
+        assert.deepStrictEqual(parse(source + createStarReexport(`dep${index}`)), {
           exports: [], reexports: [`dep${index}`]
         });
       }
-      assert.deepStrictEqual(parse('exports.recovery = 1;'), {
-        exports: ['recovery'], reexports: []
-      });
-      assert.throws(() => parse(source + 'const value = "open'), { name: 'Error' });
-      assert.deepStrictEqual(parse('exports.recovery = 1;'), {
-        exports: ['recovery'], reexports: []
+      assert.deepStrictEqual(parse(source + createStarReexport('absent')), {
+        exports: [], reexports: []
       });
     }
   });
 
-  test('shares analysis space between overflow bindings and results', () => {
+  test('tracks each require declaration form after a large binding set', () => {
+    const source = createRequireDeclarations(256);
+    for (const keyword of ['var', 'let', 'const']) {
+      assert.deepStrictEqual(parse(source + `${keyword} last=require("last");` + createStarReexport('last')), {
+        exports: [], reexports: ['last']
+      });
+    }
+    assert.deepStrictEqual(parse(source + 'var last=_interopRequireWildcard(require("last"));' +
+      createStarReexport('last')), { exports: [], reexports: ['last'] });
+  });
+
+  test('tracks minimal require declarations with odd and even source lengths', () => {
+    for (const padding of ['', ' ']) {
+      const source = padding + 'var a=require("");'.repeat(4096) +
+        'var last=require("last");' + createStarReexport('last');
+      assert.deepStrictEqual(parse(source), { exports: [], reexports: ['last'] });
+    }
+  });
+
+  test('shares analysis space between bindings and results', () => {
     let source = '';
     for (let index = 0; index < 2048; index++) {
       source += 'var a=require("");exports.value=1;__exportStar(require("side"),exports);';
     }
-    const reexport = 'Object.keys(last).forEach(function (key) {' +
-      ' if (key === "default" || key === "__esModule") return; exports[key] = last[key]; });';
-    source += 'var last=require("last");' + reexport;
+    source += 'var last=require("last");' + createStarReexport('last');
     assert.deepStrictEqual(parse(source), { exports: ['value'], reexports: ['side', 'last'] });
-    const hiddenBindings = '/*' + source.slice(2, source.length - reexport.length - 2) + '*/' + reexport;
-    assert.deepStrictEqual(parse(hiddenBindings), {
-      exports: [], reexports: []
-    });
-    parse(source);
-    const missingBinding = '/*' + 'x'.repeat(source.length * 2) + '*/' + reexport;
-    assert.deepStrictEqual(parse(missingBinding), {
-      exports: [], reexports: []
-    });
   });
+
+  test('ignores require declarations inside comments', () => {
+    const source = '/*' + createRequireDeclarations(257) + '*/' + createStarReexport('dep256');
+    assert.deepStrictEqual(parse(source), { exports: [], reexports: [] });
+  });
+
+  for (const outcome of ['successful', 'failed']) {
+    test(`resets require bindings after a ${outcome} parse`, () => {
+      const declarations = createRequireDeclarations(257);
+      const reexport = createStarReexport('dep256');
+      if (outcome === 'failed') {
+        assert.throws(() => parse(declarations + 'const value = "open'), { name: 'Error' });
+      } else {
+        assert.deepStrictEqual(parse(declarations + reexport), { exports: [], reexports: ['dep256'] });
+      }
+      const sourceWithoutBindings = '/*' + 'x'.repeat(declarations.length * 2) + '*/' + reexport;
+      assert.deepStrictEqual(parse(sourceWithoutBindings), { exports: [], reexports: [] });
+      assert.deepStrictEqual(parse('exports.recovery = 1;'), { exports: ['recovery'], reexports: [] });
+    });
+  }
 
   test('automatic Wasm initialization', async () => {
     const lexer = await import('../dist/lexer.mjs?automatic-initialization');
