@@ -9,6 +9,7 @@ let openTokenDepth,
   lastSlashWasDivision,
   templateStackDepth,
   nextBraceIsClass,
+  allowMinifiedEnumerable,
   starExportMap,
   lastStarExportSpecifier,
   _exports,
@@ -22,6 +23,7 @@ function resetState () {
   lastSlashWasDivision = false;
   templateStackDepth = 0;
   nextBraceIsClass = false;
+  allowMinifiedEnumerable = false;
   starExportMap = Object.create(null);
   lastStarExportSpecifier = null;
 
@@ -49,15 +51,22 @@ function pushTemplate () {
   templateDepth = ++openTokenDepth;
 }
 
-function parseCJS (source, name = '@') {
+/**
+ * @param {string} source
+ * @param {string} [name]
+ * @param {import('./lexer').ParseOptions} [options]
+ */
+function parseCJS (source, name = '@', options) {
+  const minifiedEnumerable = options ? options.allowMinifiedEnumerable === true : false;
   resetState();
+  allowMinifiedEnumerable = minifiedEnumerable;
   try {
     parseSource(source);
   }
-  catch (e) {
-    e.message += `\n  at ${name}:${source.slice(0, pos).split('\n').length}:${pos - source.lastIndexOf('\n', pos - 1)}`;
-    e.loc = pos;
-    throw e;
+  catch (error) {
+    error.message += `\n  at ${name}:${source.slice(0, pos).split('\n').length}:${pos - source.lastIndexOf('\n', pos - 1)}`;
+    error.loc = pos;
+    throw error;
   }
   const result = { exports: [..._exports].filter(expt => expt !== undefined && !unsafeGetters.has(expt)), reexports: [...reexports].filter(reexpt => reexpt !== undefined) };
   resetState();
@@ -353,6 +362,16 @@ function tryParseObjectHasOwnProperty (it_id) {
   return true;
 }
 
+/** @param {number} ch */
+function tryParseMinifiedEnumerable (ch) {
+  if (!allowMinifiedEnumerable || ch !== 33/*!*/) return false;
+  pos++;
+  if (commentWhitespace() !== 48/*0*/) return false;
+  pos++;
+  return true;
+}
+
+/** @param {boolean} keys */
 function tryParseObjectDefineOrKeys (keys) {
   pos += 6;
   let revertPos = pos - 1;
@@ -392,8 +411,11 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 58/*:*/) break;
           pos++;
           ch = commentWhitespace();
-          if (ch !== 116/*t*/ || !source.startsWith('rue', pos + 1)) break;
-          pos += 4;
+          if (ch === 116/*t*/ && source.startsWith('rue', pos + 1)) {
+            pos += 4;
+          } else if (!tryParseMinifiedEnumerable(ch)) {
+            break;
+          }
           ch = commentWhitespace();
           if (ch !== 44) break;
           pos++;
@@ -771,8 +793,11 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 58/*:*/) break;
           pos++;
           ch = commentWhitespace();
-          if (ch !== 116/*t*/ && !source.startsWith('rue', pos + 1)) break;
-          pos += 4;
+          if (ch === 116/*t*/ && source.startsWith('rue', pos + 1)) {
+            pos += 4;
+          } else if (!tryParseMinifiedEnumerable(ch)) {
+            break;
+          }
           ch = commentWhitespace();
           if (ch !== 44/*,*/) break;
           pos++;
