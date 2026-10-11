@@ -1027,7 +1027,7 @@ void tryParseLiteralExports () {
         pos++;
         ch = commentWhitespace();
         // nothing more complex than identifier expressions for now
-        if (!identifier(ch)) {
+        if (!identifier(ch) && *pos != '\\') {
           pos = revertPos;
           return;
         }
@@ -1048,7 +1048,7 @@ void tryParseLiteralExports () {
         pos++;
         ch = commentWhitespace();
         // nothing more complex than identifier expressions for now
-        if (!identifier(ch)) {
+        if (!identifier(ch) && *pos != '\\') {
           pos = revertPos;
           return;
         }
