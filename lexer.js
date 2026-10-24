@@ -1024,11 +1024,15 @@ function tryParseLiteralExports () {
         pos++;
         ch = commentWhitespace();
         // nothing more complex than identifier expressions for now
-        if (!identifier()) {
+        if (!identifier() && source.charCodeAt(pos) !== 92/*\*/) {
           pos = revertPos;
           return;
         }
         ch = source.charCodeAt(pos);
+      }
+      else if (ch !== 44/*,*/ && ch !== 125/*}*/ && ch !== 61/*=*/ && ch !== 40/*(*/) {
+        pos = revertPos;
+        return;
       }
       _exports.add(decode(source.slice(startPos, endPos)));
     }
@@ -1052,7 +1056,7 @@ function tryParseLiteralExports () {
         pos++;
         ch = commentWhitespace();
         // nothing more complex than identifier expressions for now
-        if (!identifier()) {
+        if (!identifier() && source.charCodeAt(pos) !== 92/*\*/) {
           pos = revertPos;
           return;
         }
@@ -1330,14 +1334,14 @@ function isIdentifierChar(code, astral) {
 
 function identifier () {
   let ch = source.codePointAt(pos);
-  if (!isIdentifierStart(ch, true) || ch === '\\')
+  if (!isIdentifierStart(ch, true))
     return false;
   pos += codePointLen(ch);
   while (ch = source.codePointAt(pos)) {
     if (isIdentifierChar(ch, true)) {
       pos += codePointLen(ch);
     }
-    else if (ch === '\\') {
+    else if (ch === 92/*\*/) {
       // no identifier escapes support for now
       return false;
     }

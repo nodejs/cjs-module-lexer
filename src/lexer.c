@@ -1027,11 +1027,15 @@ void tryParseLiteralExports () {
         pos++;
         ch = commentWhitespace();
         // nothing more complex than identifier expressions for now
-        if (!identifier(ch)) {
+        if (!identifier(ch) && *pos != '\\') {
           pos = revertPos;
           return;
         }
         ch = *pos;
+      }
+      else if (ch != ',' && ch != '}' && ch != '=' && ch != '(') {
+        pos = revertPos;
+        return;
       }
       addExport(startPos, endPos);
     }
@@ -1044,7 +1048,7 @@ void tryParseLiteralExports () {
         pos++;
         ch = commentWhitespace();
         // nothing more complex than identifier expressions for now
-        if (!identifier(ch)) {
+        if (!identifier(ch) && *pos != '\\') {
           pos = revertPos;
           return;
         }
@@ -1181,7 +1185,7 @@ uint32_t fullCharCode(uint16_t ch) {
 
 bool identifier (uint16_t startCh) {
   uint32_t ch = fullCharCode(startCh);
-  if (!isIdentifierStart(ch) && ch != '\\')
+  if (!isIdentifierStart(ch))
     return false;
   pos += charCodeByteLen(ch);
   while (ch = fullCharCode(*pos)) {
