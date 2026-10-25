@@ -13,7 +13,7 @@ export function parse (source, name = '@', options) {
   if (!wasm)
     initSync();
 
-  const len = source.length + 1;
+  const len = source.length;
 
   // sa(len) writes a terminator at index len.
   let memory = wasm.memory.buffer;
@@ -25,12 +25,12 @@ export function parse (source, name = '@', options) {
     
   const addr = wasm.sa(len);
   // Buffer setup is slower than the loop for short sources.
-  if (source.length >= 64 && hasBuffer)
-    Buffer.from(memory, addr, (len - 1) * 2).write(source, 'utf16le');
+  if (len >= 64 && hasBuffer)
+    Buffer.from(memory, addr, len * 2).write(source, 'utf16le');
   else
     (isLE ? copyLE : copyBE)(source, new Uint16Array(memory, addr, len));
 
-  const err_code = wasm.parseCJSWithOptions(addr, source.length, 0, 0, 0, 0, flags);
+  const err_code = wasm.parseCJSWithOptions(addr, len, 0, 0, 0, 0, flags);
 
   if (err_code) {
     const err = new Error(`Parse error ${name}${wasm.e()}:${source.slice(0, wasm.e()).split('\n').length}:${wasm.e() - source.lastIndexOf('\n', wasm.e() - 1)}`);

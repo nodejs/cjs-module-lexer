@@ -21,12 +21,12 @@ suite('Wasm analysis capacity', () => {
         const bytes = memory.byteLength;
         const prefix = 'var v=0;module.exports={';
         const suffix = 'v};' + tail;
-        // sa() reserves two code units beyond source.length; each shorthand adds 4 source bytes and a 12-byte Slice.
-        const available = bytes - wasm.__heap_base.value - 2 * (prefix.length + suffix.length + 2) - 12;
+        // Each shorthand adds 4 source bytes and a 12-byte Slice.
+        const available = bytes - wasm.__heap_base.value - 2 * (prefix.length + suffix.length + 1) - 12;
         const count = Math.floor((available - remaining) / 16);
         const padding = (available - count * 16 - remaining) / 2;
         const source = prefix + 'v,'.repeat(count) + suffix + ' '.repeat(padding);
-        const address = wasm.sa(source.length + 1);
+        const address = wasm.sa(source.length);
         Buffer.from(memory, address, source.length * 2).write(source, 'utf16le');
 
         assert.equal(wasm.parseCJS(address, source.length, 0, 0, 0), 0);
@@ -99,13 +99,15 @@ suite('Wasm source reservation', () => {
             globalThis.Buffer = originalBuffer;
             if (mode === 'async') await lexer.init();
             if (mode === 'sync') lexer.initSync();
-            const length = (bytes - heap - remaining) / 2 - 2;
+            const length = (bytes - heap - remaining) / 2 - 1;
             const source = ' '.repeat(length - tail.length) + tail;
             const result = lexer.parse(source);
             assert.deepStrictEqual(result, expected);
             const grows = remaining < 0 || (expected.exports.length > 0 && remaining < 12);
             assert.equal(instance.exports.memory.buffer.byteLength, bytes + (grows ? 65536 : 0));
-            assert.deepStrictEqual(lexer.parse('exports.next=1;'), { exports: ['next'], reexports: [] });
+            const next = ' '.repeat(64) + 'exports.next';
+            assert.deepStrictEqual(lexer.parse(next + '=1;'), { exports: ['next'], reexports: [] });
+            assert.deepStrictEqual(lexer.parse(next), { exports: [], reexports: [] });
             assert.deepStrictEqual(result, expected);
           }
         } finally {

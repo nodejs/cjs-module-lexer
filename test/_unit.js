@@ -75,6 +75,21 @@ suite('Lexer', () => {
     assert.deepStrictEqual(first, { exports: ['first'], reexports: [] });
   });
 
+  test('Wasm source termination remains local to each parse', async () => {
+    for (const mode of ['automatic', 'async', 'sync']) {
+      const lexer = await loadWasmParser('source-terminator', mode);
+      for (const expression of ['exports.a', 'module.exports.a', 'exports["a"]', 'exports.café']) {
+        for (const length of [expression.length, 63, 64, 128]) {
+          const source = ' '.repeat(length - expression.length) + expression;
+          const key = expression.endsWith('café') ? 'café' : 'a';
+          assert.deepStrictEqual(lexer.parse(source + '=1;'), { exports: [key], reexports: [] });
+          assert.deepStrictEqual(lexer.parse(source), { exports: [], reexports: [] });
+          assert.deepStrictEqual(lexer.parse(''), { exports: [], reexports: [] });
+        }
+      }
+    }
+  });
+
   test('rejects unterminated and unexpected nesting', () => {
     for (const source of ['(', '{', ')', '}', '({', '{(', 'exports.value = 1; }']) {
       assert.throws(() => parse(source, 'nesting.js'), { name: 'Error' });
