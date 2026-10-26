@@ -1,8 +1,11 @@
 let source, pos, end;
+let extended, exportObjectPos;
 const STACK_DEPTH = 2048;
+const ClassToken = 1;
+const ExportObjectToken = 2;
 const templateStack = new Array(1024);
 const openTokenPosStack = new Array(1024);
-const openClassPosStack = new Array(1024);
+const openTokenTypeStack = new Array(1024);
 let openTokenDepth,
   templateDepth,
   lastTokenPos,
@@ -41,6 +44,7 @@ const ExportStar = 2;
 function pushOpenToken (tokenPos) {
   if (openTokenDepth === STACK_DEPTH)
     throw new Error('Maximum nesting depth exceeded.');
+  if (extended) openTokenTypeStack[openTokenDepth] = 0;
   openTokenPosStack[openTokenDepth++] = tokenPos;
 }
 
@@ -48,6 +52,7 @@ function pushTemplate () {
   if (templateStackDepth === STACK_DEPTH || openTokenDepth === STACK_DEPTH)
     throw new Error('Maximum nesting depth exceeded.');
   templateStack[templateStackDepth++] = templateDepth;
+  if (extended) openTokenTypeStack[openTokenDepth] = 0;
   templateDepth = ++openTokenDepth;
 }
 
@@ -57,9 +62,14 @@ function pushTemplate () {
  * @param {import('./lexer').ParseOptions} [options]
  */
 function parseCJS (source, name = '@', options) {
+  const mode = options ? options.mode : undefined;
+  if (mode !== undefined && mode !== 'default' && mode !== 'extended')
+    throw new TypeError('Expected options.mode to be "default" or "extended".');
   const minifiedEnumerable = options ? options.allowMinifiedEnumerable === true : false;
   resetState();
   allowMinifiedEnumerable = minifiedEnumerable;
+  extended = mode === 'extended';
+  exportObjectPos = -1;
   try {
     parseSource(source);
   }
@@ -73,6 +83,7 @@ function parseCJS (source, name = '@', options) {
   return result;
 }
 
+/** @param {string} str */
 function decode (str) {
   if (str[0] === '"' || str[0] === '\'') {
     try {
@@ -103,6 +114,7 @@ function decode (str) {
   }
 }
 
+/** @param {string} cjsSource */
 function parseSource (cjsSource) {
   source = cjsSource;
   pos = -1;
@@ -201,6 +213,21 @@ function parseSource (cjsSource) {
       case 40/*(*/:
         pushOpenToken(lastTokenPos);
         break;
+      case 91/*[*/:
+        if (extended) {
+          pushOpenToken(lastTokenPos);
+        }
+        break;
+      case 93/*]*/:
+        if (extended) {
+          if (openTokenDepth === 0) throw new Error('Unexpected closing bracket.');
+          openTokenDepth--;
+        }
+        break;
+      case 44/*,*/:
+        if (extended && openTokenDepth && (openTokenTypeStack[openTokenDepth - 1] & ExportObjectToken))
+          readExportProperty();
+        break;
       case 41/*)*/:
         if (openTokenDepth === 0)
           throw new Error('Unexpected closing bracket.');
@@ -208,8 +235,13 @@ function parseSource (cjsSource) {
         break;
       case 123/*{*/:
         pushOpenToken(lastTokenPos);
-        openClassPosStack[openTokenDepth - 1] = nextBraceIsClass;
+        openTokenTypeStack[openTokenDepth - 1] = nextBraceIsClass ? ClassToken : 0;
         nextBraceIsClass = false;
+        if (extended && pos === exportObjectPos) {
+          openTokenTypeStack[openTokenDepth - 1] |= ExportObjectToken;
+          exportObjectPos = -1;
+          readExportProperty();
+        }
         break;
       case 125/*}*/:
         if (openTokenDepth === 0)
@@ -252,7 +284,9 @@ function parseSource (cjsSource) {
               !(lastToken === 46/*.*/ && (source.charCodeAt(lastTokenPos - 1) >= 48/*0*/ && source.charCodeAt(lastTokenPos - 1) <= 57/*9*/)) &&
               !(lastToken === 43/*+*/ && source.charCodeAt(lastTokenPos - 1) === 43/*+*/) && !(lastToken === 45/*-*/ && source.charCodeAt(lastTokenPos - 1) === 45/*-*/) ||
               lastToken === 41/*)*/ && isParenKeyword(openTokenPosStack[openTokenDepth]) ||
-              lastToken === 125/*}*/ && (isExpressionTerminator(openTokenPosStack[openTokenDepth]) || openClassPosStack[openTokenDepth]) ||
+              lastToken === 125/*}*/ && (isExpressionTerminator(openTokenPosStack[openTokenDepth]) ||
+              (openTokenTypeStack[openTokenDepth] & ClassToken) ||
+              extended && isStatementBrace(openTokenPosStack[openTokenDepth], openTokenDepth)) ||
               lastToken === 47/*/*/ && lastSlashWasDivision ||
               isExpressionKeyword(lastTokenPos) ||
               !lastToken) {
@@ -379,6 +413,11 @@ function tryParseObjectDefineOrKeys (keys) {
   if (ch === 46/*.*/) {
     pos++;
     ch = commentWhitespace();
+    if (extended && ch === 100/*d*/) {
+      readExportDefinition();
+      pos = revertPos;
+      return;
+    }
     if (ch === 100/*d*/ && source.startsWith('efineProperty', pos + 1)) {
       let expt;
       while (true) {
@@ -919,6 +958,7 @@ function tryParseModuleExportsDotAssign () {
   pos = revertPos;
 }
 
+/** @param {boolean} assign */
 function tryParseExportsDotAssign (assign) {
   pos += 7;
   const revertPos = pos - 1;
@@ -959,10 +999,17 @@ function tryParseExportsDotAssign (assign) {
     // module.exports =
     case 61/*=*/: {
       if (assign) {
-        if (reexports.size)
+        if (!extended && reexports.size)
           reexports = new Set();
         pos++;
         ch = commentWhitespace();
+        if (extended) {
+          if (ch === 40/*(*/) ch = readExportExpressionStart();
+          if (ch === 123/*{*/) exportObjectPos = pos;
+          else if (ch === 114/*r*/) tryParseRequire(ExportAssign);
+          pos = revertPos;
+          return;
+        }
         // { ... }
         if (ch === 123/*{*/) {
           tryParseLiteralExports();
@@ -1010,6 +1057,128 @@ function tryParseRequire (requireType) {
     pos = revertPos;
   }
   return false;
+}
+
+function readExportExpressionStart () {
+  while (true) {
+    pos++;
+    const ch = commentWhitespace();
+    if (ch === 40/*(*/) continue;
+    const start = pos;
+    if (ch === 39/*'*/ || ch === 34/*"*/) {
+      stringLiteral(ch);
+      pos++;
+    }
+    else if (ch === 123/*{*/) {
+      pos++;
+      if (commentWhitespace() === 125/*}*/) pos++;
+      else {
+        pos = start;
+        return ch;
+      }
+    }
+    else {
+      while (pos <= end && isIdentifierChar(source.codePointAt(pos), true))
+        pos += codePointLen(source.codePointAt(pos));
+    }
+    if (pos === start || commentWhitespace() !== 44/*,*/) {
+      pos = start;
+      return ch;
+    }
+  }
+}
+
+function readExportDefinition () {
+  const start = pos;
+  const property = source.startsWith('defineProperty', pos);
+  const properties = source.startsWith('defineProperties', pos);
+  if (!property && !properties) return;
+  pos += property ? 14 : 16;
+  let ch = commentWhitespace();
+  if (ch !== 40/*(*/) return;
+  pos++;
+  ch = commentWhitespace();
+  if (!readExportsOrModuleDotExports(ch)) return;
+  if (commentWhitespace() !== 44/*,*/) return;
+  pos++;
+  ch = commentWhitespace();
+  if (properties) {
+    if (ch === 40/*(*/) ch = readExportExpressionStart();
+    if (ch === 123/*{*/) exportObjectPos = pos;
+  }
+  else if (ch === 39/*'*/ || ch === 34/*"*/) {
+    const nameStart = pos;
+    stringLiteral(ch);
+    const nameEnd = ++pos;
+    if (commentWhitespace() === 44/*,*/)
+      _exports.add(decode(source.slice(nameStart, nameEnd)));
+  }
+  pos = start;
+}
+
+function readExportProperty () {
+  const revertPos = pos;
+  pos++;
+  let ch = commentWhitespace();
+  if (ch === 46/*.*/ && source.startsWith('..', pos + 1)) {
+    pos += 3;
+    ch = commentWhitespace();
+    if (ch === 114/*r*/) tryParseRequire(ExportAssign);
+    pos = revertPos;
+    return;
+  }
+  if (ch === 42/***/) {
+    pos++;
+    ch = commentWhitespace();
+  }
+  let computed = ch === 91/*[*/;
+  if (computed) {
+    pos++;
+    ch = commentWhitespace();
+  }
+  let nameStart = pos;
+  let nameEnd;
+  if (ch === 39/*'*/ || ch === 34/*"*/) {
+    stringLiteral(ch);
+    nameEnd = ++pos;
+  }
+  else if (!computed && identifier()) {
+    nameEnd = pos;
+    ch = commentWhitespace();
+    if ((source.startsWith('get', nameStart) && nameEnd - nameStart === 3 ||
+         source.startsWith('set', nameStart) && nameEnd - nameStart === 3 ||
+         source.startsWith('async', nameStart) && nameEnd - nameStart === 5) &&
+        ch !== 58/*:*/ && ch !== 40/*(*/ && ch !== 44/*,*/ && ch !== 125/*}*/) {
+      if (ch === 42/***/) {
+        pos++;
+        ch = commentWhitespace();
+      }
+      computed = ch === 91/*[*/;
+      if (computed) {
+        pos++;
+        ch = commentWhitespace();
+      }
+      nameStart = pos;
+      if (ch === 39/*'*/ || ch === 34/*"*/) {
+        stringLiteral(ch);
+        nameEnd = ++pos;
+      }
+      else if (!computed && identifier()) nameEnd = pos;
+      else nameEnd = undefined;
+    }
+  }
+  ch = commentWhitespace();
+  if (computed) {
+    if (ch !== 93/*]*/) nameEnd = undefined;
+    else {
+      pos++;
+      ch = commentWhitespace();
+    }
+  }
+  if (nameEnd !== undefined && (ch === 58/*:*/ || ch === 40/*(*/ ||
+      !computed && (ch === 44/*,*/ || ch === 125/*}*/)))
+    _exports.add(decode(source.slice(nameStart, nameEnd)));
+  pos = revertPos;
 }
 
 function tryParseLiteralExports () {
@@ -1643,6 +1812,62 @@ function isExpressionPunctuator (ch) {
   return ch === 33/*!*/ || ch === 37/*%*/ || ch === 38/*&*/ ||
     ch > 39 && ch < 47 && ch !== 41 || ch > 57 && ch < 64 ||
     ch === 91/*[*/ || ch === 94/*^*/ || ch > 122 && ch < 127 && ch !== 125/*}*/;
+}
+
+/** @param {number} curPos */
+function precedingToken (curPos) {
+  while (curPos >= 0) {
+    while (isBrOrWs(source.charCodeAt(curPos))) curPos--;
+    if (source.charCodeAt(curPos) !== 47/*/*/ || source.charCodeAt(curPos - 1) !== 42/***/)
+      return curPos;
+    curPos = source.lastIndexOf('/*', curPos - 2) - 1;
+  }
+  return -1;
+}
+
+/**
+ * @param {number} curPos
+ * @param {number} depth
+ */
+function isStatementBrace (curPos, depth) {
+  while (curPos >= 0) {
+    const ch = source.charCodeAt(curPos);
+    if (ch === 123/*{*/ && depth) {
+      curPos = openTokenPosStack[--depth];
+      continue;
+    }
+    if (ch !== 58/*:*/)
+      return ch === 125/*}*/ || isExpressionTerminator(curPos);
+    curPos = precedingToken(curPos - 1);
+    let start = curPos;
+    let identifierStart = false;
+    const quote = source.charCodeAt(start);
+    if (quote === 39/*'*/ || quote === 34/*"*/) {
+      while (--start >= 0) {
+        if (source.charCodeAt(start) !== quote) continue;
+        let before = start;
+        while (source.charCodeAt(before - 1) === 92/*\*/) before--;
+        if ((start - before) % 2 === 0) break;
+      }
+      start--;
+    }
+    else {
+      while (start >= 0 && isIdentifierChar(codePointAtLast(start), true)) {
+        const codePoint = codePointAtLast(start);
+        identifierStart = isIdentifierStart(codePoint, true);
+        start -= codePointLen(codePoint);
+      }
+    }
+    curPos = precedingToken(start);
+    if (source.charCodeAt(curPos) === 43/*+*/ || source.charCodeAt(curPos) === 45/*-*/)
+      curPos = precedingToken(curPos - 1);
+    if (curPos >= 3 && source.startsWith('case', curPos - 3) &&
+        (curPos === 3 || !isIdentifierChar(codePointAtLast(curPos - 4), true) && source.charCodeAt(curPos - 4) !== 46/*.*/))
+      return true;
+    if (!identifierStart)
+      return false;
+  }
+  return true;
 }
 
 function isExpressionTerminator (curPos) {
