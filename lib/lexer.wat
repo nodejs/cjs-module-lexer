@@ -90,11 +90,11 @@
     i32.const 4048
     call 29)
   (func (;5;) (type 3) (param i32 i32 i32 i32 i32 i32) (result i32)
-    (local i32 i32 i32 i32)
+    (local i32 i32 i32 i32 i64 i64)
     i32.const 3992
     local.get 0
     i32.store
-    i32.const 8176
+    i32.const 4080
     local.get 5
     i32.const 1
     i32.and
@@ -117,22 +117,19 @@
       local.get 4
       i32.store
     end
-    i32.const 8182
+    i32.const 4086
     i32.const 65535
     i32.store16
-    i32.const 12288
     i32.const 8192
+    i32.const 4096
     i32.store
-    i32.const 20496
-    i32.const 4080
-    i32.store
-    i32.const 20504
+    i32.const 16412
     local.get 0
     i32.const 2
     i32.sub
     local.tee 4
     i32.store
-    i32.const 20508
+    i32.const 16416
     local.get 4
     local.get 1
     i32.const 1
@@ -140,13 +137,13 @@
     i32.add
     local.tee 2
     i32.store
-    i32.const 8180
+    i32.const 4084
     i32.const 0
     i32.store16
-    i32.const 8178
+    i32.const 4082
     i32.const 0
     i32.store16
-    i32.const 8188
+    i32.const 4092
     i32.const 0
     i32.store8
     i32.const 4072
@@ -155,7 +152,13 @@
     i32.const 4076
     i32.const 0
     i32.store
-    i32.const 20500
+    i32.const 16400
+    i32.const 0
+    i32.store
+    i32.const 16404
+    i32.const 0
+    i32.store
+    i32.const 16408
     i32.const 0
     i32.store8
     block  ;; label = @1
@@ -203,7 +206,7 @@
       i32.const 1024
       local.set 5
       loop  ;; label = @2
-        i32.const 20504
+        i32.const 16412
         local.get 4
         local.tee 0
         i32.const 2
@@ -259,7 +262,7 @@
                                                               block  ;; label = @30
                                                                 block  ;; label = @31
                                                                   block  ;; label = @32
-                                                                    i32.const 8180
+                                                                    i32.const 4084
                                                                     i32.load16_u
                                                                     local.tee 6
                                                                     i32.eqz
@@ -340,7 +343,7 @@
                                                                             i32.eqz
                                                                             br_if 31 (;@5;)
                                                                           end
-                                                                          i32.const 20504
+                                                                          i32.const 16412
                                                                           local.get 0
                                                                           i32.const 14
                                                                           i32.add
@@ -365,7 +368,7 @@
                                                                                 i32.or
                                                                                 br_if 1 (;@37;)
                                                                               end
-                                                                              i32.const 20504
+                                                                              i32.const 16412
                                                                               i32.load
                                                                               local.get 3
                                                                               i32.eq
@@ -379,10 +382,10 @@
                                                                               i32.const 6
                                                                               i32.store
                                                                             end
-                                                                            i32.const 20504
+                                                                            i32.const 16412
                                                                             i32.load
                                                                             local.set 0
-                                                                            i32.const 20504
+                                                                            i32.const 16412
                                                                             local.get 2
                                                                             i32.const 2
                                                                             i32.add
@@ -405,10 +408,10 @@
                                                                             i32.const 5
                                                                             i32.store
                                                                           end
-                                                                          i32.const 20504
+                                                                          i32.const 16412
                                                                           i32.load
                                                                           local.set 0
-                                                                          i32.const 20504
+                                                                          i32.const 16412
                                                                           local.get 2
                                                                           i32.const 2
                                                                           i32.add
@@ -569,7 +572,7 @@
                                                                           i32.ne
                                                                           br_if 30 (;@5;)
                                                                         end
-                                                                        i32.const 20504
+                                                                        i32.const 16412
                                                                         local.get 0
                                                                         i32.const 48
                                                                         i32.add
@@ -579,13 +582,13 @@
                                                                         i32.const 40
                                                                         i32.ne
                                                                         br_if 29 (;@5;)
-                                                                        i32.const 8180
+                                                                        i32.const 4084
                                                                         i32.const 1
                                                                         i32.store16
-                                                                        i32.const 12304
+                                                                        i32.const 8208
                                                                         local.get 5
                                                                         i32.store
-                                                                        i32.const 20504
+                                                                        i32.const 16412
                                                                         local.get 0
                                                                         i32.const 50
                                                                         i32.add
@@ -651,7 +654,7 @@
                                                                         i32.ne
                                                                         br_if 29 (;@5;)
                                                                       end
-                                                                      i32.const 20504
+                                                                      i32.const 16412
                                                                       local.get 0
                                                                       i32.const 18
                                                                       i32.add
@@ -679,7 +682,7 @@
                                                                         i32.const 114
                                                                         i32.ne
                                                                         br_if 29 (;@5;)
-                                                                        i32.const 20504
+                                                                        i32.const 16412
                                                                         local.get 0
                                                                         i32.const 26
                                                                         i32.add
@@ -696,10 +699,10 @@
                                                                       i32.const 40
                                                                       i32.ne
                                                                       br_if 28 (;@5;)
-                                                                      i32.const 8180
+                                                                      i32.const 4084
                                                                       i32.const 1
                                                                       i32.store16
-                                                                      i32.const 12304
+                                                                      i32.const 8208
                                                                       local.get 5
                                                                       i32.store
                                                                       local.get 0
@@ -712,7 +715,7 @@
                                                                       i32.const 114
                                                                       i32.ne
                                                                       br_if 28 (;@5;)
-                                                                      i32.const 20504
+                                                                      i32.const 16412
                                                                       local.get 0
                                                                       i32.const 2
                                                                       i32.add
@@ -793,7 +796,7 @@
                                                                     i32.eqz
                                                                     br_if 27 (;@5;)
                                                                   end
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   local.get 0
                                                                   i32.const 14
                                                                   i32.add
@@ -802,8 +805,8 @@
                                                                   i32.const 46
                                                                   i32.ne
                                                                   br_if 2 (;@29;)
-                                                                  i32.const 20504
-                                                                  i32.const 20504
+                                                                  i32.const 16412
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   i32.const 2
                                                                   i32.add
@@ -812,7 +815,7 @@
                                                                   i32.const 101
                                                                   i32.ne
                                                                   br_if 2 (;@29;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   local.tee 1
                                                                   i32.load16_u offset=2
@@ -895,7 +898,7 @@
                                                                 end
                                                                 local.get 6
                                                                 br_if 25 (;@5;)
-                                                                i32.const 20504
+                                                                i32.const 16412
                                                                 local.get 0
                                                                 i32.const 14
                                                                 i32.add
@@ -905,7 +908,7 @@
                                                                 local.set 0
                                                                 block  ;; label = @31
                                                                   local.get 1
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   local.tee 3
                                                                   i32.ne
@@ -964,7 +967,7 @@
                                                                   i32.const 7
                                                                   i32.store
                                                                 end
-                                                                i32.const 20504
+                                                                i32.const 16412
                                                                 local.get 2
                                                                 i32.const 2
                                                                 i32.add
@@ -1028,7 +1031,7 @@
                                                               br_if 21 (;@8;)
                                                               br 22 (;@7;)
                                                             end
-                                                            i32.const 20504
+                                                            i32.const 16412
                                                             local.get 0
                                                             i32.const 12
                                                             i32.add
@@ -1071,7 +1074,7 @@
                                                             i32.eqz
                                                             br_if 23 (;@5;)
                                                           end
-                                                          i32.const 20504
+                                                          i32.const 16412
                                                           local.get 0
                                                           i32.const 14
                                                           i32.add
@@ -1084,8 +1087,8 @@
                                                           i32.const 46
                                                           i32.ne
                                                           br_if 18 (;@9;)
-                                                          i32.const 20504
-                                                          i32.const 20504
+                                                          i32.const 16412
+                                                          i32.const 16412
                                                           i32.load
                                                           i32.const 2
                                                           i32.add
@@ -1095,7 +1098,7 @@
                                                           i32.const 100
                                                           i32.eq
                                                           if  ;; label = @28
-                                                            i32.const 20504
+                                                            i32.const 16412
                                                             i32.load
                                                             local.tee 0
                                                             i32.load16_u offset=2
@@ -1166,7 +1169,7 @@
                                                             i32.const 26
                                                             i32.add
                                                             local.set 4
-                                                            i32.const 20504
+                                                            i32.const 16412
                                                             local.get 0
                                                             i32.const 28
                                                             i32.add
@@ -1175,8 +1178,8 @@
                                                             i32.const 40
                                                             i32.ne
                                                             br_if 19 (;@9;)
-                                                            i32.const 20504
-                                                            i32.const 20504
+                                                            i32.const 16412
+                                                            i32.const 16412
                                                             i32.load
                                                             i32.const 2
                                                             i32.add
@@ -1189,8 +1192,8 @@
                                                             i32.const 44
                                                             i32.ne
                                                             br_if 19 (;@9;)
-                                                            i32.const 20504
-                                                            i32.const 20504
+                                                            i32.const 16412
+                                                            i32.const 16412
                                                             i32.load
                                                             i32.const 2
                                                             i32.add
@@ -1204,7 +1207,7 @@
                                                             i32.ne
                                                             i32.and
                                                             br_if 19 (;@9;)
-                                                            i32.const 20504
+                                                            i32.const 16412
                                                             i32.load
                                                             local.tee 1
                                                             local.set 0
@@ -1276,7 +1279,7 @@
                                                               local.get 2
                                                               local.set 3
                                                             end
-                                                            i32.const 20504
+                                                            i32.const 16412
                                                             local.get 3
                                                             i32.const 4
                                                             i32.add
@@ -1286,8 +1289,8 @@
                                                             i32.const 44
                                                             i32.ne
                                                             br_if 18 (;@10;)
-                                                            i32.const 20504
-                                                            i32.const 20504
+                                                            i32.const 16412
+                                                            i32.const 16412
                                                             i32.load
                                                             i32.const 2
                                                             i32.add
@@ -1296,8 +1299,8 @@
                                                             i32.const 123
                                                             i32.ne
                                                             br_if 18 (;@10;)
-                                                            i32.const 20504
-                                                            i32.const 20504
+                                                            i32.const 16412
+                                                            i32.const 16412
                                                             i32.load
                                                             i32.const 2
                                                             i32.add
@@ -1307,7 +1310,7 @@
                                                             i32.const 101
                                                             i32.eq
                                                             if  ;; label = @29
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               i32.load
                                                               local.tee 0
                                                               i32.load16_u offset=2
@@ -1354,7 +1357,7 @@
                                                               i32.const 101
                                                               i32.ne
                                                               br_if 19 (;@10;)
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               local.get 0
                                                               i32.const 20
                                                               i32.add
@@ -1363,13 +1366,13 @@
                                                               i32.const 58
                                                               i32.ne
                                                               br_if 19 (;@10;)
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
                                                               i32.store
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               block (result i32)  ;; label = @30
                                                                 block  ;; label = @31
                                                                   call 7
@@ -1377,7 +1380,7 @@
                                                                   i32.const 116
                                                                   i32.ne
                                                                   br_if 0 (;@31;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   local.tee 0
                                                                   i32.load16_u offset=2
@@ -1403,12 +1406,12 @@
                                                                 i32.const 33
                                                                 i32.ne
                                                                 br_if 20 (;@10;)
-                                                                i32.const 8176
+                                                                i32.const 4080
                                                                 i32.load8_u
                                                                 i32.eqz
                                                                 br_if 20 (;@10;)
-                                                                i32.const 20504
-                                                                i32.const 20504
+                                                                i32.const 16412
+                                                                i32.const 16412
                                                                 i32.load
                                                                 i32.const 2
                                                                 i32.add
@@ -1417,7 +1420,7 @@
                                                                 i32.const 48
                                                                 i32.ne
                                                                 br_if 20 (;@10;)
-                                                                i32.const 20504
+                                                                i32.const 16412
                                                                 i32.load
                                                                 i32.const 2
                                                                 i32.add
@@ -1427,8 +1430,8 @@
                                                               i32.const 44
                                                               i32.ne
                                                               br_if 19 (;@10;)
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
@@ -1444,7 +1447,7 @@
                                                               i32.const 118
                                                               i32.ne
                                                               br_if 19 (;@10;)
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               i32.load
                                                               local.tee 0
                                                               i32.load16_u offset=2
@@ -1466,7 +1469,7 @@
                                                               i32.const 101
                                                               i32.ne
                                                               br_if 19 (;@10;)
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               local.get 0
                                                               i32.const 10
                                                               i32.add
@@ -1482,7 +1485,7 @@
                                                               call_indirect (type 0)
                                                               br 20 (;@9;)
                                                             end
-                                                            i32.const 20504
+                                                            i32.const 16412
                                                             i32.load
                                                             local.tee 0
                                                             i32.load16_u offset=2
@@ -1494,7 +1497,7 @@
                                                             i32.const 116
                                                             i32.ne
                                                             br_if 18 (;@10;)
-                                                            i32.const 20504
+                                                            i32.const 16412
                                                             local.get 0
                                                             i32.const 6
                                                             i32.add
@@ -1504,8 +1507,8 @@
                                                             i32.const 58
                                                             i32.eq
                                                             if (result i32)  ;; label = @29
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
@@ -1514,7 +1517,7 @@
                                                               i32.const 102
                                                               i32.ne
                                                               br_if 19 (;@10;)
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               i32.load
                                                               local.tee 0
                                                               i32.load16_u offset=2
@@ -1551,7 +1554,7 @@
                                                               i32.const 110
                                                               i32.ne
                                                               br_if 19 (;@10;)
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               local.get 0
                                                               i32.const 16
                                                               i32.add
@@ -1563,7 +1566,7 @@
                                                               i32.ne
                                                               if  ;; label = @30
                                                                 local.get 0
-                                                                i32.const 20504
+                                                                i32.const 16412
                                                                 i32.load
                                                                 i32.eq
                                                                 br_if 20 (;@10;)
@@ -1579,8 +1582,8 @@
                                                             i32.const 40
                                                             i32.ne
                                                             br_if 18 (;@10;)
-                                                            i32.const 20504
-                                                            i32.const 20504
+                                                            i32.const 16412
+                                                            i32.const 16412
                                                             i32.load
                                                             i32.const 2
                                                             i32.add
@@ -1589,8 +1592,8 @@
                                                             i32.const 41
                                                             i32.ne
                                                             br_if 18 (;@10;)
-                                                            i32.const 20504
-                                                            i32.const 20504
+                                                            i32.const 16412
+                                                            i32.const 16412
                                                             i32.load
                                                             i32.const 2
                                                             i32.add
@@ -1599,8 +1602,8 @@
                                                             i32.const 123
                                                             i32.ne
                                                             br_if 18 (;@10;)
-                                                            i32.const 20504
-                                                            i32.const 20504
+                                                            i32.const 16412
+                                                            i32.const 16412
                                                             i32.load
                                                             i32.const 2
                                                             i32.add
@@ -1609,7 +1612,7 @@
                                                             i32.const 114
                                                             i32.ne
                                                             br_if 18 (;@10;)
-                                                            i32.const 20504
+                                                            i32.const 16412
                                                             i32.load
                                                             local.tee 0
                                                             i32.load16_u offset=2
@@ -1636,7 +1639,7 @@
                                                             i32.const 110
                                                             i32.ne
                                                             br_if 18 (;@10;)
-                                                            i32.const 20504
+                                                            i32.const 16412
                                                             local.get 0
                                                             i32.const 12
                                                             i32.add
@@ -1656,8 +1659,8 @@
                                                                   i32.const 46
                                                                   i32.ne
                                                                   br_if 2 (;@29;)
-                                                                  i32.const 20504
-                                                                  i32.const 20504
+                                                                  i32.const 16412
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   i32.const 2
                                                                   i32.add
@@ -1667,8 +1670,8 @@
                                                                   br_if 1 (;@30;)
                                                                   br 21 (;@10;)
                                                                 end
-                                                                i32.const 20504
-                                                                i32.const 20504
+                                                                i32.const 16412
+                                                                i32.const 16412
                                                                 i32.load
                                                                 i32.const 2
                                                                 i32.add
@@ -1682,7 +1685,7 @@
                                                                 i32.ne
                                                                 i32.and
                                                                 br_if 20 (;@10;)
-                                                                i32.const 20504
+                                                                i32.const 16412
                                                                 i32.load
                                                                 local.set 3
                                                                 block  ;; label = @31
@@ -1755,7 +1758,7 @@
                                                                   i32.shr_s
                                                                   i32.store
                                                                 end
-                                                                i32.const 20504
+                                                                i32.const 16412
                                                                 local.get 2
                                                                 i32.const 4
                                                                 i32.add
@@ -1764,8 +1767,8 @@
                                                                 i32.const 93
                                                                 i32.ne
                                                                 br_if 20 (;@10;)
-                                                                i32.const 20504
-                                                                i32.const 20504
+                                                                i32.const 16412
+                                                                i32.const 16412
                                                                 i32.load
                                                                 i32.const 2
                                                                 i32.add
@@ -1778,8 +1781,8 @@
                                                             i32.const 59
                                                             i32.eq
                                                             if (result i32)  ;; label = @29
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
@@ -1791,8 +1794,8 @@
                                                             i32.const 125
                                                             i32.ne
                                                             br_if 18 (;@10;)
-                                                            i32.const 20504
-                                                            i32.const 20504
+                                                            i32.const 16412
+                                                            i32.const 16412
                                                             i32.load
                                                             i32.const 2
                                                             i32.add
@@ -1802,8 +1805,8 @@
                                                             i32.const 44
                                                             i32.eq
                                                             if (result i32)  ;; label = @29
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
@@ -1815,8 +1818,8 @@
                                                             i32.const 125
                                                             i32.ne
                                                             br_if 18 (;@10;)
-                                                            i32.const 20504
-                                                            i32.const 20504
+                                                            i32.const 16412
+                                                            i32.const 16412
                                                             i32.load
                                                             i32.const 2
                                                             i32.add
@@ -1838,7 +1841,7 @@
                                                           local.get 6
                                                           i32.or
                                                           br_if 18 (;@9;)
-                                                          i32.const 20504
+                                                          i32.const 16412
                                                           i32.load
                                                           local.tee 0
                                                           i32.load16_u offset=2
@@ -1859,7 +1862,7 @@
                                                           i32.const 6
                                                           i32.add
                                                           local.set 4
-                                                          i32.const 20504
+                                                          i32.const 16412
                                                           local.get 0
                                                           i32.const 8
                                                           i32.add
@@ -1868,27 +1871,27 @@
                                                           i32.const 40
                                                           i32.ne
                                                           br_if 18 (;@9;)
-                                                          i32.const 20504
-                                                          i32.const 20504
+                                                          i32.const 16412
+                                                          i32.const 16412
                                                           i32.load
                                                           i32.const 2
                                                           i32.add
                                                           i32.store
                                                           call 7
-                                                          i32.const 20504
+                                                          i32.const 16412
                                                           i32.load
                                                           local.set 5
                                                           call 11
                                                           i32.eqz
                                                           br_if 18 (;@9;)
-                                                          i32.const 20504
+                                                          i32.const 16412
                                                           i32.load
                                                           call 7
                                                           i32.const 41
                                                           i32.ne
                                                           br_if 18 (;@9;)
-                                                          i32.const 20504
-                                                          i32.const 20504
+                                                          i32.const 16412
+                                                          i32.const 16412
                                                           i32.load
                                                           local.tee 4
                                                           i32.const 2
@@ -1898,8 +1901,8 @@
                                                           i32.const 46
                                                           i32.ne
                                                           br_if 18 (;@9;)
-                                                          i32.const 20504
-                                                          i32.const 20504
+                                                          i32.const 16412
+                                                          i32.const 16412
                                                           i32.load
                                                           i32.const 2
                                                           i32.add
@@ -1908,7 +1911,7 @@
                                                           i32.const 102
                                                           i32.ne
                                                           br_if 18 (;@9;)
-                                                          i32.const 20504
+                                                          i32.const 16412
                                                           i32.load
                                                           local.tee 0
                                                           i32.load16_u offset=2
@@ -1940,13 +1943,13 @@
                                                           i32.const 104
                                                           i32.ne
                                                           br_if 18 (;@9;)
-                                                          i32.const 20504
+                                                          i32.const 16412
                                                           local.get 0
                                                           i32.const 14
                                                           i32.add
                                                           i32.store
                                                           call 7
-                                                          i32.const 20504
+                                                          i32.const 16412
                                                           i32.load
                                                           local.tee 1
                                                           i32.const 2
@@ -1955,7 +1958,7 @@
                                                           i32.const 40
                                                           i32.ne
                                                           br_if 18 (;@9;)
-                                                          i32.const 20504
+                                                          i32.const 16412
                                                           local.get 1
                                                           i32.const 2
                                                           i32.add
@@ -1964,7 +1967,7 @@
                                                           i32.const 102
                                                           i32.ne
                                                           br_if 18 (;@9;)
-                                                          i32.const 20504
+                                                          i32.const 16412
                                                           i32.load
                                                           local.tee 0
                                                           i32.load16_u offset=2
@@ -2001,7 +2004,7 @@
                                                           i32.const 110
                                                           i32.ne
                                                           br_if 18 (;@9;)
-                                                          i32.const 20504
+                                                          i32.const 16412
                                                           local.get 0
                                                           i32.const 16
                                                           i32.add
@@ -2010,28 +2013,28 @@
                                                           i32.const 40
                                                           i32.ne
                                                           br_if 18 (;@9;)
-                                                          i32.const 20504
-                                                          i32.const 20504
+                                                          i32.const 16412
+                                                          i32.const 16412
                                                           i32.load
                                                           i32.const 2
                                                           i32.add
                                                           i32.store
                                                           call 7
-                                                          i32.const 20504
+                                                          i32.const 16412
                                                           i32.load
                                                           local.set 1
                                                           call 11
                                                           i32.eqz
                                                           br_if 18 (;@9;)
-                                                          i32.const 20504
+                                                          i32.const 16412
                                                           i32.load
                                                           local.set 0
                                                           call 7
                                                           i32.const 41
                                                           i32.ne
                                                           br_if 18 (;@9;)
-                                                          i32.const 20504
-                                                          i32.const 20504
+                                                          i32.const 16412
+                                                          i32.const 16412
                                                           i32.load
                                                           i32.const 2
                                                           i32.add
@@ -2040,8 +2043,8 @@
                                                           i32.const 123
                                                           i32.ne
                                                           br_if 18 (;@9;)
-                                                          i32.const 20504
-                                                          i32.const 20504
+                                                          i32.const 16412
+                                                          i32.const 16412
                                                           i32.load
                                                           i32.const 2
                                                           i32.add
@@ -2050,14 +2053,14 @@
                                                           i32.const 105
                                                           i32.ne
                                                           br_if 18 (;@9;)
-                                                          i32.const 20504
+                                                          i32.const 16412
                                                           i32.load
                                                           local.tee 2
                                                           i32.load16_u offset=2
                                                           i32.const 102
                                                           i32.ne
                                                           br_if 18 (;@9;)
-                                                          i32.const 20504
+                                                          i32.const 16412
                                                           local.get 2
                                                           i32.const 4
                                                           i32.add
@@ -2066,15 +2069,15 @@
                                                           i32.const 40
                                                           i32.ne
                                                           br_if 18 (;@9;)
-                                                          i32.const 20504
-                                                          i32.const 20504
+                                                          i32.const 16412
+                                                          i32.const 16412
                                                           i32.load
                                                           i32.const 2
                                                           i32.add
                                                           i32.store
                                                           call 7
                                                           drop
-                                                          i32.const 20504
+                                                          i32.const 16412
                                                           i32.load
                                                           local.tee 8
                                                           local.get 1
@@ -2090,7 +2093,7 @@
                                                           i32.const 1
                                                           i32.shr_s
                                                           local.set 7
-                                                          i32.const 20504
+                                                          i32.const 16412
                                                           local.get 8
                                                           local.get 2
                                                           i32.const 1
@@ -2113,7 +2116,7 @@
                                                                   i32.const 61
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   local.tee 0
                                                                   i32.load16_u offset=2
@@ -2125,7 +2128,7 @@
                                                                   i32.const 61
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   local.get 0
                                                                   i32.const 6
                                                                   i32.add
@@ -2139,7 +2142,7 @@
                                                                   i32.ne
                                                                   i32.and
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   local.tee 0
                                                                   i32.load16_u offset=2
@@ -2176,7 +2179,7 @@
                                                                   i32.const 116
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   local.get 0
                                                                   i32.const 16
                                                                   i32.add
@@ -2185,8 +2188,8 @@
                                                                   local.get 8
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
-                                                                  i32.const 20504
+                                                                  i32.const 16412
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   i32.const 2
                                                                   i32.add
@@ -2195,28 +2198,28 @@
                                                                   i32.const 124
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   local.tee 0
                                                                   i32.load16_u offset=2
                                                                   i32.const 124
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   local.get 0
                                                                   i32.const 4
                                                                   i32.add
                                                                   i32.store
                                                                   call 7
                                                                   drop
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   local.tee 0
                                                                   local.get 1
                                                                   local.get 2
                                                                   call 0
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   local.get 0
                                                                   local.get 3
                                                                   i32.add
@@ -2225,7 +2228,7 @@
                                                                   i32.const 61
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   local.tee 0
                                                                   i32.load16_u offset=2
@@ -2237,7 +2240,7 @@
                                                                   i32.const 61
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   local.get 0
                                                                   i32.const 6
                                                                   i32.add
@@ -2251,7 +2254,7 @@
                                                                   i32.ne
                                                                   i32.and
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   local.tee 0
                                                                   i32.load16_u offset=2
@@ -2303,7 +2306,7 @@
                                                                   i32.const 101
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   local.get 0
                                                                   i32.const 22
                                                                   i32.add
@@ -2312,8 +2315,8 @@
                                                                   local.get 8
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
-                                                                  i32.const 20504
+                                                                  i32.const 16412
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   i32.const 2
                                                                   i32.add
@@ -2322,8 +2325,8 @@
                                                                   i32.const 41
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
-                                                                  i32.const 20504
+                                                                  i32.const 16412
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   i32.const 2
                                                                   i32.add
@@ -2332,7 +2335,7 @@
                                                                   i32.const 114
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   local.tee 0
                                                                   i32.load16_u offset=2
@@ -2359,7 +2362,7 @@
                                                                   i32.const 110
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   local.get 0
                                                                   i32.const 12
                                                                   i32.add
@@ -2368,8 +2371,8 @@
                                                                   i32.const 59
                                                                   i32.eq
                                                                   if  ;; label = @32
-                                                                    i32.const 20504
-                                                                    i32.const 20504
+                                                                    i32.const 16412
+                                                                    i32.const 16412
                                                                     i32.load
                                                                     i32.const 2
                                                                     i32.add
@@ -2382,14 +2385,14 @@
                                                                   br_if 3 (;@28;)
                                                                   i32.const 105
                                                                   local.set 0
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   local.tee 8
                                                                   i32.load16_u offset=2
                                                                   i32.const 102
                                                                   i32.ne
                                                                   br_if 3 (;@28;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   local.get 8
                                                                   i32.const 4
                                                                   i32.add
@@ -2398,8 +2401,8 @@
                                                                   i32.const 40
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
-                                                                  i32.const 20504
+                                                                  i32.const 16412
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   i32.const 2
                                                                   i32.add
@@ -2413,8 +2416,8 @@
                                                                     i32.const 41
                                                                     i32.ne
                                                                     br_if 23 (;@9;)
-                                                                    i32.const 20504
-                                                                    i32.const 20504
+                                                                    i32.const 16412
+                                                                    i32.const 16412
                                                                     i32.load
                                                                     i32.const 2
                                                                     i32.add
@@ -2423,7 +2426,7 @@
                                                                     i32.const 114
                                                                     i32.ne
                                                                     br_if 23 (;@9;)
-                                                                    i32.const 20504
+                                                                    i32.const 16412
                                                                     i32.load
                                                                     local.tee 0
                                                                     i32.load16_u offset=2
@@ -2450,7 +2453,7 @@
                                                                     i32.const 110
                                                                     i32.ne
                                                                     br_if 23 (;@9;)
-                                                                    i32.const 20504
+                                                                    i32.const 16412
                                                                     local.get 0
                                                                     i32.const 12
                                                                     i32.add
@@ -2459,8 +2462,8 @@
                                                                     i32.const 59
                                                                     i32.eq
                                                                     if  ;; label = @33
-                                                                      i32.const 20504
-                                                                      i32.const 20504
+                                                                      i32.const 16412
+                                                                      i32.const 16412
                                                                       i32.load
                                                                       i32.const 2
                                                                       i32.add
@@ -2473,14 +2476,14 @@
                                                                     br_if 4 (;@28;)
                                                                     i32.const 105
                                                                     local.set 0
-                                                                    i32.const 20504
+                                                                    i32.const 16412
                                                                     i32.load
                                                                     local.tee 9
                                                                     i32.load16_u offset=2
                                                                     i32.const 102
                                                                     i32.ne
                                                                     br_if 4 (;@28;)
-                                                                    i32.const 20504
+                                                                    i32.const 16412
                                                                     local.get 9
                                                                     i32.const 4
                                                                     i32.add
@@ -2489,13 +2492,13 @@
                                                                     i32.const 40
                                                                     i32.ne
                                                                     br_if 23 (;@9;)
-                                                                    i32.const 20504
+                                                                    i32.const 16412
                                                                     i32.load
                                                                     i32.const 2
                                                                     i32.add
                                                                     local.set 0
                                                                   end
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   local.get 0
                                                                   i32.store
                                                                   local.get 0
@@ -2503,7 +2506,7 @@
                                                                   local.get 2
                                                                   call 0
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   local.get 0
                                                                   local.get 3
                                                                   i32.add
@@ -2512,7 +2515,7 @@
                                                                   i32.const 105
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   local.tee 0
                                                                   i32.load16_u offset=2
@@ -2524,7 +2527,7 @@
                                                                   i32.const 32
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   local.get 0
                                                                   i32.const 6
                                                                   i32.add
@@ -2537,14 +2540,14 @@
                                                                   i32.const 38
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   local.tee 0
                                                                   i32.load16_u offset=2
                                                                   i32.const 38
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   local.get 0
                                                                   i32.const 4
                                                                   i32.add
@@ -2557,22 +2560,22 @@
                                                                   i32.const 91
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
-                                                                  i32.const 20504
+                                                                  i32.const 16412
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   i32.const 2
                                                                   i32.add
                                                                   i32.store
                                                                   call 7
                                                                   drop
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   local.tee 0
                                                                   local.get 1
                                                                   local.get 2
                                                                   call 0
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   local.get 0
                                                                   local.get 3
                                                                   i32.add
@@ -2581,8 +2584,8 @@
                                                                   i32.const 93
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
-                                                                  i32.const 20504
+                                                                  i32.const 16412
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   i32.const 2
                                                                   i32.add
@@ -2591,7 +2594,7 @@
                                                                   i32.const 61
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   local.tee 0
                                                                   i32.load16_u offset=2
@@ -2603,21 +2606,21 @@
                                                                   i32.const 61
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   local.get 0
                                                                   i32.const 6
                                                                   i32.add
                                                                   i32.store
                                                                   call 7
                                                                   drop
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   local.tee 0
                                                                   local.get 5
                                                                   local.get 6
                                                                   call 0
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   local.get 0
                                                                   local.get 7
                                                                   i32.const 1
@@ -2628,22 +2631,22 @@
                                                                   i32.const 91
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
-                                                                  i32.const 20504
+                                                                  i32.const 16412
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   i32.const 2
                                                                   i32.add
                                                                   i32.store
                                                                   call 7
                                                                   drop
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   local.tee 0
                                                                   local.get 1
                                                                   local.get 2
                                                                   call 0
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   local.get 0
                                                                   local.get 3
                                                                   i32.add
@@ -2652,8 +2655,8 @@
                                                                   i32.const 93
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
-                                                                  i32.const 20504
+                                                                  i32.const 16412
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   i32.const 2
                                                                   i32.add
@@ -2662,8 +2665,8 @@
                                                                   i32.const 41
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
-                                                                  i32.const 20504
+                                                                  i32.const 16412
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   i32.const 2
                                                                   i32.add
@@ -2672,7 +2675,7 @@
                                                                   i32.const 114
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   local.tee 0
                                                                   i32.load16_u offset=2
@@ -2699,7 +2702,7 @@
                                                                   i32.const 110
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   local.get 0
                                                                   i32.const 12
                                                                   i32.add
@@ -2710,7 +2713,7 @@
                                                                   br_if 1 (;@30;)
                                                                   br 2 (;@29;)
                                                                 end
-                                                                i32.const 20504
+                                                                i32.const 16412
                                                                 i32.load
                                                                 local.tee 0
                                                                 i32.load16_u offset=2
@@ -2722,7 +2725,7 @@
                                                                 i32.const 61
                                                                 i32.ne
                                                                 br_if 21 (;@9;)
-                                                                i32.const 20504
+                                                                i32.const 16412
                                                                 local.get 0
                                                                 i32.const 6
                                                                 i32.add
@@ -2736,7 +2739,7 @@
                                                                 i32.ne
                                                                 i32.and
                                                                 br_if 21 (;@9;)
-                                                                i32.const 20504
+                                                                i32.const 16412
                                                                 i32.load
                                                                 local.tee 0
                                                                 i32.load16_u offset=2
@@ -2773,7 +2776,7 @@
                                                                 i32.const 116
                                                                 i32.ne
                                                                 br_if 21 (;@9;)
-                                                                i32.const 20504
+                                                                i32.const 16412
                                                                 local.get 0
                                                                 i32.const 16
                                                                 i32.add
@@ -2782,8 +2785,8 @@
                                                                 local.get 8
                                                                 i32.ne
                                                                 br_if 21 (;@9;)
-                                                                i32.const 20504
-                                                                i32.const 20504
+                                                                i32.const 16412
+                                                                i32.const 16412
                                                                 i32.load
                                                                 i32.const 2
                                                                 i32.add
@@ -2793,14 +2796,14 @@
                                                                 i32.const 38
                                                                 i32.eq
                                                                 if (result i32)  ;; label = @31
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   local.tee 0
                                                                   i32.load16_u offset=2
                                                                   i32.const 38
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   local.get 0
                                                                   i32.const 4
                                                                   i32.add
@@ -2809,8 +2812,8 @@
                                                                   i32.const 33
                                                                   i32.ne
                                                                   br_if 22 (;@9;)
-                                                                  i32.const 20504
-                                                                  i32.const 20504
+                                                                  i32.const 16412
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   i32.const 2
                                                                   i32.add
@@ -2822,7 +2825,7 @@
                                                                       i32.const 79
                                                                       i32.ne
                                                                       br_if 0 (;@33;)
-                                                                      i32.const 20504
+                                                                      i32.const 16412
                                                                       i32.load
                                                                       local.tee 0
                                                                       i32.load16_u offset=2
@@ -2868,8 +2871,8 @@
                                                                     i32.const 46
                                                                     i32.ne
                                                                     br_if 23 (;@9;)
-                                                                    i32.const 20504
-                                                                    i32.const 20504
+                                                                    i32.const 16412
+                                                                    i32.const 16412
                                                                     i32.load
                                                                     i32.const 2
                                                                     i32.add
@@ -2878,7 +2881,7 @@
                                                                     i32.const 104
                                                                     i32.ne
                                                                     br_if 23 (;@9;)
-                                                                    i32.const 20504
+                                                                    i32.const 16412
                                                                     i32.load
                                                                     local.tee 0
                                                                     i32.load16_u offset=2
@@ -2945,7 +2948,7 @@
                                                                     i32.const 121
                                                                     i32.ne
                                                                     br_if 23 (;@9;)
-                                                                    i32.const 20504
+                                                                    i32.const 16412
                                                                     local.get 0
                                                                     i32.const 28
                                                                     i32.add
@@ -2954,22 +2957,22 @@
                                                                     i32.const 40
                                                                     i32.ne
                                                                     br_if 23 (;@9;)
-                                                                    i32.const 20504
-                                                                    i32.const 20504
+                                                                    i32.const 16412
+                                                                    i32.const 16412
                                                                     i32.load
                                                                     i32.const 2
                                                                     i32.add
                                                                     i32.store
                                                                     call 7
                                                                     drop
-                                                                    i32.const 20504
+                                                                    i32.const 16412
                                                                     i32.load
                                                                     local.tee 0
                                                                     local.get 1
                                                                     local.get 2
                                                                     call 0
                                                                     br_if 23 (;@9;)
-                                                                    i32.const 20504
+                                                                    i32.const 16412
                                                                     local.get 0
                                                                     local.get 3
                                                                     i32.add
@@ -2978,8 +2981,8 @@
                                                                     i32.const 41
                                                                     i32.ne
                                                                     br_if 23 (;@9;)
-                                                                    i32.const 20504
-                                                                    i32.const 20504
+                                                                    i32.const 16412
+                                                                    i32.const 16412
                                                                     i32.load
                                                                     i32.const 2
                                                                     i32.add
@@ -2993,8 +2996,8 @@
                                                                 i32.ne
                                                                 br_if 21 (;@9;)
                                                               end
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
@@ -3012,22 +3015,22 @@
                                                                 i32.const 91
                                                                 i32.ne
                                                                 br_if 21 (;@9;)
-                                                                i32.const 20504
-                                                                i32.const 20504
+                                                                i32.const 16412
+                                                                i32.const 16412
                                                                 i32.load
                                                                 i32.const 2
                                                                 i32.add
                                                                 i32.store
                                                                 call 7
                                                                 drop
-                                                                i32.const 20504
+                                                                i32.const 16412
                                                                 i32.load
                                                                 local.tee 0
                                                                 local.get 1
                                                                 local.get 2
                                                                 call 0
                                                                 br_if 21 (;@9;)
-                                                                i32.const 20504
+                                                                i32.const 16412
                                                                 local.get 0
                                                                 local.get 3
                                                                 i32.add
@@ -3036,8 +3039,8 @@
                                                                 i32.const 93
                                                                 i32.ne
                                                                 br_if 21 (;@9;)
-                                                                i32.const 20504
-                                                                i32.const 20504
+                                                                i32.const 16412
+                                                                i32.const 16412
                                                                 i32.load
                                                                 i32.const 2
                                                                 i32.add
@@ -3046,22 +3049,22 @@
                                                                 i32.const 61
                                                                 i32.ne
                                                                 br_if 21 (;@9;)
-                                                                i32.const 20504
-                                                                i32.const 20504
+                                                                i32.const 16412
+                                                                i32.const 16412
                                                                 i32.load
                                                                 i32.const 2
                                                                 i32.add
                                                                 i32.store
                                                                 call 7
                                                                 drop
-                                                                i32.const 20504
+                                                                i32.const 16412
                                                                 i32.load
                                                                 local.tee 0
                                                                 local.get 5
                                                                 local.get 6
                                                                 call 0
                                                                 br_if 21 (;@9;)
-                                                                i32.const 20504
+                                                                i32.const 16412
                                                                 local.get 0
                                                                 local.get 7
                                                                 i32.const 1
@@ -3072,22 +3075,22 @@
                                                                 i32.const 91
                                                                 i32.ne
                                                                 br_if 21 (;@9;)
-                                                                i32.const 20504
-                                                                i32.const 20504
+                                                                i32.const 16412
+                                                                i32.const 16412
                                                                 i32.load
                                                                 i32.const 2
                                                                 i32.add
                                                                 i32.store
                                                                 call 7
                                                                 drop
-                                                                i32.const 20504
+                                                                i32.const 16412
                                                                 i32.load
                                                                 local.tee 0
                                                                 local.get 1
                                                                 local.get 2
                                                                 call 0
                                                                 br_if 21 (;@9;)
-                                                                i32.const 20504
+                                                                i32.const 16412
                                                                 local.get 0
                                                                 local.get 3
                                                                 i32.add
@@ -3096,8 +3099,8 @@
                                                                 i32.const 93
                                                                 i32.ne
                                                                 br_if 21 (;@9;)
-                                                                i32.const 20504
-                                                                i32.const 20504
+                                                                i32.const 16412
+                                                                i32.const 16412
                                                                 i32.load
                                                                 i32.const 2
                                                                 i32.add
@@ -3113,7 +3116,7 @@
                                                               i32.const 79
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               i32.load
                                                               local.tee 0
                                                               i32.load16_u offset=2
@@ -3140,7 +3143,7 @@
                                                               i32.const 116
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               local.get 0
                                                               i32.const 12
                                                               i32.add
@@ -3149,8 +3152,8 @@
                                                               i32.const 46
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
@@ -3159,7 +3162,7 @@
                                                               i32.const 100
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               i32.load
                                                               local.tee 0
                                                               i32.load16_u offset=2
@@ -3226,7 +3229,7 @@
                                                               i32.const 121
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               local.get 0
                                                               i32.const 28
                                                               i32.add
@@ -3235,8 +3238,8 @@
                                                               i32.const 40
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
@@ -3249,22 +3252,22 @@
                                                               i32.const 44
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
                                                               i32.store
                                                               call 7
                                                               drop
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               i32.load
                                                               local.tee 0
                                                               local.get 1
                                                               local.get 2
                                                               call 0
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               local.get 0
                                                               local.get 3
                                                               i32.add
@@ -3273,8 +3276,8 @@
                                                               i32.const 44
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
@@ -3283,8 +3286,8 @@
                                                               i32.const 123
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
@@ -3293,7 +3296,7 @@
                                                               i32.const 101
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               i32.load
                                                               local.tee 0
                                                               i32.load16_u offset=2
@@ -3340,7 +3343,7 @@
                                                               i32.const 101
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               local.get 0
                                                               i32.const 20
                                                               i32.add
@@ -3349,13 +3352,13 @@
                                                               i32.const 58
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
                                                               i32.store
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               block (result i32)  ;; label = @30
                                                                 block  ;; label = @31
                                                                   call 7
@@ -3363,7 +3366,7 @@
                                                                   i32.const 116
                                                                   i32.ne
                                                                   br_if 0 (;@31;)
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   local.tee 0
                                                                   i32.load16_u offset=2
@@ -3389,12 +3392,12 @@
                                                                 i32.const 33
                                                                 i32.ne
                                                                 br_if 21 (;@9;)
-                                                                i32.const 8176
+                                                                i32.const 4080
                                                                 i32.load8_u
                                                                 i32.eqz
                                                                 br_if 21 (;@9;)
-                                                                i32.const 20504
-                                                                i32.const 20504
+                                                                i32.const 16412
+                                                                i32.const 16412
                                                                 i32.load
                                                                 i32.const 2
                                                                 i32.add
@@ -3403,7 +3406,7 @@
                                                                 i32.const 48
                                                                 i32.ne
                                                                 br_if 21 (;@9;)
-                                                                i32.const 20504
+                                                                i32.const 16412
                                                                 i32.load
                                                                 i32.const 2
                                                                 i32.add
@@ -3413,8 +3416,8 @@
                                                               i32.const 44
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
@@ -3423,7 +3426,7 @@
                                                               i32.const 103
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               i32.load
                                                               local.tee 0
                                                               i32.load16_u offset=2
@@ -3435,7 +3438,7 @@
                                                               i32.const 116
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               local.get 0
                                                               i32.const 6
                                                               i32.add
@@ -3445,8 +3448,8 @@
                                                               i32.const 58
                                                               i32.eq
                                                               if (result i32)  ;; label = @30
-                                                                i32.const 20504
-                                                                i32.const 20504
+                                                                i32.const 16412
+                                                                i32.const 16412
                                                                 i32.load
                                                                 i32.const 2
                                                                 i32.add
@@ -3455,7 +3458,7 @@
                                                                 i32.const 102
                                                                 i32.ne
                                                                 br_if 21 (;@9;)
-                                                                i32.const 20504
+                                                                i32.const 16412
                                                                 i32.load
                                                                 local.tee 0
                                                                 i32.load16_u offset=2
@@ -3492,7 +3495,7 @@
                                                                 i32.const 110
                                                                 i32.ne
                                                                 br_if 21 (;@9;)
-                                                                i32.const 20504
+                                                                i32.const 16412
                                                                 local.get 0
                                                                 i32.const 16
                                                                 i32.add
@@ -3504,7 +3507,7 @@
                                                                 i32.ne
                                                                 if  ;; label = @31
                                                                   local.get 0
-                                                                  i32.const 20504
+                                                                  i32.const 16412
                                                                   i32.load
                                                                   i32.eq
                                                                   br_if 22 (;@9;)
@@ -3520,8 +3523,8 @@
                                                               i32.const 40
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
@@ -3530,8 +3533,8 @@
                                                               i32.const 41
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
@@ -3540,8 +3543,8 @@
                                                               i32.const 123
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
@@ -3550,7 +3553,7 @@
                                                               i32.const 114
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               i32.load
                                                               local.tee 0
                                                               i32.load16_u offset=2
@@ -3577,21 +3580,21 @@
                                                               i32.const 110
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               local.get 0
                                                               i32.const 12
                                                               i32.add
                                                               i32.store
                                                               call 7
                                                               drop
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               i32.load
                                                               local.tee 0
                                                               local.get 5
                                                               local.get 6
                                                               call 0
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               local.get 0
                                                               local.get 7
                                                               i32.const 1
@@ -3602,22 +3605,22 @@
                                                               i32.const 91
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
                                                               i32.store
                                                               call 7
                                                               drop
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               i32.load
                                                               local.tee 0
                                                               local.get 1
                                                               local.get 2
                                                               call 0
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
+                                                              i32.const 16412
                                                               local.get 0
                                                               local.get 3
                                                               i32.add
@@ -3626,8 +3629,8 @@
                                                               i32.const 93
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
@@ -3637,8 +3640,8 @@
                                                               i32.const 59
                                                               i32.eq
                                                               if (result i32)  ;; label = @30
-                                                                i32.const 20504
-                                                                i32.const 20504
+                                                                i32.const 16412
+                                                                i32.const 16412
                                                                 i32.load
                                                                 i32.const 2
                                                                 i32.add
@@ -3650,8 +3653,8 @@
                                                               i32.const 125
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
@@ -3661,8 +3664,8 @@
                                                               i32.const 44
                                                               i32.eq
                                                               if (result i32)  ;; label = @30
-                                                                i32.const 20504
-                                                                i32.const 20504
+                                                                i32.const 16412
+                                                                i32.const 16412
                                                                 i32.load
                                                                 i32.const 2
                                                                 i32.add
@@ -3674,8 +3677,8 @@
                                                               i32.const 125
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
@@ -3684,8 +3687,8 @@
                                                               i32.const 41
                                                               i32.ne
                                                               br_if 20 (;@9;)
-                                                              i32.const 20504
-                                                              i32.const 20504
+                                                              i32.const 16412
+                                                              i32.const 16412
                                                               i32.load
                                                               i32.const 2
                                                               i32.add
@@ -3696,8 +3699,8 @@
                                                               i32.ne
                                                               br_if 1 (;@28;)
                                                             end
-                                                            i32.const 20504
-                                                            i32.const 20504
+                                                            i32.const 16412
+                                                            i32.const 16412
                                                             i32.load
                                                             i32.const 2
                                                             i32.add
@@ -3709,8 +3712,8 @@
                                                           i32.const 125
                                                           i32.ne
                                                           br_if 18 (;@9;)
-                                                          i32.const 20504
-                                                          i32.const 20504
+                                                          i32.const 16412
+                                                          i32.const 16412
                                                           i32.load
                                                           i32.const 2
                                                           i32.add
@@ -3719,34 +3722,28 @@
                                                           i32.const 41
                                                           i32.ne
                                                           br_if 18 (;@9;)
-                                                          i32.const 20496
-                                                          i32.load
-                                                          local.set 1
-                                                          i32.const 4080
+                                                          i32.const 16400
                                                           local.set 0
                                                           loop  ;; label = @28
                                                             local.get 0
-                                                            local.get 1
-                                                            i32.eq
+                                                            i32.load
+                                                            local.tee 0
+                                                            i32.eqz
                                                             br_if 23 (;@5;)
                                                             block  ;; label = @29
                                                               local.get 7
                                                               local.get 0
-                                                              i32.const 12
-                                                              i32.add
-                                                              i32.load
+                                                              i32.load offset=12
                                                               local.get 0
-                                                              i32.const 8
-                                                              i32.add
-                                                              i32.load
-                                                              local.tee 2
+                                                              i32.load offset=8
+                                                              local.tee 1
                                                               i32.sub
                                                               i32.const 1
                                                               i32.shr_s
                                                               i32.ne
                                                               br_if 0 (;@29;)
                                                               local.get 5
-                                                              local.get 2
+                                                              local.get 1
                                                               local.get 6
                                                               call 0
                                                               br_if 0 (;@29;)
@@ -3771,11 +3768,11 @@
                                                         i32.load
                                                         local.tee 0
                                                         i32.const 0
-                                                        i32.const 8182
+                                                        i32.const 4086
                                                         i32.load16_u
                                                         i32.const 65535
                                                         i32.ne
-                                                        i32.const 8180
+                                                        i32.const 4084
                                                         i32.load16_u
                                                         i32.const 0
                                                         i32.ne
@@ -3796,15 +3793,15 @@
                                                         br_if 25 (;@1;)
                                                         br 14 (;@12;)
                                                       end
-                                                      i32.const 12304
+                                                      i32.const 8208
                                                       local.get 4
                                                       i32.store
-                                                      i32.const 8180
+                                                      i32.const 4084
                                                       i32.const 1
                                                       i32.store16
                                                       br 20 (;@5;)
                                                     end
-                                                    i32.const 8182
+                                                    i32.const 4086
                                                     i32.load16_u
                                                     i32.const 65534
                                                     i32.ne
@@ -3823,7 +3820,7 @@
                                                   local.set 3
                                                   block  ;; label = @24
                                                     block  ;; label = @25
-                                                      i32.const 8188
+                                                      i32.const 4092
                                                       block (result i32)  ;; label = @26
                                                         block  ;; label = @27
                                                           block  ;; label = @28
@@ -4019,7 +4016,7 @@
                                                                                     local.get 6
                                                                                     i32.const 2
                                                                                     i32.shl
-                                                                                    i32.const 12304
+                                                                                    i32.const 8208
                                                                                     i32.add
                                                                                     i32.load
                                                                                     local.tee 0
@@ -4145,7 +4142,7 @@
                                                                                           local.get 6
                                                                                           i32.const 2
                                                                                           i32.shl
-                                                                                          i32.const 12304
+                                                                                          i32.const 8208
                                                                                           i32.add
                                                                                           i32.load
                                                                                           local.tee 0
@@ -4328,14 +4325,14 @@
                                                                                   br_if 12 (;@27;)
                                                                                 end
                                                                                 local.get 6
-                                                                                i32.const 20512
+                                                                                i32.const 16432
                                                                                 i32.add
                                                                                 i32.load8_u
                                                                                 i32.eqz
                                                                                 br_if 10 (;@28;)
                                                                                 br 11 (;@27;)
                                                                               end
-                                                                              i32.const 8188
+                                                                              i32.const 4092
                                                                               i32.load8_u
                                                                               i32.eqz
                                                                               br_if 9 (;@28;)
@@ -5047,7 +5044,7 @@
                                                           local.get 0
                                                           local.set 5
                                                         end
-                                                        i32.const 20504
+                                                        i32.const 16412
                                                         local.get 5
                                                         i32.store
                                                         i32.const 0
@@ -5060,45 +5057,45 @@
                                                     i32.add
                                                     local.set 4
                                                   end
-                                                  i32.const 20504
+                                                  i32.const 16412
                                                   local.get 4
                                                   i32.store
                                                   br 21 (;@2;)
                                                 end
-                                                i32.const 8180
+                                                i32.const 4084
                                                 local.get 6
                                                 i32.const 1
                                                 i32.sub
                                                 local.tee 1
                                                 i32.store16
                                                 local.get 6
-                                                i32.const 8182
+                                                i32.const 4086
                                                 i32.load16_u
                                                 local.tee 0
                                                 i32.ne
                                                 br_if 1 (;@21;)
-                                                i32.const 8178
-                                                i32.const 8178
+                                                i32.const 4082
+                                                i32.const 4082
                                                 i32.load16_u
                                                 i32.const 1
                                                 i32.sub
                                                 local.tee 0
                                                 i32.store16
-                                                i32.const 8182
+                                                i32.const 4086
                                                 local.get 0
                                                 i32.const 65535
                                                 i32.and
                                                 i32.const 1
                                                 i32.shl
-                                                i32.const -8192
-                                                i32.sub
+                                                i32.const 4096
+                                                i32.add
                                                 i32.load16_u
                                                 i32.store16
                                               end
-                                              i32.const 20504
+                                              i32.const 16412
                                               i32.load
                                               local.set 0
-                                              i32.const 20508
+                                              i32.const 16416
                                               i32.load
                                               local.set 2
                                               block  ;; label = @22
@@ -5133,20 +5130,20 @@
                                                           i32.const 123
                                                           i32.ne
                                                           br_if 2 (;@25;)
-                                                          i32.const 20504
+                                                          i32.const 16412
                                                           local.get 1
                                                           i32.const 4
                                                           i32.add
                                                           local.tee 0
                                                           i32.store
                                                           block  ;; label = @28
-                                                            i32.const 8178
+                                                            i32.const 4082
                                                             i32.load16_u
                                                             local.tee 1
                                                             i32.const 2048
                                                             i32.ne
                                                             if  ;; label = @29
-                                                              i32.const 8180
+                                                              i32.const 4084
                                                               i32.load16_u
                                                               local.tee 3
                                                               i32.const 2048
@@ -5163,27 +5160,27 @@
                                                             end
                                                             br 5 (;@23;)
                                                           end
-                                                          i32.const 8178
+                                                          i32.const 4082
                                                           local.get 1
                                                           i32.const 1
                                                           i32.add
                                                           i32.store16
-                                                          i32.const 12288
+                                                          i32.const 8192
                                                           i32.load
                                                           local.get 1
                                                           i32.const 1
                                                           i32.shl
                                                           i32.add
-                                                          i32.const 8182
+                                                          i32.const 4086
                                                           i32.load16_u
                                                           i32.store16
-                                                          i32.const 8182
+                                                          i32.const 4086
                                                           local.get 3
                                                           i32.const 1
                                                           i32.add
                                                           local.tee 0
                                                           i32.store16
-                                                          i32.const 8180
+                                                          i32.const 4084
                                                           local.get 0
                                                           i32.store16
                                                           br 5 (;@22;)
@@ -5205,12 +5202,12 @@
                                                     end
                                                     br 1 (;@23;)
                                                   end
-                                                  i32.const 20504
+                                                  i32.const 16412
                                                   local.get 0
                                                   i32.store
                                                   br 1 (;@22;)
                                                 end
-                                                i32.const 20504
+                                                i32.const 16412
                                                 local.get 2
                                                 i32.const 2
                                                 i32.add
@@ -5263,7 +5260,7 @@
                                         br_if 4 (;@14;)
                                         br 7 (;@11;)
                                       end
-                                      i32.const 8180
+                                      i32.const 4084
                                       local.get 6
                                       i32.const 1
                                       i32.add
@@ -5272,24 +5269,24 @@
                                       local.get 6
                                       i32.const 2
                                       i32.shl
-                                      i32.const 12304
+                                      i32.const 8208
                                       i32.add
                                       local.get 5
                                       i32.store
                                       local.get 0
                                       i32.const 65535
                                       i32.and
-                                      i32.const 20511
+                                      i32.const 16431
                                       i32.add
-                                      i32.const 20500
+                                      i32.const 16408
                                       i32.load8_u
                                       i32.store8
-                                      i32.const 20500
+                                      i32.const 16408
                                       i32.const 0
                                       i32.store8
                                       br 14 (;@3;)
                                     end
-                                    i32.const 8180
+                                    i32.const 4084
                                     local.get 6
                                     i32.const 1
                                     i32.sub
@@ -5317,7 +5314,7 @@
                               local.set 1
                               br 1 (;@12;)
                             end
-                            i32.const 8180
+                            i32.const 4084
                             local.get 6
                             i32.const 1
                             i32.add
@@ -5325,7 +5322,7 @@
                             local.get 6
                             i32.const 2
                             i32.shl
-                            i32.const 12304
+                            i32.const 8208
                             i32.add
                             local.get 5
                             i32.store
@@ -5335,7 +5332,7 @@
                           local.get 1
                           i32.store
                         end
-                        i32.const 20504
+                        i32.const 16412
                         local.get 2
                         i32.const 2
                         i32.add
@@ -5358,7 +5355,7 @@
                       i32.load
                       call_indirect (type 0)
                     end
-                    i32.const 20504
+                    i32.const 16412
                     local.get 4
                     i32.store
                     br 3 (;@5;)
@@ -5368,7 +5365,7 @@
                   i32.ne
                   br_if 2 (;@5;)
                 end
-                i32.const 20500
+                i32.const 16408
                 i32.const 1
                 i32.store8
                 br 1 (;@5;)
@@ -5492,20 +5489,14 @@
                 i32.const 1
                 i32.and
                 br_if 0 (;@6;)
-                i32.const 20496
-                i32.load
-                local.tee 2
-                i32.const 8160
-                i32.eq
-                br_if 0 (;@6;)
-                local.get 2
+                i32.const 18492
                 local.get 5
-                i32.store offset=12
-                local.get 2
+                i32.store
+                i32.const 18488
                 local.get 0
                 i32.const 2
                 i32.add
-                i32.store offset=8
+                i32.store
                 loop  ;; label = @7
                   block  ;; label = @8
                     local.get 0
@@ -5515,7 +5506,7 @@
                     local.set 0
                     local.get 1
                     i32.load16_u
-                    local.tee 4
+                    local.tee 2
                     i32.const 32
                     i32.ne
                     br_if 0 (;@8;)
@@ -5528,7 +5519,7 @@
                 block  ;; label = @7
                   block  ;; label = @8
                     block  ;; label = @9
-                      local.get 4
+                      local.get 2
                       i32.const 114
                       i32.sub
                       br_table 0 (;@9;) 3 (;@6;) 1 (;@8;) 3 (;@6;)
@@ -5536,11 +5527,11 @@
                     local.get 1
                     i32.const 4
                     i32.sub
-                    local.tee 4
+                    local.tee 2
                     local.get 3
                     i32.lt_u
                     br_if 2 (;@6;)
-                    local.get 4
+                    local.get 2
                     i32.load16_u
                     i32.const 118
                     i32.ne
@@ -5550,8 +5541,8 @@
                     i32.const 97
                     i32.ne
                     br_if 2 (;@6;)
+                    local.get 2
                     local.get 3
-                    local.get 4
                     i32.eq
                     br_if 1 (;@7;)
                     local.get 1
@@ -5566,11 +5557,11 @@
                     local.get 1
                     i32.const 4
                     i32.sub
-                    local.tee 4
+                    local.tee 2
                     local.get 3
                     i32.lt_u
                     br_if 0 (;@8;)
-                    local.get 4
+                    local.get 2
                     i32.load16_u
                     i32.const 108
                     i32.ne
@@ -5580,8 +5571,8 @@
                     i32.const 101
                     i32.ne
                     br_if 0 (;@8;)
+                    local.get 2
                     local.get 3
-                    local.get 4
                     i32.eq
                     br_if 1 (;@7;)
                     local.get 1
@@ -5594,11 +5585,11 @@
                   local.get 1
                   i32.const 8
                   i32.sub
-                  local.tee 5
+                  local.tee 4
                   local.get 3
                   i32.lt_u
                   br_if 1 (;@6;)
-                  local.get 5
+                  local.get 4
                   i32.load16_u
                   i32.const 99
                   i32.ne
@@ -5610,7 +5601,7 @@
                   i32.const 111
                   i32.ne
                   br_if 1 (;@6;)
-                  local.get 4
+                  local.get 2
                   i32.load16_u
                   i32.const 110
                   i32.ne
@@ -5621,7 +5612,7 @@
                   i32.ne
                   br_if 1 (;@6;)
                   local.get 3
-                  local.get 5
+                  local.get 4
                   i32.eq
                   br_if 0 (;@7;)
                   local.get 1
@@ -5632,15 +5623,61 @@
                   i32.eqz
                   br_if 1 (;@6;)
                 end
-                i32.const 20496
-                local.get 2
+                i32.const 4056
+                i32.const 4056
+                i64.load
+                local.tee 10
+                i64.const 20
+                i64.add
+                local.tee 11
+                i32.const 4064
+                i64.load
+                i64.gt_u
+                if (result i64)  ;; label = @7
+                  local.get 11
+                  call 2
+                  i32.const 4056
+                  i64.load
+                  local.tee 10
+                  i64.const 20
+                  i64.add
+                else
+                  local.get 11
+                end
+                i64.store
+                local.get 10
+                i32.wrap_i64
+                local.tee 0
+                i32.const 18480
+                i64.load align=4
+                i64.store align=4
+                local.get 0
+                i32.const 0
+                i32.store offset=16
+                local.get 0
+                i32.const 8
+                i32.add
+                i32.const 18488
+                i64.load align=4
+                i64.store align=4
+                i32.const 16404
+                i32.load
+                local.set 1
+                i32.const 16404
+                local.get 0
+                i32.store
+                local.get 1
                 i32.const 16
                 i32.add
+                i32.const 16400
+                local.get 1
+                select
+                local.get 0
                 i32.store
               end
             end
             block  ;; label = @5
-              i32.const 20504
+              i32.const 16412
               i32.load
               local.tee 1
               i32.load16_u
@@ -5732,7 +5769,7 @@
                 i32.or
                 br_if 3 (;@3;)
               end
-              i32.const 20504
+              i32.const 16412
               local.get 4
               i32.store
               local.get 4
@@ -5813,16 +5850,16 @@
             i32.add
             local.set 4
           end
-          i32.const 20504
+          i32.const 16412
           local.get 4
           i32.store
         end
-        i32.const 8184
-        i32.const 20504
+        i32.const 4088
+        i32.const 16412
         i32.load
         local.tee 5
         i32.store
-        i32.const 20508
+        i32.const 16416
         i32.load
         local.set 2
         local.get 5
@@ -5899,10 +5936,10 @@
     local.get 1)
   (func (;7;) (type 1) (result i32)
     (local i32 i32 i32 i32 i32)
-    i32.const 20508
+    i32.const 16416
     i32.load
     local.set 3
-    i32.const 20504
+    i32.const 16412
     i32.load
     local.set 1
     loop  ;; label = @1
@@ -6011,7 +6048,7 @@
           local.get 1
           local.set 0
         end
-        i32.const 20504
+        i32.const 16412
         local.get 0
         i32.const 2
         i32.add
@@ -6030,7 +6067,7 @@
     (local i32 i32 i32 i32 i32 i32 i32)
     block  ;; label = @1
       block  ;; label = @2
-        i32.const 20504
+        i32.const 16412
         i32.load
         local.tee 2
         i32.load16_u offset=2
@@ -6062,7 +6099,7 @@
         i32.const 101
         i32.ne
         br_if 0 (;@2;)
-        i32.const 20504
+        i32.const 16412
         local.get 2
         i32.const 14
         i32.add
@@ -6072,15 +6109,15 @@
           i32.const 40
           i32.ne
           br_if 0 (;@3;)
-          i32.const 20504
-          i32.const 20504
+          i32.const 16412
+          i32.const 16412
           i32.load
           i32.const 2
           i32.add
           i32.store
           call 7
           local.set 5
-          i32.const 20504
+          i32.const 16412
           i32.load
           local.set 4
           local.get 5
@@ -6091,7 +6128,7 @@
           i32.ne
           i32.and
           br_if 0 (;@3;)
-          i32.const 20508
+          i32.const 16416
           i32.load
           local.set 6
           local.get 4
@@ -6166,7 +6203,7 @@
             i32.shr_s
             i32.store
           end
-          i32.const 20504
+          i32.const 16412
           local.get 6
           i32.const 4
           i32.add
@@ -6182,18 +6219,16 @@
             i32.sub
             br_table 3 (;@1;) 3 (;@1;) 0 (;@4;)
           end
-          i32.const 20496
-          i32.load
-          local.tee 0
+          i32.const 18484
           local.get 1
-          i32.store offset=4
-          local.get 0
+          i32.store
+          i32.const 18480
           local.get 4
           i32.store
           i32.const 1
           return
         end
-        i32.const 20504
+        i32.const 16412
         local.get 2
         i32.store
       end
@@ -6208,8 +6243,8 @@
     i32.const 1)
   (func (;9;) (type 7) (param i32)
     (local i32 i32 i32 i32 i32 i32)
-    i32.const 20504
-    i32.const 20504
+    i32.const 16412
+    i32.const 16412
     i32.load
     local.tee 5
     i32.const 14
@@ -6231,20 +6266,20 @@
             i32.const 46
             i32.ne
             br_if 2 (;@2;)
-            i32.const 20504
-            i32.const 20504
+            i32.const 16412
+            i32.const 16412
             i32.load
             i32.const 2
             i32.add
             i32.store
             call 7
-            i32.const 20504
+            i32.const 16412
             i32.load
             local.set 1
             call 11
             i32.eqz
             br_if 2 (;@2;)
-            i32.const 20504
+            i32.const 16412
             i32.load
             local.set 0
             call 7
@@ -6258,8 +6293,8 @@
             call_indirect (type 0)
             return
           end
-          i32.const 20504
-          i32.const 20504
+          i32.const 16412
+          i32.const 16412
           i32.load
           i32.const 2
           i32.add
@@ -6273,10 +6308,10 @@
           i32.ne
           i32.and
           br_if 1 (;@2;)
-          i32.const 20508
+          i32.const 16416
           i32.load
           local.set 3
-          i32.const 20504
+          i32.const 16412
           i32.load
           local.tee 6
           local.set 0
@@ -6350,7 +6385,7 @@
             i32.shr_s
             i32.store
           end
-          i32.const 20504
+          i32.const 16412
           local.get 3
           i32.const 4
           i32.add
@@ -6360,8 +6395,8 @@
           i32.const 93
           i32.ne
           br_if 1 (;@2;)
-          i32.const 20504
-          i32.const 20504
+          i32.const 16412
+          i32.const 16412
           i32.load
           i32.const 2
           i32.add
@@ -6380,8 +6415,8 @@
         local.get 0
         i32.eqz
         br_if 0 (;@2;)
-        i32.const 20504
-        i32.const 20504
+        i32.const 16412
+        i32.const 16412
         i32.load
         i32.const 2
         i32.add
@@ -6401,36 +6436,36 @@
           i32.const 123
           i32.ne
           br_if 1 (;@2;)
-          i32.const 20504
+          i32.const 16412
           i32.load
           i32.const 2
           i32.sub
           local.set 5
           block  ;; label = @4
             loop  ;; label = @5
-              i32.const 20504
-              i32.const 20504
+              i32.const 16412
+              i32.const 16412
               i32.load
               local.tee 0
               i32.const 2
               i32.add
               i32.store
               local.get 0
-              i32.const 20508
+              i32.const 16416
               i32.load
               local.tee 3
               i32.ge_u
               br_if 4 (;@1;)
               call 7
               local.set 2
-              i32.const 20504
+              i32.const 16412
               i32.load
               local.set 1
               block  ;; label = @6
                 local.get 2
                 call 11
                 if  ;; label = @7
-                  i32.const 20504
+                  i32.const 16412
                   i32.load
                   local.set 3
                   block  ;; label = @8
@@ -6454,15 +6489,15 @@
                       br_if 1 (;@8;)
                       br 5 (;@4;)
                     end
-                    i32.const 20504
-                    i32.const 20504
+                    i32.const 16412
+                    i32.const 16412
                     i32.load
                     i32.const 2
                     i32.add
                     i32.store
                     call 7
                     call 11
-                    i32.const 20504
+                    i32.const 16412
                     i32.load
                     i32.load16_u
                     local.set 0
@@ -6497,7 +6532,7 @@
                     i32.ne
                     br_if 4 (;@4;)
                   end
-                  i32.const 20504
+                  i32.const 16412
                   i32.load
                   local.tee 6
                   local.set 0
@@ -6571,7 +6606,7 @@
                     i32.shr_s
                     i32.store
                   end
-                  i32.const 20504
+                  i32.const 16412
                   local.get 3
                   i32.const 4
                   i32.add
@@ -6582,8 +6617,8 @@
                   i32.const 58
                   i32.ne
                   br_if 1 (;@6;)
-                  i32.const 20504
-                  i32.const 20504
+                  i32.const 16412
+                  i32.const 16412
                   i32.load
                   i32.const 2
                   i32.add
@@ -6591,7 +6626,7 @@
                   call 7
                   call 11
                   i32.eqz
-                  i32.const 20504
+                  i32.const 16412
                   i32.load
                   i32.load16_u
                   local.tee 0
@@ -6606,7 +6641,7 @@
                   call_indirect (type 0)
                   br 1 (;@6;)
                 end
-                i32.const 20504
+                i32.const 16412
                 i32.load
                 local.tee 0
                 i32.load16_u offset=2
@@ -6618,7 +6653,7 @@
                 i32.const 46
                 i32.ne
                 br_if 2 (;@4;)
-                i32.const 20504
+                i32.const 16412
                 local.get 0
                 i32.const 6
                 i32.add
@@ -6633,7 +6668,7 @@
                     if (result i32)  ;; label = @9
                       i32.const 1
                       call 8
-                      i32.const 20504
+                      i32.const 16412
                       i32.load
                       local.set 0
                       br_if 1 (;@8;)
@@ -6649,7 +6684,7 @@
                     br_if 4 (;@4;)
                     br 1 (;@7;)
                   end
-                  i32.const 20504
+                  i32.const 16412
                   local.get 0
                   i32.const 2
                   i32.add
@@ -6671,7 +6706,7 @@
             i32.eq
             br_if 3 (;@1;)
           end
-          i32.const 20504
+          i32.const 16412
           local.get 5
           i32.store
           return
@@ -6680,7 +6715,7 @@
         call 8
         drop
       end
-      i32.const 20504
+      i32.const 16412
       local.get 5
       i32.const 12
       i32.add
@@ -6688,7 +6723,7 @@
     end)
   (func (;10;) (type 2) (param i32) (result i32)
     (local i32 i32)
-    i32.const 20504
+    i32.const 16412
     i32.load
     local.set 1
     block  ;; label = @1
@@ -6721,7 +6756,7 @@
         i32.const 101
         i32.ne
         br_if 1 (;@1;)
-        i32.const 20504
+        i32.const 16412
         local.get 1
         i32.const 12
         i32.add
@@ -6732,8 +6767,8 @@
         if  ;; label = @3
           br 2 (;@1;)
         end
-        i32.const 20504
-        i32.const 20504
+        i32.const 16412
+        i32.const 16412
         i32.load
         i32.const 2
         i32.add
@@ -6745,7 +6780,7 @@
       i32.const 101
       i32.ne
       br_if 0 (;@1;)
-      i32.const 20504
+      i32.const 16412
       i32.load
       local.tee 0
       i32.load16_u offset=2
@@ -6784,7 +6819,7 @@
       select
       local.set 1
     end
-    i32.const 20504
+    i32.const 16412
     local.get 1
     i32.store
     local.get 2)
@@ -6802,7 +6837,7 @@
         i32.shl
         i32.const 1047552
         i32.and
-        i32.const 20504
+        i32.const 16412
         i32.load
         i32.load16_u offset=2
         i32.const 1023
@@ -6818,7 +6853,7 @@
       i32.eqz
       br_if 0 (;@1;)
       drop
-      i32.const 20504
+      i32.const 16412
       i32.load
       i32.const 2
       i32.const 4
@@ -6830,7 +6865,7 @@
       local.set 1
       block  ;; label = @2
         loop  ;; label = @3
-          i32.const 20504
+          i32.const 16412
           local.get 1
           i32.store
           block  ;; label = @4
@@ -6892,7 +6927,7 @@
       i32.const 79
       i32.ne
       br_if 0 (;@1;)
-      i32.const 20504
+      i32.const 16412
       i32.load
       local.tee 2
       i32.load16_u offset=2
@@ -6919,7 +6954,7 @@
       i32.const 116
       i32.ne
       br_if 0 (;@1;)
-      i32.const 20504
+      i32.const 16412
       local.get 2
       i32.const 12
       i32.add
@@ -6928,8 +6963,8 @@
       i32.const 46
       i32.ne
       br_if 0 (;@1;)
-      i32.const 20504
-      i32.const 20504
+      i32.const 16412
+      i32.const 16412
       i32.load
       i32.const 2
       i32.add
@@ -6939,7 +6974,7 @@
       i32.const 112
       i32.eq
       if  ;; label = @2
-        i32.const 20504
+        i32.const 16412
         i32.load
         local.tee 2
         i32.load16_u offset=2
@@ -6981,7 +7016,7 @@
         i32.const 101
         i32.ne
         br_if 1 (;@1;)
-        i32.const 20504
+        i32.const 16412
         local.get 2
         i32.const 18
         i32.add
@@ -6990,8 +7025,8 @@
         i32.const 46
         i32.ne
         br_if 1 (;@1;)
-        i32.const 20504
-        i32.const 20504
+        i32.const 16412
+        i32.const 16412
         i32.load
         i32.const 2
         i32.add
@@ -7003,7 +7038,7 @@
       i32.const 104
       i32.ne
       br_if 0 (;@1;)
-      i32.const 20504
+      i32.const 16412
       i32.load
       local.tee 2
       i32.load16_u offset=2
@@ -7070,7 +7105,7 @@
       i32.const 121
       i32.ne
       br_if 0 (;@1;)
-      i32.const 20504
+      i32.const 16412
       local.get 2
       i32.const 28
       i32.add
@@ -7079,8 +7114,8 @@
       i32.const 46
       i32.ne
       br_if 0 (;@1;)
-      i32.const 20504
-      i32.const 20504
+      i32.const 16412
+      i32.const 16412
       i32.load
       i32.const 2
       i32.add
@@ -7089,7 +7124,7 @@
       i32.const 99
       i32.ne
       br_if 0 (;@1;)
-      i32.const 20504
+      i32.const 16412
       i32.load
       local.tee 2
       i32.load16_u offset=2
@@ -7106,7 +7141,7 @@
       i32.const 108
       i32.ne
       br_if 0 (;@1;)
-      i32.const 20504
+      i32.const 16412
       local.get 2
       i32.const 8
       i32.add
@@ -7115,8 +7150,8 @@
       i32.const 40
       i32.ne
       br_if 0 (;@1;)
-      i32.const 20504
-      i32.const 20504
+      i32.const 16412
+      i32.const 16412
       i32.load
       i32.const 2
       i32.add
@@ -7129,15 +7164,15 @@
       i32.const 44
       i32.ne
       br_if 0 (;@1;)
-      i32.const 20504
-      i32.const 20504
+      i32.const 16412
+      i32.const 16412
       i32.load
       i32.const 2
       i32.add
       i32.store
       call 7
       drop
-      i32.const 20504
+      i32.const 16412
       i32.load
       local.tee 2
       local.get 0
@@ -7147,7 +7182,7 @@
       local.tee 0
       call 0
       br_if 0 (;@1;)
-      i32.const 20504
+      i32.const 16412
       local.get 0
       local.get 2
       i32.add
@@ -7156,8 +7191,8 @@
       i32.const 41
       i32.ne
       br_if 0 (;@1;)
-      i32.const 20504
-      i32.const 20504
+      i32.const 16412
+      i32.const 16412
       i32.load
       i32.const 2
       i32.add
@@ -10494,8 +10529,10 @@
     i32.store16
     i32.const 4052
     local.get 0
-    i32.const 2
+    i32.const 5
     i32.add
+    i32.const -4
+    i32.and
     local.tee 0
     i32.store
     i32.const 4056
@@ -10689,7 +10726,7 @@
     i32.ne)
   (table (;0;) 4 4 funcref)
   (memory (;0;) 1)
-  (global (;0;) i32 (i32.const 35872))
+  (global (;0;) i32 (i32.const 31824))
   (export "memory" (memory 0))
   (export "__heap_base" (global 0))
   (export "sa" (func 16))
@@ -10707,4 +10744,4 @@
   (export "parseCJSWithOptions" (func 28))
   (elem (;0;) (i32.const 1) func 1 3 4)
   (data (;0;) (i32.const 1044) "\0b\00\00\00\02\00\00\00\19\00\00\00\02\00\00\00\12\00\00\00\02\00\00\00\01\00\00\00\02\00\00\00\0e\00\00\00\03\00\00\00\0d\00\00\00#\00\00\00z\00\00\00F\00\00\004\00\00\00\0c\01\00\00\1c\00\00\00\04\00\00\000\00\00\000\00\00\00\1f\00\00\00\0e\00\00\00\1d\00\00\00\06\00\00\00%\00\00\00\0b\00\00\00\1d\00\00\00\03\00\00\00#\00\00\00\05\00\00\00\07\00\00\00\02\00\00\00\04\00\00\00+\00\00\00\9d\00\00\00\13\00\00\00#\00\00\00\05\00\00\00#\00\00\00\05\00\00\00'\00\00\00\09\00\00\003\00\00\00\9d\00\00\006\01\00\00\0a\00\00\00\15\00\00\00\0b\00\00\00\07\00\00\00\99\00\00\00\05\00\00\00\03\00\00\00\00\00\00\00\02\00\00\00+\00\00\00\02\00\00\00\01\00\00\00\04\00\00\00\00\00\00\00\03\00\00\00\16\00\00\00\0b\00\00\00\16\00\00\00\0a\00\00\00\1e\00\00\00B\00\00\00\12\00\00\00\02\00\00\00\01\00\00\00\0b\00\00\00\15\00\00\00\0b\00\00\00\19\00\00\00G\00\00\007\00\00\00\07\00\00\00\01\00\00\00A\00\00\00\00\00\00\00\10\00\00\00\03\00\00\00\02\00\00\00\02\00\00\00\02\00\00\00\1c\00\00\00+\00\00\00\1c\00\00\00\04\00\00\00\1c\00\00\00$\00\00\00\07\00\00\00\02\00\00\00\1b\00\00\00\1c\00\00\005\00\00\00\0b\00\00\00\15\00\00\00\0b\00\00\00\12\00\00\00\0e\00\00\00\11\00\00\00o\00\00\00H\00\00\008\00\00\002\00\00\00\0e\00\00\002\00\00\00\0e\00\00\00#\00\00\00]\01\00\00)\00\00\00\07\00\00\00\01\00\00\00O\00\00\00\1c\00\00\00\0b\00\00\00\00\00\00\00\09\00\00\00\15\00\00\00k\00\00\00\14\00\00\00\1c\00\00\00\16\00\00\00\0d\00\00\004\00\00\00L\00\00\00,\00\00\00!\00\00\00\18\00\00\00\1b\00\00\00#\00\00\00\1e\00\00\00\00\00\00\00\03\00\00\00\00\00\00\00\09\00\00\00\22\00\00\00\04\00\00\00\00\00\00\00\0d\00\00\00/\00\00\00\0f\00\00\00\03\00\00\00\16\00\00\00\00\00\00\00\02\00\00\00\00\00\00\00$\00\00\00\11\00\00\00\02\00\00\00\18\00\00\00U\00\00\00\06\00\00\00\02\00\00\00\00\00\00\00\02\00\00\00\03\00\00\00\02\00\00\00\0e\00\00\00\02\00\00\00\09\00\00\00\08\00\00\00.\00\00\00'\00\00\00\07\00\00\00\03\00\00\00\01\00\00\00\03\00\00\00\15\00\00\00\02\00\00\00\06\00\00\00\02\00\00\00\01\00\00\00\02\00\00\00\04\00\00\00\04\00\00\00\00\00\00\00\13\00\00\00\00\00\00\00\0d\00\00\00\04\00\00\00\9f\00\00\004\00\00\00\13\00\00\00\03\00\00\00\15\00\00\00\02\00\00\00\1f\00\00\00/\00\00\00\15\00\00\00\01\00\00\00\02\00\00\00\00\00\00\00\b9\00\00\00.\00\00\00*\00\00\00\03\00\00\00%\00\00\00/\00\00\00\15\00\00\00\00\00\00\00<\00\00\00*\00\00\00\0e\00\00\00\00\00\00\00H\00\00\00\1a\00\00\00\e6\00\00\00+\00\00\00u\00\00\00?\00\00\00 \00\00\00\07\00\00\00\03\00\00\00\00\00\00\00\03\00\00\00\07\00\00\00\02\00\00\00\01\00\00\00\02\00\00\00\17\00\00\00\10\00\00\00\00\00\00\00\02\00\00\00\00\00\00\00_\00\00\00\07\00\00\00\03\00\00\00&\00\00\00\11\00\00\00\00\00\00\00\02\00\00\00\00\00\00\00\1d\00\00\00\00\00\00\00\0b\00\00\00'\00\00\00\08\00\00\00\00\00\00\00\16\00\00\00\00\00\00\00\0c\00\00\00-\00\00\00\14\00\00\00\00\00\00\00#\00\00\008\00\00\00\08\01\00\00\08\00\00\00\02\00\00\00$\00\00\00\12\00\00\00\00\00\00\002\00\00\00\1d\00\00\00q\00\00\00\06\00\00\00\02\00\00\00\01\00\00\00\02\00\00\00%\00\00\00\16\00\00\00\00\00\00\00\1a\00\00\00\05\00\00\00\02\00\00\00\01\00\00\00\02\00\00\00\1f\00\00\00\0f\00\00\00\00\00\00\00H\01\00\00\12\00\00\00\be\00\00\00\00\00\00\00P\00\00\00\99\03\00\00g\00\00\00n\00\00\00\12\00\00\00\c3\00\00\00\bd\0a\00\00.\04\00\00\d2\0f\00\00F\02\00\00\ba!\00\008\02\00\00\08\00\00\00\1e\00\00\00r\00\00\00\1d\00\00\00\13\00\00\00/\00\00\00\11\00\00\00\03\00\00\00 \00\00\00\14\00\00\00\06\00\00\00\12\00\00\00\b1\02\00\00?\00\00\00\81\00\00\00J\00\00\00\06\00\00\00\00\00\00\00C\00\00\00\0c\00\00\00A\00\00\00\01\00\00\00\02\00\00\00\00\00\00\00\1d\00\00\00\f7\17\00\00\09\00\00\00\d5\04\00\00+\00\00\00\08\00\00\00\f8\22\00\00\1e\01\00\002\00\00\00\02\00\00\00\12\00\00\00\03\00\00\00\09\00\00\00\8b\01\00\00\05\09\00\00j\00\00\00\06\00\00\00\0c\00\00\00\04\00\00\00\08\00\00\00\08\00\00\00\09\00\00\00g\17\00\00T\00\00\00\02\00\00\00F\00\00\00\02\00\00\00\01\00\00\00\03\00\00\00\00\00\00\00\03\00\00\00\01\00\00\00\03\00\00\00\03\00\00\00\02\00\00\00\0b\00\00\00\02\00\00\00\00\00\00\00\02\00\00\00\06\00\00\00\02\00\00\00@\00\00\00\02\00\00\00\03\00\00\00\03\00\00\00\07\00\00\00\02\00\00\00\06\00\00\00\02\00\00\00\1b\00\00\00\02\00\00\00\03\00\00\00\02\00\00\00\04\00\00\00\02\00\00\00\00\00\00\00\04\00\00\00\06\00\00\00\02\00\00\00S\01\00\00\03\00\00\00\18\00\00\00\02\00\00\00\18\00\00\00\02\00\00\00\1e\00\00\00\02\00\00\00\18\00\00\00\02\00\00\00\1e\00\00\00\02\00\00\00\18\00\00\00\02\00\00\00\1e\00\00\00\02\00\00\00\18\00\00\00\02\00\00\00\1e\00\00\00\02\00\00\00\18\00\00\00\02\00\00\00\07\00\00\005\09\00\00,\00\00\00\0b\00\00\00\06\00\00\00\11\00\00\00\00\00\00\00r\01\00\00+\00\00\00\15\05\00\00\c4\00\00\00<\00\00\00C\00\00\00\08\00\00\00\00\00\00\00\b5\04\00\00\03\00\00\00\02\00\00\00\1a\00\00\00\02\00\00\00\01\00\00\00\02\00\00\00\00\00\00\00\03\00\00\00\00\00\00\00\02\00\00\00\09\00\00\00\02\00\00\00\03\00\00\00\02\00\00\00\00\00\00\00\02\00\00\00\00\00\00\00\07\00\00\00\00\00\00\00\05\00\00\00\00\00\00\00\02\00\00\00\00\00\00\00\02\00\00\00\00\00\00\00\02\00\00\00\02\00\00\00\02\00\00\00\01\00\00\00\02\00\00\00\00\00\00\00\03\00\00\00\00\00\00\00\02\00\00\00\00\00\00\00\02\00\00\00\00\00\00\00\02\00\00\00\00\00\00\00\02\00\00\00\00\00\00\00\02\00\00\00\01\00\00\00\02\00\00\00\00\00\00\00\03\00\00\00\03\00\00\00\02\00\00\00\06\00\00\00\02\00\00\00\03\00\00\00\02\00\00\00\03\00\00\00\02\00\00\00\00\00\00\00\02\00\00\00\09\00\00\00\02\00\00\00\10\00\00\00\06\00\00\00\02\00\00\00\02\00\00\00\04\00\00\00\02\00\00\00\10\00\00\00E\11\00\00\dd\a6\00\00#\00\00\004\10\00\00\0c\00\00\00\dd\00\00\00\03\00\00\00\81\16\00\00\0f\00\00\000\1d\00\00 \0c\00\00\1d\02\00\00\e3\05\00\00J\13\00\00\fd\01\00\00\00\00\00\00\e3\00\00\00\00\00\00\00\96\00\00\00\04\00\00\00&\01\00\00\09\00\00\00X\05\00\00\02\00\00\00\02\00\00\00\01\00\00\00\06\00\00\00\03\00\00\00)\00\00\00\02\00\00\00\05\00\00\00\00\00\00\00\a6\00\00\00\01\00\00\00>\02\00\00\03\00\00\00\09\00\00\00\09\00\00\00r\01\00\00\01\00\00\00\9a\00\00\00\0a\00\00\00\b0\00\00\00\02\00\00\006\00\00\00\0e\00\00\00 \00\00\00\09\00\00\00\10\00\00\00\03\00\00\00.\00\00\00\0a\00\00\006\00\00\00\09\00\00\00\07\00\00\00\02\00\00\00%\00\00\00\0d\00\00\00\02\00\00\00\09\00\00\00\06\00\00\00\01\00\00\00-\00\00\00\00\00\00\00\0d\00\00\00\02\00\00\001\00\00\00\0d\00\00\00\09\00\00\00\03\00\00\00\02\00\00\00\0b\00\00\00S\00\00\00\0b\00\00\00\07\00\00\00\00\00\00\00\a1\00\00\00\0b\00\00\00\06\00\00\00\09\00\00\00\07\00\00\00\03\00\00\008\00\00\00\01\00\00\00\02\00\00\00\06\00\00\00\03\00\00\00\01\00\00\00\03\00\00\00\02\00\00\00\0a\00\00\00\00\00\00\00\0b\00\00\00\01\00\00\00\03\00\00\00\06\00\00\00\04\00\00\00\04\00\00\00\c1\00\00\00\11\00\00\00\0a\00\00\00\09\00\00\00\05\00\00\00\00\00\00\00R\00\00\00\13\00\00\00\0d\00\00\00\09\00\00\00\d6\00\00\00\06\00\00\00\03\00\00\00\08\00\00\00\1c\00\00\00\01\00\00\00S\00\00\00\10\00\00\00\10\00\00\00\09\00\00\00R\00\00\00\0c\00\00\00\09\00\00\00\09\00\00\00T\00\00\00\0e\00\00\00\05\00\00\00\09\00\00\00\f3\00\00\00\0e\00\00\00\a6\00\00\00\09\00\00\00G\00\00\00\05\00\00\00\02\00\00\00\01\00\00\00\03\00\00\00\03\00\00\00\02\00\00\00\00\00\00\00\02\00\00\00\01\00\00\00\0d\00\00\00\09\00\00\00x\00\00\00\06\00\00\00\03\00\00\00\06\00\00\00\04\00\00\00\00\00\00\00\1d\00\00\00\09\00\00\00)\00\00\00\06\00\00\00\02\00\00\00\03\00\00\00\09\00\00\00\00\00\00\00\0a\00\00\00\0a\00\00\00/\00\00\00\0f\00\00\00\96\01\00\00\07\00\00\00\02\00\00\00\07\00\00\00\11\00\00\00\09\00\00\009\00\00\00\15\00\00\00\02\00\00\00\0d\00\00\00{\00\00\00\05\00\00\00\04\00\00\00\00\00\00\00\02\00\00\00\01\00\00\00\02\00\00\00\06\00\00\00\02\00\00\00\00\00\00\00\09\00\00\00\09\00\00\001\00\00\00\04\00\00\00\02\00\00\00\01\00\00\00\02\00\00\00\04\00\00\00\09\00\00\00\09\00\00\00J\01\00\00\03\00\00\00jK\00\00\09\00\00\00\87\00\00\00\04\00\00\00<\00\00\00\06\00\00\00\1a\00\00\00\09\00\00\00\f6\03\00\00\00\00\00\00\02\00\00\006\00\00\00\08\00\00\00\03\00\00\00R\00\00\00\00\00\00\00\0c\00\00\00\01\00\00\00\acL\00\00\01\00\00\00\c7\14\00\00\04\00\00\00\04\00\00\00\05\00\00\00\09\00\00\00\07\00\00\00\03\00\00\00\06\00\00\00\1f\00\00\00\03\00\00\00\95\00\00\00\02\00\00\00\8a\05\00\001\00\00\00\01\02\00\006\00\00\00\05\00\00\001\00\00\00\09\00\00\00\00\00\00\00\0f\00\00\00\00\00\00\00\17\00\00\00\04\00\00\00\02\00\00\00\0e\00\00\00Q\05\00\00\06\00\00\00\02\00\00\00\10\00\00\00\03\00\00\00\06\00\00\00\02\00\00\00\01\00\00\00\02\00\00\00\04\00\00\00\06\01\00\00\06\00\00\00\0a\00\00\00\09\00\00\00\a3\01\00\00\0d\00\00\00\d7\05\00\00\06\00\00\00n\00\00\00\06\00\00\00\06\00\00\00\09\00\00\00\97\12\00\00\09\00\00\00\07\05\0c\00\ef")
-  (data (;1;) (i32.const 3992) " \8c\00\00\01\00\00\00\02\00\00\00\03"))
+  (data (;1;) (i32.const 3992) "P|\00\00\01\00\00\00\02\00\00\00\03"))

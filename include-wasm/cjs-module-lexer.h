@@ -21,6 +21,7 @@ struct StarExportBinding {
   const uint16_t* specifier_end;
   const uint16_t* id_start;
   const uint16_t* id_end;
+  struct StarExportBinding* next;
 };
 typedef struct StarExportBinding StarExportBinding;
 
@@ -45,7 +46,8 @@ const uint16_t* sa (uint32_t utf16Len) {
   const uint16_t* sourceEnd = source + utf16Len + 1;
   // ensure source is null terminated
   *(uint16_t*)(source + utf16Len) = '\0';
-  analysis_base = (void*)sourceEnd;
+  const uintptr_t alignment = _Alignof(Slice);
+  analysis_base = (void*)(((uintptr_t)sourceEnd + alignment - 1) & ~(alignment - 1));
   analysis_head = (uintptr_t)analysis_base;
   analysis_limit = (uint64_t)__builtin_wasm_memory_size(0) << 16;
   first_export = NULL;

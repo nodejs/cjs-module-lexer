@@ -49,6 +49,76 @@ suite('Wasm analysis capacity', () => {
   }
 });
 
+suite('Wasm binding capacity', () => {
+  const reexport = 'Object.keys(last).forEach(function (key) {' +
+    ' if (key === "default" || key === "__esModule") return; exports[key] = last[key]; });';
+
+  for (const remaining of [32, 30, 20, 18]) {
+    test(`binding and reexport with ${remaining} analysis bytes remaining`, () => {
+      const wasm = new WebAssembly.Instance(new WebAssembly.Module(binary)).exports;
+      const memory = wasm.memory.buffer;
+      const bytes = memory.byteLength;
+      const prefix = 'var v=0;module.exports={';
+      const suffix = 'v};var last=require("last");' + reexport;
+      const available = bytes - wasm.__heap_base.value - 2 * (prefix.length + suffix.length + 1) - 12;
+      const count = Math.floor((available - remaining) / 16);
+      const padding = (available - count * 16 - remaining) / 2;
+      const source = prefix + 'v,'.repeat(count) + suffix + ' '.repeat(padding);
+      const address = wasm.sa(source.length);
+      Buffer.from(memory, address, source.length * 2).write(source, 'utf16le');
+
+      assert.equal(wasm.parseCJS(address, source.length, 0, 0, 0), 0);
+      assert.equal(wasm.memory.buffer.byteLength, bytes + (remaining === 32 ? 0 : 65536));
+      assert.equal(wasm.rre(), 1);
+      assert.equal(source.slice(wasm.res(), wasm.ree()), '"last"');
+      assert.equal(wasm.rre(), 0);
+      let records = 0;
+      while (wasm.re()) {
+        assert.equal(source.slice(wasm.es(), wasm.ee()), 'v');
+        records++;
+      }
+      assert.equal(records, count + 1);
+    });
+  }
+
+  const denseExports = 'module.exports={' + 'a,'.repeat(20000) + 'a};';
+  const cases = [
+    {
+      name: 'minimal bindings',
+      source: 'var a=require("");'.repeat(4096) + 'var last=require("last");' + reexport,
+      expected: { exports: [], reexports: ['last'] }
+    },
+    {
+      name: 'interleaved bindings and results',
+      source: 'var a=require("");exports.value=1;__exportStar(require("side"),exports);'.repeat(2048) +
+        'var last=require("last");' + reexport,
+      expected: { exports: ['value'], reexports: ['side', 'last'] }
+    },
+    {
+      name: 'dense exports after bindings',
+      source: 'var a=require("a");'.repeat(5000) + denseExports,
+      expected: { exports: ['a'], reexports: [] }
+    },
+    { name: 'dense exports without bindings', source: denseExports, expected: { exports: ['a'], reexports: [] } }
+  ];
+
+  for (const mode of ['automatic', 'async', 'sync']) {
+    for (const { name, source, expected } of cases) {
+      for (const padding of ['', ' ']) {
+        test(`${name} with ${mode} initialization and ${padding.length} padding`, async () => {
+          const lexer = await import(`../dist/lexer.mjs?binding-${name}-${mode}-${padding.length}`);
+          if (mode === 'async') await lexer.init();
+          if (mode === 'sync') lexer.initSync();
+          const result = lexer.parse(padding + source);
+          assert.deepStrictEqual(result, expected);
+          assert.deepStrictEqual(lexer.parse(reexport), { exports: [], reexports: [] });
+          assert.deepStrictEqual(result, expected);
+        });
+      }
+    }
+  }
+});
+
 suite('Wasm source reservation', () => {
   const reference = new WebAssembly.Instance(new WebAssembly.Module(binary)).exports;
   const bytes = reference.memory.buffer.byteLength;
