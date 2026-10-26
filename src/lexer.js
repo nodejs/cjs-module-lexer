@@ -9,7 +9,11 @@ const hasBuffer = typeof Buffer !== 'undefined';
  * @param {import('../lexer').ParseOptions} [options]
  */
 export function parse (source, name = '@', options) {
-  const flags = options && options.allowMinifiedEnumerable === true ? 1 : 0;
+  const mode = options ? options.mode : undefined;
+  if (mode !== undefined && mode !== 'default' && mode !== 'extended')
+    throw new TypeError('Expected options.mode to be "default" or "extended".');
+  const flags = (options && options.allowMinifiedEnumerable === true ? 1 : 0) |
+    (mode === 'extended' ? 2 : 0);
   if (!wasm)
     initSync();
 

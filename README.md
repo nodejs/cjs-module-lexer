@@ -85,7 +85,42 @@ const { exports } = parse(
 // exports === ['b']
 ```
 
-### Grammar
+### Extended detection
+
+The third argument selects an opt-in detection mode:
+
+```js
+parse(source, filename, { mode: 'extended' });
+```
+
+Omitting the options, using `{}`, or selecting `mode: 'default'` preserves default detection.
+An invalid mode throws a `TypeError`.
+`allowMinifiedEnumerable` can be used with either mode.
+Both modes use the existing lexer and assume valid JavaScript input.
+They do not execute the source or validate the complete JavaScript grammar.
+
+Extended mode detects literal names in `Object.defineProperty` calls regardless of the descriptor expression or getter body.
+It also detects names in object literals passed to `Object.defineProperties(exports, ...)` or assigned to `module.exports`.
+Object values can contain arbitrary expressions.
+Methods, accessors, and computed string literal keys contribute their names.
+Parentheses around these object literals are supported.
+Parenthesized comma expressions can skip leading identifiers, integer literals, string literals, and empty object literals.
+Other comma expressions are not supported.
+For `module.exports = ({ a: 1 }, { b: 2 })`, extended mode detects `a`, although the expression evaluates to `{ b: 2 }`.
+The same limitation applies to `Object.defineProperties`.
+Direct reexport assignments contribute all detected dependencies instead of only the last assignment.
+Object spreads of `require('literal')` contribute reexports, but named properties with require-valued expressions do not.
+
+The result contains syntactic candidates, which can include non-enumerable properties, throwing getters, and unreachable assignments.
+Extended mode does not apply the default getter side-effect veto.
+It does not resolve bindings or aliases, evaluate computed names, or determine runtime control flow.
+Names created by dynamic expressions can therefore remain undetected, and shadowed identifiers can produce false positives.
+
+Division and regular-expression detection remains heuristic.
+Ambiguous cases can cause extended mode's bracket tracking to report parse errors on valid JavaScript.
+Selecting extended mode in this package does not change Node.js's built-in CommonJS detection.
+
+### Grammar (default mode)
 
 CommonJS exports matches are run against the source token stream. The grammar below describes default detection.
 
