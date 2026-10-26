@@ -308,6 +308,7 @@ void tryBacktrackAddStarExportBinding (uint16_t* bPos) {
           break;
         default: return;
       }
+      ensureAnalysisCapacity(sizeof(StarExportBinding));
       StarExportBinding* binding = (StarExportBinding*)(uintptr_t)analysis_head;
       analysis_head += sizeof(StarExportBinding);
       *binding = starExportBinding_;
