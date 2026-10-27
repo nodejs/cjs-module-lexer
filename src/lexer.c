@@ -6,7 +6,7 @@ const uint16_t __empty_char = '\0';
 const uint16_t* EMPTY_CHAR = &__empty_char;
 // tracked depth of template and brackets
 #define STACK_DEPTH 2048
-enum TokenType { ClassToken = 1, ExportObjectToken = 2 };
+enum TokenType { ClassToken = 1, ExportObjectToken = 2, WebpackTableToken = 4 };
 const uint16_t* source;
 
 bool lastSlashWasDivision;
@@ -23,6 +23,53 @@ bool nextBraceIsClass;
 bool allowMinifiedEnumerable;
 static bool extended;
 static uint16_t* exportObjectPos;
+
+typedef struct WebpackDependency {
+  const uint16_t* start;
+  const uint16_t* end;
+  bool star;
+  struct WebpackDependency* next;
+} WebpackDependency;
+
+typedef struct WebpackModule {
+  const uint16_t* start;
+  const uint16_t* end;
+  const uint16_t* target;
+  uint32_t targetLength;
+  const uint16_t* module;
+  uint32_t moduleLength;
+  uint32_t hash;
+  uint32_t depth;
+  uint8_t visited;
+  uint8_t requested;
+  bool queued;
+  Slice* exports;
+  Slice* exportsTail;
+  Slice* reexports;
+  Slice* reexportsTail;
+  Slice* imports;
+  Slice* importsTail;
+  WebpackDependency* dependencies;
+  WebpackDependency* dependenciesTail;
+  struct WebpackModule* next;
+  struct WebpackModule* bucketNext;
+  struct WebpackModule* queueNext;
+} WebpackModule;
+
+static uint16_t* webpackTablePos;
+static uint16_t* webpackFactoryPos;
+static const uint16_t* webpackEntryStart;
+static const uint16_t* webpackEntryEnd;
+static WebpackModule* webpackModules;
+static WebpackModule* webpackModulesTail;
+static WebpackModule* webpackCurrent;
+static WebpackModule* webpackPending;
+static WebpackModule webpackInlineRoot;
+static WebpackModule** webpackBuckets;
+static uint32_t webpackCapacity, webpackCount;
+static bool webpackPublished, webpackInvalid, webpackInline;
+static void (*webpackAddExport)(const uint16_t*, const uint16_t*);
+static void (*webpackAddReexport)(const uint16_t*, const uint16_t*);
 
 uint16_t* lastReexportStart;
 uint16_t* lastReexportEnd;
@@ -48,6 +95,365 @@ void (*clearReexports)();
 
 static bool isStatementBrace (uint16_t* curPos, uint16_t depth);
 static uint16_t readExportExpressionStart ();
+static bool readWebpackToken (uint16_t ch);
+static void readWebpackFactory ();
+static void finishWebpack ();
+static void captureWebpackExport (const uint16_t* start, const uint16_t* end);
+static void captureWebpackReexport (const uint16_t* start, const uint16_t* end);
+static void addWebpackDependency (const uint16_t* start, const uint16_t* end, bool star);
+static bool readWebpackCall (const uint16_t** start, const uint16_t** end);
+
+typedef struct WebpackText {
+  const uint16_t* pos;
+  const uint16_t* end;
+  uint16_t pending;
+} WebpackText;
+
+static WebpackText webpackText (const uint16_t* start, const uint16_t* end) {
+  if (start < end && (*start == '\'' || *start == '"')) { start++; end--; }
+  return (WebpackText){ start, end, 0 };
+}
+
+static uint32_t readWebpackUnit (WebpackText* text) {
+  if (text->pending) {
+    uint32_t unit = text->pending;
+    text->pending = 0;
+    return unit;
+  }
+  while (text->pos < text->end) {
+    uint32_t unit = *text->pos++;
+    if (unit != '\\' || text->pos == text->end) return unit;
+    unit = *text->pos++;
+    if (unit == '\n' || unit == '\r') {
+      if (unit == '\r' && text->pos < text->end && *text->pos == '\n') text->pos++;
+      continue;
+    }
+    if (unit == 'u' || unit == 'x') {
+      uint32_t count = unit == 'u' ? 4 : 2;
+      bool braces = unit == 'u' && text->pos < text->end && *text->pos == '{';
+      if (braces) { text->pos++; count = 6; }
+      unit = 0;
+      while (count-- && text->pos < text->end && *text->pos != '}') {
+        uint16_t digit = *text->pos++;
+        unit = unit * 16 + (digit <= '9' ? digit - '0' : (digit | 32) - 'a' + 10);
+      }
+      if (braces && text->pos < text->end && *text->pos == '}') text->pos++;
+      if (unit > 0xffff) {
+        text->pending = 0xdc00 + ((unit - 0x10000) & 0x3ff);
+        unit = 0xd800 + ((unit - 0x10000) >> 10);
+      }
+    }
+    else if (unit >= '0' && unit <= '7') {
+      unit -= '0';
+      for (uint32_t i = 0; i < 2 && text->pos < text->end && *text->pos >= '0' &&
+           *text->pos <= '7' && unit * 8 + *text->pos - '0' <= 255; i++)
+        unit = unit * 8 + *text->pos++ - '0';
+    }
+    else {
+      switch (unit) {
+        case 'n': unit = '\n'; break;
+        case 'r': unit = '\r'; break;
+        case 't': unit = '\t'; break;
+        case 'b': unit = '\b'; break;
+        case 'f': unit = '\f'; break;
+        case 'v': unit = '\v'; break;
+      }
+    }
+    return unit;
+  }
+  return UINT32_MAX;
+}
+
+static uint32_t webpackHash (const uint16_t* start, const uint16_t* end) {
+  WebpackText text = webpackText(start, end);
+  uint32_t hash = 2166136261u, unit;
+  while ((unit = readWebpackUnit(&text)) != UINT32_MAX) hash = (hash ^ unit) * 16777619u;
+  return hash;
+}
+
+static bool webpackEqual (const uint16_t* start, const uint16_t* end,
+                          const uint16_t* other, const uint16_t* otherEnd) {
+  WebpackText left = webpackText(start, end), right = webpackText(other, otherEnd);
+  uint32_t unit;
+  do {
+    unit = readWebpackUnit(&left);
+    if (unit != readWebpackUnit(&right)) return false;
+  } while (unit != UINT32_MAX);
+  return true;
+}
+
+static WebpackModule* findWebpackModule (const uint16_t* start, const uint16_t* end) {
+  if (!webpackCapacity) return NULL;
+  uint32_t hash = webpackHash(start, end);
+  for (WebpackModule* module = webpackBuckets[hash & (webpackCapacity - 1)]; module; module = module->bucketNext)
+    if (module->hash == hash && webpackEqual(start, end, module->start, module->end)) return module;
+  return NULL;
+}
+
+static WebpackModule* createWebpackModule (const uint16_t* start, const uint16_t* end) {
+  if (!webpackCapacity || webpackCount == webpackCapacity / 2) {
+    if (webpackCapacity > UINT32_MAX / 2 / sizeof(WebpackModule*)) {
+      syntaxError(12);
+      return NULL;
+    }
+    webpackCapacity = webpackCapacity ? webpackCapacity * 2 : 16;
+    size_t bytes = webpackCapacity * sizeof(WebpackModule*);
+    ensureAnalysisCapacity(bytes);
+    webpackBuckets = (WebpackModule**)(uintptr_t)analysis_head;
+    analysis_head += bytes;
+    for (uint32_t i = 0; i < webpackCapacity; i++) webpackBuckets[i] = NULL;
+    for (WebpackModule* module = webpackModules; module; module = module->next) {
+      uint32_t bucket = module->hash & (webpackCapacity - 1);
+      module->bucketNext = webpackBuckets[bucket];
+      webpackBuckets[bucket] = module;
+    }
+  }
+  if (findWebpackModule(start, end)) webpackInvalid = true;
+  ensureAnalysisCapacity(sizeof(WebpackModule));
+  WebpackModule* module = (WebpackModule*)(uintptr_t)analysis_head;
+  analysis_head += sizeof(WebpackModule);
+  *module = (WebpackModule){ .start = start, .end = end, .hash = webpackHash(start, end) };
+  uint32_t bucket = module->hash & (webpackCapacity - 1);
+  module->bucketNext = webpackBuckets[bucket];
+  webpackBuckets[bucket] = module;
+  if (webpackModulesTail) webpackModulesTail->next = module;
+  else webpackModules = module;
+  webpackModulesTail = module;
+  webpackCount++;
+  return module;
+}
+
+static void captureWebpackSlice (const uint16_t* start, const uint16_t* end, Slice** first, Slice** last) {
+  ensureAnalysisCapacity(sizeof(Slice));
+  Slice* slice = (Slice*)(uintptr_t)analysis_head;
+  analysis_head += sizeof(Slice);
+  *slice = (Slice){ start, end, NULL };
+  if (*last) (*last)->next = slice;
+  else *first = slice;
+  *last = slice;
+}
+
+static void captureWebpackExport (const uint16_t* start, const uint16_t* end) {
+  captureWebpackSlice(start, end, &webpackCurrent->exports, &webpackCurrent->exportsTail);
+}
+
+static void captureWebpackReexport (const uint16_t* start, const uint16_t* end) {
+  captureWebpackSlice(start, end, &webpackCurrent->reexports, &webpackCurrent->reexportsTail);
+}
+
+static void addWebpackDependency (const uint16_t* start, const uint16_t* end, bool star) {
+  WebpackModule* owner = webpackCurrent ? webpackCurrent : &webpackInlineRoot;
+  ensureAnalysisCapacity(sizeof(WebpackDependency));
+  WebpackDependency* dependency = (WebpackDependency*)(uintptr_t)analysis_head;
+  analysis_head += sizeof(WebpackDependency);
+  *dependency = (WebpackDependency){ start, end, star, NULL };
+  if (owner->dependenciesTail) owner->dependenciesTail->next = dependency;
+  else owner->dependencies = dependency;
+  owner->dependenciesTail = dependency;
+}
+
+static bool readWebpackId (const uint16_t** start, const uint16_t** finish) {
+  uint16_t ch = commentWhitespace();
+  *start = pos;
+  if (ch == '\'' || ch == '"') { stringLiteral(ch); pos++; }
+  else if (ch >= '0' && ch <= '9') { while (*pos >= '0' && *pos <= '9') pos++; }
+  else if (!identifier(ch)) return false;
+  *finish = pos;
+  return !error;
+}
+
+static bool readWebpackCall (const uint16_t** start, const uint16_t** finish) {
+  uint16_t* revert = pos;
+  if (str_eq18(pos + 1, '_', 'w', 'e', 'b', 'p', 'a', 'c', 'k', '_', 'r', 'e', 'q', 'u', 'i', 'r', 'e', '_', '_')) {
+    pos += 19;
+    if (commentWhitespace() == '(') {
+      pos++;
+      uint16_t ch = commentWhitespace();
+      if ((ch == '\'' || ch == '"' || ch >= '0' && ch <= '9') &&
+          readWebpackId(start, finish) && commentWhitespace() == ')') {
+        pos++;
+        ch = commentWhitespace();
+        if (pos > end || ch == ';' || ch == ',' || ch == ')' || ch == '}') return true;
+      }
+    }
+  }
+  pos = revert;
+  return false;
+}
+
+static uint32_t webpackCharAt (const uint16_t* at) {
+  if (at > end) return 0;
+  uint16_t ch = *at;
+  return (ch & 0xfc00) == 0xd800 ? (((ch & 0x3ff) << 10) | (*(at + 1) & 0x3ff)) + 0x10000 : ch;
+}
+
+static bool matchesWebpackBinding (const uint16_t* binding, uint32_t length) {
+  return binding && (size_t)(end - pos + 1) >= length && *pos == *binding &&
+    memcmp(pos, binding, length * sizeof(uint16_t)) == 0 && !isIdentifierChar(webpackCharAt(pos + length));
+}
+
+static bool readWebpackToken (uint16_t ch) {
+  if (webpackCurrent) {
+    if (matchesWebpackBinding(webpackCurrent->target, webpackCurrent->targetLength)) {
+      tryParseExportsDotAssign(false, webpackCurrent->targetLength);
+      return true;
+    }
+    if (matchesWebpackBinding(webpackCurrent->module, webpackCurrent->moduleLength)) {
+      tryParseModuleExportsDotAssign(webpackCurrent->moduleLength);
+      return true;
+    }
+  }
+  if (ch != '_') return false;
+  uint16_t* start = pos;
+  if (str_eq18(pos + 1, '_', 'w', 'e', 'b', 'p', 'a', 'c', 'k', '_', 'm', 'o', 'd', 'u', 'l', 'e', 's', '_', '_') &&
+      !isIdentifierChar(webpackCharAt(pos + 19))) {
+    pos += 19;
+    if (commentWhitespace() == '=') {
+      pos++;
+      uint16_t next = commentWhitespace();
+      if (next == '(') next = readExportExpressionStart();
+      if (next == '{') {
+        if (webpackTablePos) webpackInvalid = true;
+        else webpackTablePos = pos;
+      }
+    }
+    pos = start;
+    return false;
+  }
+  if (str_eq18(pos + 1, '_', 'w', 'e', 'b', 'p', 'a', 'c', 'k', '_', 'e', 'x', 'p', 'o', 'r', 't', 's', '_', '_') &&
+      !isIdentifierChar(webpackCharAt(pos + 19))) {
+    if (webpackTablePos && !webpackCurrent) {
+      pos += 19;
+      if (commentWhitespace() == '=') {
+        pos++;
+        webpackInline = commentWhitespace() == '{';
+        webpackEntryStart = webpackEntryEnd = NULL;
+        const uint16_t *id, *idEnd;
+        if (readWebpackCall(&id, &idEnd)) { webpackEntryStart = id; webpackEntryEnd = idEnd; }
+      }
+    }
+    pos = start;
+    tryParseExportsDotAssign(false, 19);
+    return true;
+  }
+  if (!str_eq18(pos + 1, '_', 'w', 'e', 'b', 'p', 'a', 'c', 'k', '_', 'r', 'e', 'q', 'u', 'i', 'r', 'e', '_', '_') ||
+      isIdentifierChar(webpackCharAt(pos + 19))) return false;
+  if ((webpackCurrent ? openTokenDepth == webpackCurrent->depth : webpackInline) &&
+      readWebpackCall(&starExportBinding_.specifier_start, &starExportBinding_.specifier_end)) {
+    WebpackModule* owner = webpackCurrent ? webpackCurrent : &webpackInlineRoot;
+    captureWebpackSlice(starExportBinding_.specifier_start, starExportBinding_.specifier_end,
+      &owner->imports, &owner->importsTail);
+    tryBacktrackAddStarExportBinding(start - 1);
+    return true;
+  }
+  pos = start + 19;
+  if (commentWhitespace() == '.') {
+    pos++;
+    if (commentWhitespace() == 'd') {
+      pos++;
+      if (commentWhitespace() == '(') {
+        pos++;
+        if (readExportsOrModuleDotExports(commentWhitespace()) && commentWhitespace() == ',') {
+          pos++;
+          if (commentWhitespace() == '{') exportObjectPos = pos;
+        }
+      }
+    }
+  }
+  pos = start;
+  return false;
+}
+
+static void readWebpackFactory () {
+  uint16_t* revert = pos;
+  const uint16_t *id, *idEnd, *module = NULL, *moduleEnd = NULL, *target = NULL, *targetEnd = NULL, *ignored, *ignoredEnd;
+  pos++;
+  bool found = readWebpackId(&id, &idEnd);
+  if (found && commentWhitespace() == ':') {
+    pos++;
+    uint16_t ch = commentWhitespace();
+    if (ch == '(') {
+      uint16_t* opening = pos++;
+      ch = commentWhitespace();
+      if (ch != '(' && !(ch == 'f' && str_eq7(pos + 1, 'u', 'n', 'c', 't', 'i', 'o', 'n'))) { pos = opening; ch = '('; }
+    }
+    bool fn = ch == 'f' && str_eq7(pos + 1, 'u', 'n', 'c', 't', 'i', 'o', 'n');
+    if (fn) { pos += 8; ch = commentWhitespace(); }
+    if (ch == '(') {
+      pos++;
+      if (commentWhitespace() != ')') readWebpackId(&module, &moduleEnd);
+      ch = commentWhitespace();
+      if (ch == ',') {
+        pos++;
+        readWebpackId(&target, &targetEnd);
+        ch = commentWhitespace();
+        if (ch == ',') { pos++; readWebpackId(&ignored, &ignoredEnd); ch = commentWhitespace(); }
+      }
+      if (ch == ')') {
+        pos++;
+        ch = commentWhitespace();
+        if (!fn && ch == '=' && *(pos + 1) == '>') { pos += 2; ch = commentWhitespace(); }
+        if (ch == '{') {
+          webpackFactoryPos = pos;
+          webpackPending = createWebpackModule(id, idEnd);
+          if (webpackPending) {
+            webpackPending->target = target;
+            webpackPending->targetLength = target ? targetEnd - target : 0;
+            webpackPending->module = module;
+            webpackPending->moduleLength = module ? moduleEnd - module : 0;
+          }
+        }
+      }
+    }
+  }
+  if (found && (!webpackFactoryPos || webpackFactoryPos <= revert)) webpackInvalid = true;
+  if (!error) pos = revert;
+}
+
+static void finishWebpack () {
+  WebpackModule* first = NULL;
+  WebpackModule* last = NULL;
+  if (webpackPublished && (webpackEntryStart || webpackInline) && !webpackInvalid) {
+    first = last = webpackEntryStart ? findWebpackModule(webpackEntryStart, webpackEntryEnd) : &webpackInlineRoot;
+    if (!first) webpackInvalid = true;
+    else { first->requested = 2; first->queued = true; }
+  }
+  while (first && !webpackInvalid) {
+    WebpackModule* module = first;
+    first = first->queueNext;
+    if (!first) last = NULL;
+    module->queued = false;
+    uint8_t flag = module->requested & 2 ? 2 : 1;
+    if (module->visited & flag) continue;
+    module->visited |= flag;
+    static const uint16_t defaultName[] = { 'd', 'e', 'f', 'a', 'u', 'l', 't' };
+    static const uint16_t esModuleName[] = { '_', '_', 'e', 's', 'M', 'o', 'd', 'u', 'l', 'e' };
+    for (Slice* slice = module->exports; slice; slice = slice->next)
+      if (flag == 2 || !webpackEqual(slice->start, slice->end, defaultName, defaultName + 7) &&
+          !webpackEqual(slice->start, slice->end, esModuleName, esModuleName + 10))
+        webpackAddExport(slice->start, slice->end);
+    for (Slice* slice = module->reexports; slice; slice = slice->next)
+      webpackAddReexport(slice->start, slice->end);
+    for (WebpackDependency* dependency = module->dependencies; dependency; dependency = dependency->next) {
+      WebpackModule* target = findWebpackModule(dependency->start, dependency->end);
+      if (!target) { webpackInvalid = true; break; }
+      uint8_t requested = flag == 1 || dependency->star ? 1 : 2;
+      target->requested |= requested;
+      if (target->queued || target->visited & requested) continue;
+      target->queued = true;
+      target->queueNext = NULL;
+      if (last) last->queueNext = target;
+      else first = target;
+      last = target;
+    }
+  }
+  if (!webpackPublished || !webpackEntryStart && !webpackInline || webpackInvalid) {
+    for (WebpackModule* module = webpackModules; module; module = module->next) {
+      for (Slice* slice = module->exports; slice; slice = slice->next) webpackAddExport(slice->start, slice->end);
+      for (Slice* slice = module->reexports; slice; slice = slice->next) webpackAddReexport(slice->start, slice->end);
+    }
+  }
+}
 
 static inline __attribute__((always_inline)) bool isTokenRunChar (uint16_t ch) {
   return (uint16_t)((ch | 32) - 'a') < 26 || (uint16_t)(ch - '0') < 10 ||
@@ -80,11 +486,13 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
 }
 
 // Note: parsing is based on the _assumption_ that the source is already valid
-uint32_t parseCJSWithOptions (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const uint16_t*, const uint16_t*), void (*_addReexport)(const uint16_t*, const uint16_t*), void (*_addUnsafeGetter)(const uint16_t*, const uint16_t*), void (*_clearReexports)(), uint32_t options) {
+static __attribute__((always_inline)) uint32_t parseCJSMode (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const uint16_t*, const uint16_t*), void (*_addReexport)(const uint16_t*, const uint16_t*), void (*_addUnsafeGetter)(const uint16_t*, const uint16_t*), void (*_clearReexports)(), uint32_t options, bool extendedMode) {
+  if (addExport == captureWebpackExport) addExport = webpackAddExport;
+  if (addReexport == captureWebpackReexport) addReexport = webpackAddReexport;
   source = _source;
   sourceLen = _sourceLen;
   allowMinifiedEnumerable = (options & 1) != 0;
-  extended = (options & 2) != 0;
+  extended = extendedMode;
   if (_addExport)
     addExport = _addExport;
   if (_addReexport)
@@ -105,6 +513,18 @@ uint32_t parseCJSWithOptions (uint16_t* _source, uint32_t _sourceLen, void (*_ad
   lastStarExport = NULL;
   nextBraceIsClass = false;
   exportObjectPos = 0;
+  webpackTablePos = NULL;
+  if (extendedMode) {
+    webpackTablePos = webpackFactoryPos = NULL;
+    webpackEntryStart = webpackEntryEnd = NULL;
+    webpackModules = webpackModulesTail = webpackCurrent = webpackPending = NULL;
+    webpackBuckets = NULL;
+    webpackCapacity = webpackCount = 0;
+    webpackPublished = webpackInvalid = webpackInline = false;
+    webpackInlineRoot = (WebpackModule){0};
+    webpackAddExport = addExport;
+    webpackAddReexport = addReexport;
+  }
 
   pos = (uint16_t*)(source - 1);
   uint16_t ch = '\0';
@@ -128,7 +548,10 @@ uint32_t parseCJSWithOptions (uint16_t* _source, uint32_t _sourceLen, void (*_ad
     if (ch == 32 || ch < 14 && ch > 8)
       continue;
 
-    if (openTokenDepth == 0) {
+    if (extendedMode && keywordStart(pos) && readWebpackToken(ch))
+      goto skipTokenRun;
+
+    if (openTokenDepth == 0 || extendedMode && webpackCurrent && webpackCurrent->depth == openTokenDepth) {
       switch (ch) {
         case 'i':
           if (str_eq5(pos + 1, 'm', 'p', 'o', 'r', 't') && keywordStart(pos))
@@ -173,7 +596,7 @@ uint32_t parseCJSWithOptions (uint16_t* _source, uint32_t _sourceLen, void (*_ad
       case 'e':
         if (str_eq5(pos + 1, 'x', 'p', 'o', 'r', 't') && keywordStart(pos)) {
           if (*(pos + 6) == 's')
-            tryParseExportsDotAssign(false);
+            tryParseExportsDotAssign(false, 7);
           else if (openTokenDepth == 0)
             throwIfExportStatement();
         }
@@ -184,29 +607,32 @@ uint32_t parseCJSWithOptions (uint16_t* _source, uint32_t _sourceLen, void (*_ad
         goto skipTokenRun;
       case 'm':
         if (str_eq5(pos + 1, 'o', 'd', 'u', 'l', 'e') && keywordStart(pos))
-          tryParseModuleExportsDotAssign();
+          tryParseModuleExportsDotAssign(6);
         goto skipTokenRun;
       case 'O':
         if (str_eq5(pos + 1, 'b', 'j', 'e', 'c', 't') && keywordStart(pos))
-          tryParseObjectDefineOrKeys(openTokenDepth == 0);
+          tryParseObjectDefineOrKeys(openTokenDepth == 0 || extendedMode &&
+            (webpackCurrent ? webpackCurrent->depth == openTokenDepth : webpackInline));
         goto skipTokenRun;
       case '(':
         if (!pushOpenToken(lastTokenPos))
           return error;
         break;
       case '[':
-        if (extended && !pushOpenToken(lastTokenPos))
+        if (extendedMode && !pushOpenToken(lastTokenPos))
           return error;
         break;
       case ']':
-        if (extended) {
+        if (extendedMode) {
           if (openTokenDepth == 0)
             return syntaxError(8), error;
           openTokenDepth--;
         }
         break;
       case ',':
-        if (extended && openTokenDepth && (openTokenTypeStack[openTokenDepth - 1] & ExportObjectToken))
+        if (extendedMode && openTokenDepth && (openTokenTypeStack[openTokenDepth - 1] & WebpackTableToken))
+          readWebpackFactory();
+        if (extendedMode && openTokenDepth && (openTokenTypeStack[openTokenDepth - 1] & ExportObjectToken))
           readExportProperty();
         break;
       case ')':
@@ -219,15 +645,32 @@ uint32_t parseCJSWithOptions (uint16_t* _source, uint32_t _sourceLen, void (*_ad
           return error;
         openTokenTypeStack[openTokenDepth - 1] = nextBraceIsClass ? ClassToken : 0;
         nextBraceIsClass = false;
-        if (extended && pos == exportObjectPos) {
+        if (extendedMode && pos == exportObjectPos) {
           openTokenTypeStack[openTokenDepth - 1] |= ExportObjectToken;
           exportObjectPos = 0;
           readExportProperty();
+        }
+        if (extendedMode && pos == webpackTablePos) {
+          openTokenTypeStack[openTokenDepth - 1] |= WebpackTableToken;
+          readWebpackFactory();
+        }
+        else if (extendedMode && pos == webpackFactoryPos) {
+          webpackCurrent = webpackPending;
+          webpackCurrent->depth = openTokenDepth;
+          firstStarExport = lastStarExport = NULL;
+          addExport = captureWebpackExport;
+          addReexport = captureWebpackReexport;
         }
         break;
       case '}':
         if (openTokenDepth == 0)
           return syntaxError(2), error;
+        if (extendedMode && webpackCurrent && webpackCurrent->depth == openTokenDepth) {
+          webpackCurrent = NULL;
+          firstStarExport = lastStarExport = NULL;
+          addExport = webpackAddExport;
+          addReexport = webpackAddReexport;
+        }
         if (openTokenDepth-- == templateDepth) {
           templateDepth = templateStack[--templateStackDepth];
           templateString();
@@ -268,7 +711,7 @@ uint32_t parseCJSWithOptions (uint16_t* _source, uint32_t _sourceLen, void (*_ad
               lastToken == ')' && isParenKeyword(openTokenPosStack[openTokenDepth]) ||
               lastToken == '}' && (isExpressionTerminator(openTokenPosStack[openTokenDepth]) ||
               (openTokenTypeStack[openTokenDepth] & ClassToken) ||
-              extended && isStatementBrace(openTokenPosStack[openTokenDepth], openTokenDepth)) ||
+              extendedMode && isStatementBrace(openTokenPosStack[openTokenDepth], openTokenDepth)) ||
               lastToken == '/' && lastSlashWasDivision ||
               isExpressionKeyword(lastTokenPos) ||
               !lastToken) {
@@ -302,8 +745,15 @@ uint32_t parseCJSWithOptions (uint16_t* _source, uint32_t _sourceLen, void (*_ad
     return error;
   }
 
+  if (webpackTablePos) finishWebpack();
   // success
   return 0;
+}
+
+uint32_t parseCJSWithOptions (uint16_t* source, uint32_t sourceLen, void (*addExport)(const uint16_t*, const uint16_t*), void (*addReexport)(const uint16_t*, const uint16_t*), void (*addUnsafeGetter)(const uint16_t*, const uint16_t*), void (*clearReexports)(), uint32_t options) {
+  if (options & 2)
+    return parseCJSMode(source, sourceLen, addExport, addReexport, addUnsafeGetter, clearReexports, options, true);
+  return parseCJSMode(source, sourceLen, addExport, addReexport, addUnsafeGetter, clearReexports, options, false);
 }
 
 void tryBacktrackAddStarExportBinding (uint16_t* bPos) {
@@ -914,7 +1364,16 @@ void tryParseObjectDefineOrKeys (bool keys) {
         while (binding) {
           if (id_len == binding->id_end - binding->id_start &&
               0 == memcmp(id_start, binding->id_start, id_len * sizeof(uint16_t))) {
-            addReexport(binding->specifier_start, binding->specifier_end);
+            bool internal = false;
+            if (extended) {
+              WebpackModule* owner = webpackCurrent ? webpackCurrent : &webpackInlineRoot;
+              for (Slice* slice = owner->imports; slice; slice = slice->next)
+                if (slice->start == binding->specifier_start) { internal = true; break; }
+            }
+            if (internal)
+              addWebpackDependency(binding->specifier_start, binding->specifier_end, true);
+            else
+              addReexport(binding->specifier_start, binding->specifier_end);
             pos = revertPos;
             return;
           }
@@ -929,8 +1388,18 @@ void tryParseObjectDefineOrKeys (bool keys) {
 
 bool readExportsOrModuleDotExports (uint16_t ch) {
   uint16_t* revertPos = pos;
-  if (ch == 'm' && str_eq5(pos + 1, 'o', 'd', 'u', 'l', 'e')) {
-    pos += 6;
+  if (extended) {
+    if (webpackCurrent && matchesWebpackBinding(webpackCurrent->target, webpackCurrent->targetLength)) {
+      pos += webpackCurrent->targetLength;
+      return true;
+    }
+    if (!webpackCurrent && ch == '_' &&
+        str_eq18(pos + 1, '_', 'w', 'e', 'b', 'p', 'a', 'c', 'k', '_', 'e', 'x', 'p', 'o', 'r', 't', 's', '_', '_') &&
+        !isIdentifierChar(webpackCharAt(pos + 19))) { pos += 19; return true; }
+  }
+  bool moduleAlias = extended && webpackCurrent && matchesWebpackBinding(webpackCurrent->module, webpackCurrent->moduleLength);
+  if (moduleAlias || ch == 'm' && str_eq5(pos + 1, 'o', 'd', 'u', 'l', 'e')) {
+    pos += moduleAlias ? webpackCurrent->moduleLength : 6;
     ch = commentWhitespace();
     if (ch != '.') {
       pos = revertPos;
@@ -949,23 +1418,23 @@ bool readExportsOrModuleDotExports (uint16_t ch) {
   }
 }
 
-void tryParseModuleExportsDotAssign () {
-  pos += 6;
+void tryParseModuleExportsDotAssign (uint32_t length) {
+  pos += length;
   uint16_t* revertPos = pos - 1;
   uint16_t ch = commentWhitespace();
   if (ch == '.') {
     pos++;
     ch = commentWhitespace();
     if (ch == 'e' && str_eq6(pos + 1, 'x', 'p', 'o', 'r', 't', 's')) {
-      tryParseExportsDotAssign(true);
+      tryParseExportsDotAssign(true, 7);
       return;
     }
   }
   pos = revertPos;
 }
 
-void tryParseExportsDotAssign (bool assign) {
-  pos += 7;
+void tryParseExportsDotAssign (bool assign, uint32_t length) {
+  pos += length;
   uint16_t* revertPos = pos - 1;
   uint16_t ch = commentWhitespace();
   switch (ch) {
@@ -1008,6 +1477,23 @@ void tryParseExportsDotAssign (bool assign) {
         pos++;
         ch = commentWhitespace();
         if (extended) {
+          if (ch == '_') {
+            uint16_t* start = pos;
+            const uint16_t *id, *idEnd;
+            if (webpackTablePos && readWebpackCall(&id, &idEnd)) {
+              if (webpackCurrent) addWebpackDependency(id, idEnd, false);
+              else { webpackEntryStart = id; webpackEntryEnd = idEnd; webpackPublished = true; }
+            }
+            pos = start;
+            if (webpackTablePos && !webpackCurrent &&
+                str_eq18(pos + 1, '_', 'w', 'e', 'b', 'p', 'a', 'c', 'k', '_', 'e', 'x', 'p', 'o', 'r', 't', 's', '_', '_') &&
+                !isIdentifierChar(webpackCharAt(pos + 19))) {
+              pos += 19;
+              uint16_t next = commentWhitespace();
+              if (pos > end || next == ';' || next == ',' || next == ')' || next == '}') webpackPublished = true;
+              else webpackInvalid = true;
+            }
+          }
           if (ch == '(') ch = readExportExpressionStart();
           if (ch == '{') exportObjectPos = pos;
           else if (ch == 'r') tryParseRequire(ExportAssign);
