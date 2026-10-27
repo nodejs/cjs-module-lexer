@@ -84,6 +84,31 @@ suite('Extended parsing', () => {
     'fixture.cjs', options), { exports: ['name'], reexports: [] });
   });
 
+  for (const helper of ['__importDefault', 'tslib_1.__importDefault']) {
+    for (const predeclare of [false, true]) {
+      test(`TypeScript default reexports with ${helper} and predeclaration ${predeclare}`, () => {
+        const source = `
+          "use strict";
+          var __importDefault = (this && this.__importDefault) || function (mod) {
+            return (mod && mod.__esModule) ? mod : { "default": mod };
+          };
+          ${helper === '__importDefault' ? '' : 'var tslib_1 = require("tslib");'}
+          Object.defineProperty(exports, "__esModule", { value: true });
+          ${predeclare ? 'exports.bar = void 0;' : ''}
+          var bar_1 = require("./bar");
+          Object.defineProperty(exports, "bar", {
+            enumerable: true, get: function () { return ${helper}(bar_1).default; }
+          });
+        `;
+        assert.deepEqual(parse(source, 'typescript.cjs'), { exports: ['__esModule'], reexports: [] });
+        assert.deepEqual(parse(source, 'typescript.cjs', options),
+          { exports: ['__esModule', 'bar'], reexports: [] });
+        assert.deepEqual(parse(source, 'typescript.cjs', { mode: 'default' }),
+          { exports: ['__esModule'], reexports: [] });
+      });
+    }
+  }
+
   test('webpack parenthesized descriptors', () => {
     assert.deepEqual(parse(`Object.defineProperty(exports, 'BaseWatchPlugin', ({
       enumerable: true, get: function () { return _BaseWatchPlugin.default; }
