@@ -211,7 +211,7 @@ uint16_t readExportAs (uint16_t* startPos, uint16_t* endPos);
 uint16_t commentWhitespace ();
 void stringLiteral (uint16_t quote);
 void regularExpression ();
-void templateString ();
+bool templateString (bool track);
 void blockComment ();
 void lineComment ();
 

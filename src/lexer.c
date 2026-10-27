@@ -24,6 +24,42 @@ bool allowMinifiedEnumerable;
 static bool extended;
 static uint16_t* exportObjectPos;
 
+enum YieldFrameType {
+  YieldBlock, YieldObject, YieldClass, YieldParen, YieldControl, YieldBracket, YieldComputed,
+  YieldTemplate, YieldInterpolation, YieldFunction, YieldClassHeader, YieldParameters, YieldBody,
+  YieldPendingBody, YieldArrow, YieldArrowBody
+};
+enum YieldToken {
+  YieldName = 256, YieldIf, YieldFor, YieldWhile, YieldWith, YieldSwitch, YieldCatch, YieldReturn,
+  YieldThrow, YieldCase, YieldDelete, YieldVoid, YieldTypeof, YieldNew, YieldIn, YieldInstanceof,
+  YieldAwait, YieldExtends, YieldFunctionWord, YieldClassWord, YieldWord, YieldElse, YieldDo,
+  YieldTry, YieldFinally, YieldVar, YieldConst, YieldLet, YieldAsync, YieldArrowToken, YieldIncrement,
+  YieldLabel, YieldOf, YieldArrowBodyEnd
+};
+typedef struct {
+  uint8_t type;
+  uint8_t member;
+  bool generator;
+  bool expression;
+  bool bodyGenerator;
+  bool forLoop;
+  uint32_t conditional;
+} YieldFrame;
+typedef struct {
+  uint16_t* cursor;
+  uint16_t* tokenEnd;
+  const unsigned char* firstStar;
+  uint16_t token;
+  bool expression;
+  bool generator;
+  bool asyncExpression;
+  uint32_t depth;
+  uint32_t capacity;
+  YieldFrame* stack;
+} YieldContext;
+static YieldContext yieldContext;
+static __attribute__((noinline)) bool isYieldKeyword (uint16_t* tokenEnd);
+
 uint16_t* lastReexportStart;
 uint16_t* lastReexportEnd;
 
@@ -83,6 +119,7 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
 uint32_t parseCJSWithOptions (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(const uint16_t*, const uint16_t*), void (*_addReexport)(const uint16_t*, const uint16_t*), void (*_addUnsafeGetter)(const uint16_t*, const uint16_t*), void (*_clearReexports)(), uint32_t options) {
   source = _source;
   sourceLen = _sourceLen;
+  yieldContext.cursor = NULL;
   allowMinifiedEnumerable = (options & 1) != 0;
   extended = (options & 2) != 0;
   if (_addExport)
@@ -230,7 +267,7 @@ uint32_t parseCJSWithOptions (uint16_t* _source, uint32_t _sourceLen, void (*_ad
           return syntaxError(2), error;
         if (openTokenDepth-- == templateDepth) {
           templateDepth = templateStack[--templateStackDepth];
-          templateString();
+          templateString(true);
         }
         else {
           if (templateDepth != UINT16_MAX && openTokenDepth < templateDepth)
@@ -284,7 +321,7 @@ uint32_t parseCJSWithOptions (uint16_t* _source, uint32_t _sourceLen, void (*_ad
       case '`':
         if (templateDepth == UINT16_MAX - 1)
           return syntaxError(4), error;
-        templateString();
+        templateString(true);
         break;
       default:
       skipTokenRun:
@@ -1439,21 +1476,21 @@ uint16_t commentWhitespace () {
   return ch;
 }
 
-void templateString () {
+bool templateString (bool track) {
   while (pos++ < end) {
     uint16_t ch = *pos;
     if (ch == '$' && *(pos + 1) == '{') {
       pos++;
-      if (!pushTemplate())
-        return;
-      return;
+      if (track) pushTemplate();
+      return true;
     }
     if (ch == '`')
-      return;
+      return false;
     if (ch == '\\')
       pos++;
   }
   syntaxError(8);
+  return false;
 }
 
 void blockComment () {
@@ -1634,7 +1671,7 @@ bool isExpressionKeyword (uint16_t* pos) {
           return readPrecedingKeyword2(pos - 2, 'v', 'o');
         case 'l':
           // yield
-          return readPrecedingKeyword3(pos - 2, 'y', 'i', 'e');
+          return readPrecedingKeyword3(pos - 2, 'y', 'i', 'e') && isYieldKeyword(pos);
         default:
           return false;
       }
@@ -1695,6 +1732,361 @@ bool isExpressionKeyword (uint16_t* pos) {
       }
   }
   return false;
+}
+
+static bool isYieldControl (uint16_t token) {
+  return token >= YieldIf && token <= YieldCatch;
+}
+
+static bool isYieldExpression (uint16_t token) {
+  return token >= YieldReturn && token <= YieldExtends;
+}
+
+static uint16_t yieldWord (uint16_t* start) {
+  switch (pos - start + 1) {
+    case 2:
+      if (str_eq2(start, 'o', 'f')) return YieldOf;
+      if (str_eq2(start, 'i', 'f')) return YieldIf;
+      if (str_eq2(start, 'i', 'n')) return YieldIn;
+      if (str_eq2(start, 'd', 'o')) return YieldDo;
+      break;
+    case 3:
+      if (str_eq3(start, 'f', 'o', 'r')) return YieldFor;
+      if (str_eq3(start, 'n', 'e', 'w')) return YieldNew;
+      if (str_eq3(start, 't', 'r', 'y')) return YieldTry;
+      if (str_eq3(start, 'v', 'a', 'r')) return YieldVar;
+      if (str_eq3(start, 'l', 'e', 't')) return YieldLet;
+      break;
+    case 4:
+      if (str_eq4(start, 'w', 'i', 't', 'h')) return YieldWith;
+      if (str_eq4(start, 'c', 'a', 's', 'e')) return YieldCase;
+      if (str_eq4(start, 'v', 'o', 'i', 'd')) return YieldVoid;
+      if (str_eq4(start, 'e', 'l', 's', 'e')) return YieldElse;
+      break;
+    case 5:
+      if (str_eq5(start, 'w', 'h', 'i', 'l', 'e')) return YieldWhile;
+      if (str_eq5(start, 'c', 'a', 't', 'c', 'h')) return YieldCatch;
+      if (str_eq5(start, 't', 'h', 'r', 'o', 'w')) return YieldThrow;
+      if (str_eq5(start, 'a', 'w', 'a', 'i', 't')) return YieldAwait;
+      if (str_eq5(start, 'c', 'l', 'a', 's', 's')) return YieldClassWord;
+      if (str_eq5(start, 'y', 'i', 'e', 'l', 'd')) return YieldWord;
+      if (str_eq5(start, 'c', 'o', 'n', 's', 't')) return YieldConst;
+      if (str_eq5(start, 'a', 's', 'y', 'n', 'c')) return YieldAsync;
+      break;
+    case 6:
+      if (str_eq6(start, 's', 'w', 'i', 't', 'c', 'h')) return YieldSwitch;
+      if (str_eq6(start, 'r', 'e', 't', 'u', 'r', 'n')) return YieldReturn;
+      if (str_eq6(start, 'd', 'e', 'l', 'e', 't', 'e')) return YieldDelete;
+      if (str_eq6(start, 't', 'y', 'p', 'e', 'o', 'f')) return YieldTypeof;
+      break;
+    case 7:
+      if (str_eq7(start, 'e', 'x', 't', 'e', 'n', 'd', 's')) return YieldExtends;
+      if (str_eq7(start, 'f', 'i', 'n', 'a', 'l', 'l', 'y')) return YieldFinally;
+      break;
+    case 8:
+      if (str_eq8(start, 'f', 'u', 'n', 'c', 't', 'i', 'o', 'n')) return YieldFunctionWord;
+      break;
+    case 10:
+      if (str_eq10(start, 'i', 'n', 's', 't', 'a', 'n', 'c', 'e', 'o', 'f')) return YieldInstanceof;
+  }
+  return YieldName;
+}
+
+static YieldFrame* pushYieldFrame (YieldContext* context, uint8_t type, bool expression) {
+  if (context->depth == context->capacity) {
+    uint64_t capacity = context->capacity ? (uint64_t)context->capacity * 2 : 16;
+    uint64_t size = capacity * sizeof(YieldFrame);
+    if (size > UINT32_MAX) __builtin_trap();
+    ensureAnalysisCapacity((size_t)size);
+    YieldFrame* stack = (YieldFrame*)(uintptr_t)analysis_head;
+    analysis_head += size;
+    for (uint32_t index = 0; index < context->depth; index++) {
+      stack[index].type = context->stack[index].type;
+      stack[index].member = context->stack[index].member;
+      stack[index].generator = context->stack[index].generator;
+      stack[index].expression = context->stack[index].expression;
+      stack[index].bodyGenerator = context->stack[index].bodyGenerator;
+      stack[index].forLoop = context->stack[index].forLoop;
+      stack[index].conditional = context->stack[index].conditional;
+    }
+    context->stack = stack;
+    context->capacity = capacity;
+  }
+  YieldFrame* frame = &context->stack[context->depth++];
+  *frame = (YieldFrame){
+    .type = type,
+    .generator = context->generator,
+    .expression = expression,
+    .member = type == YieldObject || type == YieldClass ? 1 : 0
+  };
+  return frame;
+}
+
+static YieldFrame popYieldFrame (YieldContext* context) {
+  YieldFrame frame = context->stack[context->depth > 1 ? --context->depth : 0];
+  context->generator = frame.generator;
+  return frame;
+}
+
+static bool yieldLineBreak (uint16_t* start, uint16_t* end) {
+  for (; start < end; start++) {
+    if (*start == '\r' || *start == '\n' || *start == 0x2028 || *start == 0x2029) return true;
+  }
+  return false;
+}
+
+static bool isYieldWhitespace (uint16_t ch) {
+  return isBrOrWs(ch) || ch == 0x1680 || ch >= 0x2000 && ch <= 0x200a ||
+    ch == 0x2028 || ch == 0x2029 || ch == 0x202f || ch == 0x205f || ch == 0x3000 || ch == 0xfeff;
+}
+
+static bool isYieldStatementStart (uint16_t token) {
+  return token >= YieldName && token <= YieldAsync && token != YieldIn && token != YieldInstanceof ||
+    token == YieldOf || token == '{' || token == YieldIncrement;
+}
+
+static bool isYieldStatementBody (uint8_t type) {
+  return type == YieldBlock || type == YieldBody || type == YieldArrowBody;
+}
+
+static bool isYieldDeclarationBoundary (uint16_t previous, uint8_t type) {
+  return previous == 0 || previous == ';' || previous == YieldElse || previous == ')' || previous == '}' ||
+    previous == '{' && isYieldStatementBody(type) || previous == YieldLabel;
+}
+
+static void readYieldContext (YieldContext* context) {
+  pos++;
+  uint16_t ch = *pos;
+  if (isYieldWhitespace(ch)) return;
+  if (ch == '/' && *(pos + 1) == '/') {
+    lineComment();
+    return;
+  }
+  if (ch == '/' && *(pos + 1) == '*') {
+    blockComment();
+    return;
+  }
+  uint16_t* start = pos;
+  uint16_t previous = context->token;
+  uint16_t token = ch;
+  if (isTokenRunChar(ch)) {
+    while (isTokenRunChar(*(pos + 1)) && !isYieldWhitespace(*(pos + 1))) pos++;
+    token = yieldWord(start);
+  }
+  else if (ch == '\'' || ch == '"') {
+    stringLiteral(ch);
+    token = YieldName;
+  }
+  else if (ch == '/' && context->expression) {
+    regularExpression();
+    token = YieldName;
+  }
+  else if (ch == '=' && *(pos + 1) == '>') {
+    pos++;
+    token = YieldArrowToken;
+  }
+  else if (ch == '?' && *(pos + 1) == '.') {
+    pos++;
+    token = '.';
+  }
+  else if ((ch == '+' || ch == '-' || ch == '?') && *(pos + 1) == ch) {
+    pos++;
+    token = ch == '?' ? '=' : YieldIncrement;
+  }
+  while (context->stack[context->depth - 1].type == YieldArrow &&
+      (token == ')' || token == ']' || token == '}' || token == ',' || token == ';' ||
+      token == ':' && context->stack[context->depth - 1].conditional == 0 ||
+      (!context->expression || previous == YieldArrowBodyEnd) && previous != '.' &&
+      (isYieldStatementStart(token) || token == '*' && previous == YieldArrowBodyEnd) &&
+      yieldLineBreak(context->tokenEnd + 1, start))) {
+    popYieldFrame(context);
+  }
+  YieldFrame* frame = &context->stack[context->depth - 1];
+  if (frame->type == YieldClass && !frame->member && previous != '.' &&
+      (!context->expression || previous == YieldArrowBodyEnd) &&
+      (isYieldStatementStart(token) || token == '*' && previous == YieldArrowBodyEnd) &&
+      yieldLineBreak(context->tokenEnd + 1, start)) frame->member = 1;
+  bool member = frame->member != 0;
+  switch (token) {
+    case YieldFunctionWord:
+    case YieldClassWord:
+      if (previous == '.' || member) {
+        if (member) frame->member |= 2;
+        token = YieldName;
+        context->expression = false;
+      }
+      else {
+        bool expression = previous == YieldAsync &&
+          !yieldLineBreak(context->tokenEnd + 1, start) ? context->asyncExpression :
+          context->expression && !isYieldDeclarationBoundary(previous, frame->type);
+        pushYieldFrame(context, token == YieldFunctionWord ? YieldFunction : YieldClassHeader, expression);
+        context->expression = false;
+      }
+      break;
+    case '(':
+      if (frame->type == YieldFunction) {
+        frame->type = YieldParameters;
+        context->generator = false;
+      }
+      else if (member && frame->member & 2) {
+        YieldFrame* parameters = pushYieldFrame(context, YieldParameters, true);
+        parameters->bodyGenerator = (frame->member & 4) != 0;
+        context->generator = false;
+      }
+      else {
+        YieldFrame* control = pushYieldFrame(context, isYieldControl(previous) ? YieldControl : YieldParen, false);
+        control->forLoop = previous == YieldFor;
+      }
+      context->expression = true;
+      break;
+    case ')':
+      if (frame->type == YieldParameters) {
+        frame->type = YieldPendingBody;
+        context->generator = frame->generator;
+        context->expression = false;
+      }
+      else {
+        YieldFrame closed = popYieldFrame(context);
+        context->expression = closed.type == YieldControl;
+      }
+      break;
+    case '[':
+      pushYieldFrame(context, member ? YieldComputed : YieldBracket, false);
+      context->expression = true;
+      break;
+    case ']': {
+      YieldFrame closed = popYieldFrame(context);
+      if (closed.type == YieldComputed) context->stack[context->depth - 1].member |= 2;
+      context->expression = false;
+      break;
+    }
+    case '{':
+      if (frame->type == YieldPendingBody || frame->type == YieldArrow && previous == YieldArrowToken) {
+        if (frame->type == YieldArrow) frame->bodyGenerator = false;
+        frame->type = frame->type == YieldArrow ? YieldArrowBody : YieldBody;
+        context->generator = frame->bodyGenerator;
+      }
+      else if (frame->type == YieldClassHeader && !context->expression) {
+        frame->type = YieldClass;
+        frame->member = 1;
+      }
+      else {
+        bool lineBreak = (previous == YieldReturn || previous == YieldWord) &&
+          yieldLineBreak(context->tokenEnd + 1, start);
+        bool statement = previous == 0 || previous == ';' || previous == ')' || previous == YieldElse ||
+          previous == YieldDo || previous == YieldTry || previous == YieldFinally || previous == YieldLabel ||
+          previous == '{' && isYieldStatementBody(frame->type) || !context->expression || lineBreak;
+        pushYieldFrame(context, statement ? YieldBlock : YieldObject, false);
+      }
+      context->expression = true;
+      break;
+    case '}': {
+      YieldFrame closed = popYieldFrame(context);
+      context->expression = closed.type == YieldBlock || closed.type == YieldArrowBody ||
+        (closed.type == YieldBody || closed.type == YieldClass) && !closed.expression;
+      if (closed.type == YieldArrowBody) token = YieldArrowBodyEnd;
+      if (closed.type == YieldBody && context->stack[context->depth - 1].member)
+        context->stack[context->depth - 1].member = 1;
+      if (closed.type == YieldInterpolation) {
+        if (templateString(false)) pushYieldFrame(context, YieldInterpolation, false);
+        else {
+          popYieldFrame(context);
+          context->expression = false;
+        }
+      }
+      break;
+    }
+    case '`':
+      pushYieldFrame(context, YieldTemplate, false);
+      if (templateString(false)) {
+        pushYieldFrame(context, YieldInterpolation, false);
+        context->expression = true;
+      }
+      else {
+        popYieldFrame(context);
+        context->expression = false;
+      }
+      break;
+    case YieldArrowToken:
+      pushYieldFrame(context, YieldArrow, true);
+      context->generator = false;
+      context->expression = true;
+      break;
+    case '?':
+      frame->conditional++;
+      context->expression = true;
+      break;
+    case ':':
+      if (frame->conditional) frame->conditional--;
+      else if (isYieldStatementBody(frame->type) || frame->type == YieldControl) token = YieldLabel;
+      else frame->member = 0;
+      context->expression = true;
+      break;
+    case ',':
+    case ';':
+      if (frame->type == YieldObject || frame->type == YieldClass) frame->member = 1;
+      context->expression = true;
+      break;
+    case '*':
+      if (frame->type == YieldFunction) frame->bodyGenerator = true;
+      else if (member) frame->member = 1 | 4;
+      context->expression = true;
+      break;
+    case '.':
+      context->expression = false;
+      break;
+    case YieldIncrement:
+      break;
+    case YieldName:
+    case YieldOf:
+    case YieldAsync:
+    case YieldWord:
+      if (token == YieldAsync)
+        context->asyncExpression = context->expression && !isYieldDeclarationBoundary(previous, frame->type);
+      if (member) frame->member |= 2;
+      if (previous == '.') token = YieldName;
+      context->expression = token == YieldWord && context->generator || token == YieldOf && frame->forLoop;
+      break;
+    default:
+      if (member && token != '=') frame->member |= 2;
+      else if (token == '=') frame->member = 0;
+      if (previous == '.') {
+        token = YieldName;
+        context->expression = false;
+      }
+      else {
+        context->expression = isYieldExpression(token) || isExpressionPunctuator(ch);
+        if (token == YieldAwait && previous == YieldFor) token = YieldFor;
+      }
+  }
+  context->token = token;
+  context->tokenEnd = pos;
+}
+
+static bool isYieldKeyword (uint16_t* tokenEnd) {
+  YieldContext* context = &yieldContext;
+  if (!context->cursor) {
+    *context = (YieldContext){
+      .firstStar = memchr(source, '*', sourceLen * sizeof(uint16_t)),
+      .cursor = (uint16_t*)source - 1,
+      .tokenEnd = (uint16_t*)source - 1,
+      .expression = true
+    };
+  }
+  if (!context->firstStar || context->firstStar > (unsigned char*)tokenEnd + 1) return false;
+  uint16_t* savedPos = pos;
+  pos = context->cursor;
+  if (context->depth == 0) {
+    pushYieldFrame(context, YieldBlock, false);
+    if (*source == '#' && *(source + 1) == '!') {
+      pos = (uint16_t*)source + 1;
+      lineComment();
+    }
+  }
+  while (pos < tokenEnd && !error) readYieldContext(context);
+  context->cursor = pos;
+  pos = savedPos;
+  return context->generator && context->token == YieldWord;
 }
 
 bool isParenKeyword (uint16_t* curPos) {
