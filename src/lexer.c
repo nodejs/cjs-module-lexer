@@ -9,6 +9,7 @@ const uint16_t* EMPTY_CHAR = &__empty_char;
 enum TokenType { ClassToken = 1, ExportObjectToken = 2 };
 const uint16_t* source;
 
+
 bool lastSlashWasDivision;
 uint16_t templateStackDepth;
 uint16_t openTokenDepth;
@@ -33,6 +34,10 @@ uint16_t* lastReexportEnd;
 uint32_t parse_error;
 uint32_t error = 0;
 uint32_t sourceLen;
+#ifdef __wasm__
+uint32_t moduleExportCount;
+#include "reexport-analysis.h"
+#endif
 
 uint16_t templateStack_[STACK_DEPTH];
 uint16_t* openTokenPosStack_[STACK_DEPTH];
@@ -85,6 +90,9 @@ uint32_t parseCJSWithOptions (uint16_t* _source, uint32_t _sourceLen, void (*_ad
   sourceLen = _sourceLen;
   allowMinifiedEnumerable = (options & 1) != 0;
   extended = (options & 2) != 0;
+#ifdef __wasm__
+  moduleExportCount = 0;
+#endif
   if (_addExport)
     addExport = _addExport;
   if (_addReexport)
@@ -303,6 +311,10 @@ uint32_t parseCJSWithOptions (uint16_t* _source, uint32_t _sourceLen, void (*_ad
   }
 
   // success
+#ifdef __wasm__
+  if ((options & 4) && moduleExportCount > 1)
+    return analyzeReexports();
+#endif
   return 0;
 }
 
@@ -1004,6 +1016,10 @@ void tryParseExportsDotAssign (bool assign) {
     // module.exports =
     case '=': {
       if (assign) {
+#ifdef __wasm__
+        if (moduleExportCount < 2 && pos[1] != '=')
+          moduleExportCount++;
+#endif
         if (!extended) clearReexports();
         pos++;
         ch = commentWhitespace();
@@ -1024,6 +1040,15 @@ void tryParseExportsDotAssign (bool assign) {
         if (ch == 'r')
           tryParseRequire(ExportAssign);
       }
+      break;
+    }
+    case '&':
+    case '|':
+    case '?': {
+#ifdef __wasm__
+      if (assign && moduleExportCount < 2 && end - pos >= 2 && pos[1] == ch && pos[2] == '=')
+        moduleExportCount++;
+#endif
     }
   }
   pos = revertPos;

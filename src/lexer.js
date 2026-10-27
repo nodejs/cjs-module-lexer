@@ -12,8 +12,15 @@ export function parse (source, name = '@', options) {
   const mode = options ? options.mode : undefined;
   if (mode !== undefined && mode !== 'default' && mode !== 'extended')
     throw new TypeError('Expected options.mode to be "default" or "extended".');
-  const flags = (options && options.allowMinifiedEnumerable === true ? 1 : 0) |
-    (mode === 'extended' ? 2 : 0);
+  const minifiedEnumerable = options ? options.allowMinifiedEnumerable === true : false;
+  const baseline = options?.baseline;
+  if (baseline !== undefined && typeof baseline !== 'string')
+    throw new TypeError('Detection baseline must be a string');
+  if (baseline !== undefined && baseline !== 'legacy' && baseline !== 'flow-v1')
+    throw new RangeError('Unknown detection baseline: ' + baseline);
+  const flags = (minifiedEnumerable ? 1 : 0) |
+    (mode === 'extended' ? 2 : 0) |
+    (baseline !== 'legacy' && (mode !== 'extended' || baseline === 'flow-v1') ? 4 : 0);
   if (!wasm)
     initSync();
 
@@ -34,7 +41,8 @@ export function parse (source, name = '@', options) {
   else
     (isLE ? copyLE : copyBE)(source, new Uint16Array(memory, addr, len));
 
-  const err_code = wasm.parseCJSWithOptions(addr, len, 0, 0, 0, 0, flags);
+  const status = wasm.parseCJSWithOptions(addr, len, 0, 0, 0, 0, flags);
+  const err_code = status & 255;
 
   if (err_code) {
     const err = new Error(`Parse error ${name}${wasm.e()}:${source.slice(0, wasm.e()).split('\n').length}:${wasm.e() - source.lastIndexOf('\n', wasm.e() - 1)}`);
@@ -45,23 +53,51 @@ export function parse (source, name = '@', options) {
   }
 
   let exports = new Set(), reexports = new Set(), unsafeGetters;
+  const groups = status & 1024 ? [] : undefined;
+  let complete = !(status & 2048);
   
   while (wasm.rre()) {
-    const reexptStr = decode(source.slice(wasm.res(), wasm.ree()));
+    const start = wasm.res();
+    if (start === -1) {
+      reexports = new Set();
+      groups.push(reexports);
+      continue;
+    }
+    const reexptStr = decode(source.slice(start, wasm.ree()));
     if (reexptStr !== undefined)
       reexports.add(reexptStr);
+    else
+      complete = false;
   }
   while (wasm.ru()) {
     if (!unsafeGetters) unsafeGetters = new Set();
     unsafeGetters.add(decode(source.slice(wasm.us(), wasm.ue())));
   }
   while (wasm.re()) {
-    let exptStr = decode(source.slice(wasm.es(), wasm.ee()));
+    const text = source.slice(wasm.es(), wasm.ee());
+    let exptStr = status & 1024 && text.charCodeAt(0) >= 48 && text.charCodeAt(0) <= 57 ?
+      String(Number(text)) : decode(text);
     if (exptStr !== undefined && (!unsafeGetters || !unsafeGetters.has(exptStr)))
       exports.add(exptStr);
+    else if (exptStr === undefined)
+      complete = false;
   }
 
-  return { exports: [...exports], reexports: [...reexports] };
+  if (!(status & 1024)) return { exports: [...exports], reexports: [...reexports] };
+  if (groups.length === 1)
+    return { exports: [...exports], reexports: [...reexports], complete };
+  const alternatives = [];
+  const seen = new Set();
+  let hasDependencies = false;
+  for (const group of groups) {
+    const values = [...group];
+    const key = JSON.stringify(values);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    alternatives.push(values);
+    if (values.length) hasDependencies = true;
+  }
+  return { exports: [...exports], reexports: hasDependencies ? alternatives.length === 1 ? alternatives[0] : alternatives : [], complete };
 }
 
 function decode (str) {

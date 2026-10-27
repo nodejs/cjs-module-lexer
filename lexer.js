@@ -17,7 +17,8 @@ let openTokenDepth,
   lastStarExportSpecifier,
   _exports,
   unsafeGetters,
-  reexports;
+  reexports,
+  moduleExportCount;
 
 function resetState () {
   openTokenDepth = 0;
@@ -33,6 +34,7 @@ function resetState () {
   _exports = new Set();
   unsafeGetters = new Set();
   reexports = new Set();
+  moduleExportCount = 0;
 }
 
 // RequireType
@@ -66,6 +68,11 @@ function parseCJS (source, name = '@', options) {
   if (mode !== undefined && mode !== 'default' && mode !== 'extended')
     throw new TypeError('Expected options.mode to be "default" or "extended".');
   const minifiedEnumerable = options ? options.allowMinifiedEnumerable === true : false;
+  const baseline = options?.baseline;
+  if (baseline !== undefined && typeof baseline !== 'string')
+    throw new TypeError('Detection baseline must be a string');
+  if (baseline !== undefined && baseline !== 'legacy' && baseline !== 'flow-v1')
+    throw new RangeError('Unknown detection baseline: ' + baseline);
   resetState();
   allowMinifiedEnumerable = minifiedEnumerable;
   extended = mode === 'extended';
@@ -77,6 +84,11 @@ function parseCJS (source, name = '@', options) {
     error.message += `\n  at ${name}:${source.slice(0, pos).split('\n').length}:${pos - source.lastIndexOf('\n', pos - 1)}`;
     error.loc = pos;
     throw error;
+  }
+  if (moduleExportCount > 1 && baseline !== 'legacy' && (mode !== 'extended' || baseline === 'flow-v1')) {
+    resetState();
+    return require('./dist/lexer.js').parse(source, name,
+      { baseline, mode, allowMinifiedEnumerable: minifiedEnumerable });
   }
   const result = { exports: [..._exports].filter(expt => expt !== undefined && !unsafeGetters.has(expt)), reexports: [...reexports].filter(reexpt => reexpt !== undefined) };
   resetState();
@@ -999,6 +1011,8 @@ function tryParseExportsDotAssign (assign) {
     // module.exports =
     case 61/*=*/: {
       if (assign) {
+        if (moduleExportCount < 2 && source.charCodeAt(pos + 1) !== 61)
+          moduleExportCount++;
         if (!extended && reexports.size)
           reexports = new Set();
         pos++;
@@ -1020,6 +1034,13 @@ function tryParseExportsDotAssign (assign) {
         if (ch === 114/*r*/)
           tryParseRequire(ExportAssign);
       }
+      break;
+    }
+    case 38/*&*/:
+    case 124/*|*/:
+    case 63/*?*/: {
+      if (assign && moduleExportCount < 2 && source.charCodeAt(pos + 1) === ch &&
+          source.charCodeAt(pos + 2) === 61) moduleExportCount++;
     }
   }
   pos = revertPos;
@@ -1890,8 +1911,6 @@ function isExpressionTerminator (curPos) {
   return false;
 }
 
-const initPromise = Promise.resolve();
-
-module.exports.init = () => initPromise;
-module.exports.initSync = () => {};
+module.exports.init = () => require('./dist/lexer.js').init();
+module.exports.initSync = () => require('./dist/lexer.js').initSync();
 module.exports.parse = parseCJS;
