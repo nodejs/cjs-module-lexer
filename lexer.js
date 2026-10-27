@@ -1,5 +1,6 @@
 let source, pos, end;
 let extended, exportObjectPos;
+let yieldContext;
 const STACK_DEPTH = 2048;
 const ClassToken = 1;
 const ExportObjectToken = 2;
@@ -20,6 +21,7 @@ let openTokenDepth,
   reexports;
 
 function resetState () {
+  yieldContext = undefined;
   openTokenDepth = 0;
   templateDepth = -1;
   lastTokenPos = -1;
@@ -1598,16 +1600,17 @@ function commentWhitespace () {
   return ch;
 }
 
-function templateString () {
+/** @param {boolean} [track] */
+function templateString (track = true) {
   while (pos++ < end) {
     const ch = source.charCodeAt(pos);
     if (ch === 36/*$*/ && source.charCodeAt(pos + 1) === 123/*{*/) {
       pos++;
-      pushTemplate();
-      return;
+      if (track) pushTemplate();
+      return true;
     }
     if (ch === 96/*`*/)
-      return;
+      return false;
     if (ch === 92/*\*/)
       pos++;
   }
@@ -1730,7 +1733,7 @@ function isExpressionKeyword (pos) {
           return readPrecedingKeyword(pos - 2, 'vo');
         case 108/*l*/:
           // yield
-          return readPrecedingKeyword(pos - 2, 'yie');
+          return readPrecedingKeyword(pos - 2, 'yie') && isYieldKeyword(pos);
         default:
           return false;
       }
@@ -1791,6 +1794,357 @@ function isExpressionKeyword (pos) {
       }
   }
   return false;
+}
+
+const YieldBlock = 0;
+const YieldObject = 1;
+const YieldClass = 2;
+const YieldParen = 3;
+const YieldControl = 4;
+const YieldBracket = 5;
+const YieldComputed = 6;
+const YieldTemplate = 7;
+const YieldInterpolation = 8;
+const YieldFunction = 9;
+const YieldClassHeader = 10;
+const YieldParameters = 11;
+const YieldBody = 12;
+const YieldPendingBody = 13;
+const YieldArrow = 14;
+const YieldArrowBody = 15;
+const yieldControlKeywords = new Set(['if', 'for', 'while', 'with', 'switch', 'catch']);
+const yieldExpressionKeywords = new Set([
+  'return', 'throw', 'case', 'delete', 'void', 'typeof', 'new', 'in', 'instanceof', 'await', 'extends'
+]);
+const yieldKeywords = new Set([
+  ...yieldControlKeywords, ...yieldExpressionKeywords, 'function', 'class', 'yield', 'else', 'do', 'try', 'finally',
+  'var', 'const', 'let', 'of'
+]);
+
+/**
+ * @typedef {object} YieldFrame
+ * @property {number} type
+ * @property {boolean} generator
+ * @property {boolean} expression
+ * @property {boolean} bodyGenerator
+ * @property {boolean} forLoop
+ * @property {number} conditional
+ * @property {number} member
+ *
+ * @typedef {object} YieldContext
+ * @property {number} firstStar
+ * @property {number} cursor
+ * @property {number} tokenEnd
+ * @property {string} token
+ * @property {boolean} expression
+ * @property {boolean} generator
+ * @property {boolean} asyncExpression
+ * @property {number} depth
+ * @property {YieldFrame[]} stack
+ */
+
+/**
+ * @param {YieldContext} context
+ * @param {number} type
+ * @param {boolean} [expression]
+ */
+function pushYieldFrame (context, type, expression = false) {
+  const frame = context.stack[context.depth] || (context.stack[context.depth] = {});
+  frame.type = type;
+  frame.generator = context.generator;
+  frame.expression = expression;
+  frame.bodyGenerator = false;
+  frame.forLoop = false;
+  frame.conditional = 0;
+  frame.member = type === YieldObject || type === YieldClass ? 1 : 0;
+  context.depth++;
+  return frame;
+}
+
+/** @param {YieldContext} context */
+function popYieldFrame (context) {
+  const frame = context.stack[context.depth > 1 ? --context.depth : 0];
+  context.generator = frame.generator;
+  return frame;
+}
+
+/**
+ * @param {number} start
+ * @param {number} end
+ */
+function yieldLineBreak (start, end) {
+  for (; start < end; start++) {
+    const ch = source.charCodeAt(start);
+    if (ch === 13 || ch === 10 || ch === 0x2028 || ch === 0x2029) return true;
+  }
+  return false;
+}
+
+/** @param {number} ch */
+function isYieldWhitespace (ch) {
+  return isBrOrWs(ch) || ch === 0x1680 || ch >= 0x2000 && ch <= 0x200a ||
+    ch === 0x2028 || ch === 0x2029 || ch === 0x202f || ch === 0x205f || ch === 0x3000 || ch === 0xfeff;
+}
+
+/** @param {string} token */
+function isYieldStatementStart (token) {
+  return token === 'name' || yieldKeywords.has(token) && token !== 'in' && token !== 'instanceof' ||
+    token === '{' || token === '++';
+}
+
+/** @param {number} type */
+function isYieldStatementBody (type) {
+  return type === YieldBlock || type === YieldBody || type === YieldArrowBody;
+}
+
+/**
+ * @param {string} previous
+ * @param {number} type
+ */
+function isYieldDeclarationBoundary (previous, type) {
+  return previous === '' || previous === ';' || previous === 'else' || previous === ')' || previous === '}' ||
+    previous === '{' && isYieldStatementBody(type) || previous === 'label';
+}
+
+/** @param {number} tokenEnd */
+function isYieldKeyword (tokenEnd) {
+  if (!yieldContext) {
+    yieldContext = {
+      firstStar: source.indexOf('*'), cursor: -1, tokenEnd: -1, token: '', expression: true,
+      generator: false, asyncExpression: false, depth: 0, stack: []
+    };
+  }
+  const context = yieldContext;
+  if (context.firstStar === -1 || context.firstStar > tokenEnd) return false;
+  const savedPos = pos;
+  try {
+    pos = context.cursor;
+    if (context.depth === 0) {
+      pushYieldFrame(context, YieldBlock);
+      if (source.startsWith('#!')) {
+        pos = 1;
+        lineComment();
+      }
+    }
+    while (pos < tokenEnd) readYieldContext(context);
+    context.cursor = pos;
+    return context.generator && context.token === 'yield';
+  }
+  finally {
+    pos = savedPos;
+  }
+}
+
+/** @param {YieldContext} context */
+function readYieldContext (context) {
+  pos++;
+  const ch = source.charCodeAt(pos);
+  if (isYieldWhitespace(ch)) return;
+  if (ch === 47/*/*/ && source.charCodeAt(pos + 1) === 47/*/*/) {
+    lineComment();
+    return;
+  }
+  if (ch === 47/*/*/ && source.charCodeAt(pos + 1) === 42/***/) {
+    blockComment();
+    return;
+  }
+  const start = pos;
+  const previous = context.token;
+  let token = source[pos];
+  let word;
+  if (isTokenRunChar(ch)) {
+    while (isTokenRunChar(source.charCodeAt(pos + 1)) && !isYieldWhitespace(source.charCodeAt(pos + 1))) pos++;
+    word = source.slice(start, pos + 1);
+    token = yieldKeywords.has(word) ? word : 'name';
+  }
+  else if (ch === 39/*'*/ || ch === 34/*"*/) {
+    stringLiteral(ch);
+    token = 'name';
+  }
+  else if (ch === 47/*/*/ && context.expression) {
+    regularExpression();
+    skipTokenRun();
+    token = 'name';
+  }
+  else if (ch === 61/*=*/ && source.charCodeAt(pos + 1) === 62/*>*/) {
+    pos++;
+    token = '=>';
+  }
+  else if (ch === 63/*?*/ && source.charCodeAt(pos + 1) === 46/*.*/) {
+    pos++;
+    token = '.';
+  }
+  else if ((ch === 43/*+*/ || ch === 45/*-*/ || ch === 63/*?*/) && source.charCodeAt(pos + 1) === ch) {
+    pos++;
+    token = ch === 63/*?*/ ? '=' : '++';
+  }
+  while (context.stack[context.depth - 1].type === YieldArrow &&
+      (token === ')' || token === ']' || token === '}' || token === ',' || token === ';' ||
+      token === ':' && context.stack[context.depth - 1].conditional === 0 ||
+      (!context.expression || previous === 'arrowBody') && previous !== '.' &&
+      (isYieldStatementStart(token) || token === '*' && previous === 'arrowBody') &&
+      yieldLineBreak(context.tokenEnd + 1, start))) {
+    popYieldFrame(context);
+  }
+  let frame = context.stack[context.depth - 1];
+  if (frame.type === YieldClass && !frame.member && previous !== '.' &&
+      (!context.expression || previous === 'arrowBody') &&
+      (isYieldStatementStart(token) || token === '*' && previous === 'arrowBody') &&
+      yieldLineBreak(context.tokenEnd + 1, start)) frame.member = 1;
+  const member = frame.member !== 0;
+  switch (token) {
+    case 'function':
+    case 'class':
+      if (previous === '.' || member) {
+        frame.member |= member ? 2 : 0;
+        token = 'name';
+        context.expression = false;
+      }
+      else {
+        const expression = previous === 'async' &&
+          !yieldLineBreak(context.tokenEnd + 1, start) ? context.asyncExpression :
+          context.expression && !isYieldDeclarationBoundary(previous, frame.type);
+        pushYieldFrame(context, token === 'function' ? YieldFunction : YieldClassHeader, expression);
+        context.expression = false;
+      }
+      break;
+    case '(':
+      if (frame.type === YieldFunction) {
+        frame.type = YieldParameters;
+        context.generator = false;
+      }
+      else if (member && frame.member & 2) {
+        const parameters = pushYieldFrame(context, YieldParameters, true);
+        parameters.bodyGenerator = (frame.member & 4) !== 0;
+        context.generator = false;
+      }
+      else {
+        const control = pushYieldFrame(context, yieldControlKeywords.has(previous) ? YieldControl : YieldParen);
+        control.forLoop = previous === 'for';
+      }
+      context.expression = true;
+      break;
+    case ')':
+      if (frame.type === YieldParameters) {
+        frame.type = YieldPendingBody;
+        context.generator = frame.generator;
+        context.expression = false;
+      }
+      else {
+        frame = popYieldFrame(context);
+        context.expression = frame.type === YieldControl;
+      }
+      break;
+    case '[':
+      pushYieldFrame(context, member ? YieldComputed : YieldBracket);
+      context.expression = true;
+      break;
+    case ']':
+      frame = popYieldFrame(context);
+      if (frame.type === YieldComputed) context.stack[context.depth - 1].member |= 2;
+      context.expression = false;
+      break;
+    case '{':
+      if (frame.type === YieldPendingBody || frame.type === YieldArrow && previous === '=>') {
+        if (frame.type === YieldArrow) frame.bodyGenerator = false;
+        frame.type = frame.type === YieldArrow ? YieldArrowBody : YieldBody;
+        context.generator = frame.bodyGenerator;
+      }
+      else if (frame.type === YieldClassHeader && !context.expression) {
+        frame.type = YieldClass;
+        frame.member = 1;
+      }
+      else {
+        const statement = previous === '' || previous === ';' || previous === ')' || previous === 'else' ||
+          previous === 'do' || previous === 'try' || previous === 'finally' || previous === 'label' ||
+          previous === '{' && isYieldStatementBody(frame.type) || !context.expression ||
+          (previous === 'return' || previous === 'yield') && yieldLineBreak(context.tokenEnd + 1, start);
+        pushYieldFrame(context, statement ? YieldBlock : YieldObject);
+      }
+      context.expression = true;
+      break;
+    case '}':
+      frame = popYieldFrame(context);
+      context.expression = frame.type === YieldBlock || frame.type === YieldArrowBody ||
+        (frame.type === YieldBody || frame.type === YieldClass) && !frame.expression;
+      if (frame.type === YieldArrowBody) token = 'arrowBody';
+      if (frame.type === YieldBody && context.stack[context.depth - 1].member) {
+        context.stack[context.depth - 1].member = 1;
+      }
+      if (frame.type === YieldInterpolation) {
+        if (templateString(false)) pushYieldFrame(context, YieldInterpolation);
+        else {
+          popYieldFrame(context);
+          context.expression = false;
+        }
+      }
+      break;
+    case '`':
+      pushYieldFrame(context, YieldTemplate);
+      if (templateString(false)) {
+        pushYieldFrame(context, YieldInterpolation);
+        context.expression = true;
+      }
+      else {
+        popYieldFrame(context);
+        context.expression = false;
+      }
+      break;
+    case '=>':
+      pushYieldFrame(context, YieldArrow, true);
+      context.generator = false;
+      context.expression = true;
+      break;
+    case '?':
+      frame.conditional++;
+      context.expression = true;
+      break;
+    case ':':
+      if (frame.conditional) frame.conditional--;
+      else if (isYieldStatementBody(frame.type) || frame.type === YieldControl) token = 'label';
+      else frame.member = 0;
+      context.expression = true;
+      break;
+    case ',':
+    case ';':
+      if (frame.type === YieldObject || frame.type === YieldClass) frame.member = 1;
+      context.expression = true;
+      break;
+    case '*':
+      if (frame.type === YieldFunction) frame.bodyGenerator = true;
+      else if (member) frame.member = 1 | 4;
+      context.expression = true;
+      break;
+    case '.':
+      context.expression = false;
+      break;
+    case '++':
+      break;
+    case 'name':
+    case 'of':
+    case 'yield':
+      if (word === 'async') {
+        context.asyncExpression = context.expression && !isYieldDeclarationBoundary(previous, frame.type);
+        token = 'async';
+      }
+      if (member) frame.member |= 2;
+      if (previous === '.') token = 'name';
+      context.expression = token === 'yield' && context.generator || token === 'of' && frame.forLoop;
+      break;
+    default:
+      if (member && token !== '=') frame.member |= 2;
+      else if (token === '=') frame.member = 0;
+      if (previous === '.') {
+        token = 'name';
+        context.expression = false;
+      }
+      else {
+        context.expression = yieldExpressionKeywords.has(token) || isExpressionPunctuator(ch);
+        if (token === 'await' && previous === 'for') token = 'for';
+      }
+  }
+  context.token = token;
+  context.tokenEnd = pos;
 }
 
 function isParenKeyword (curPos) {

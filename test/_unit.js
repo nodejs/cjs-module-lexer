@@ -50,6 +50,131 @@ function createRequireDeclarations (count) {
 suite('Lexer', () => {
   suiteSetup(async () => await loadParser());
 
+  test('Yield distinguishes division from regular expressions in function contexts', () => {
+    const expression = 'yield / (exports.division = 1) / +1; exports.after = 1;';
+    const cases = [
+      [`function f() { ${expression} }`, ['division', 'after']],
+      [`function* f() { ${expression} }`, ['after']],
+      [`function* outer() { function f() { ${expression} } }`, ['division', 'after']],
+      [`function outer() { function* f() { ${expression} } }`, ['after']],
+      [`const object = { f() { ${expression} } };`, ['division', 'after']],
+      [`const object = { *f() { ${expression} } };`, ['after']],
+      [`const object = { async *f() { ${expression} } };`, ['after']],
+      [`const object = { *['f']() { ${expression} } };`, ['after']],
+      [`class C { *f() { ${expression} } }`, ['after']],
+      [`class C { static async *f() { ${expression} } }`, ['after']],
+      [`function* outer() { const f = () => { ${expression} }; }`, ['division', 'after']],
+      ['function* f() { const arrow = () => yield / (exports.division = 1) / +1; }', ['division']],
+      ['function* f() { const arrow = () => 0\n yield /"/; } exports.after = 1;', ['after']],
+      ['function* f() { const arrow = () => 0 /*\n*/ yield /"/; } exports.after = 1;', ['after']],
+      ['function* f() { const arrow = () => 0\n call(); yield /"/; } exports.after = 1;', ['after']],
+      ['function* f() { const arrow = () => 0\n + yield / (exports.division = 1) / +1; }', ['division']],
+      ['function* f() { const arrow = () => object\n .yield / (exports.division = 1) / +1; }', ['division']],
+      ['function* f() { const arrow = () => condition ? {} : yield / (exports.division = 1) / +1; }',
+        ['division']],
+      ['function* f() { object. yield / (exports.division = 1) / +1; }', ['division']]
+    ];
+    for (const [source, exports] of cases) {
+      assert.deepStrictEqual(parse(source), { exports, reexports: [] }, source);
+      assert.deepStrictEqual(parse(source, 'yield.cjs', { mode: 'extended' }), { exports, reexports: [] }, source);
+    }
+  });
+
+  test('Yield context scanning skips hashbangs and contextual loop expressions', () => {
+    const cases = [
+      '#!/bin/node --flag="\nfunction* f() { yield /"/; } exports.after = 1;',
+      'function* f() { for (const value of /values/) {} yield /"/; } exports.after = 1;',
+      'async function* f() { for await (const value of /values/) {} yield /"/; } exports.after = 1;',
+      'function\u2028* f() { yield /"/; } exports.after = 1;'
+    ];
+    for (const source of cases) {
+      assert.deepStrictEqual(parse(source), { exports: ['after'], reexports: [] }, source);
+      assert.deepStrictEqual(parse(source, 'yield.cjs', { mode: 'extended' }),
+        { exports: ['after'], reexports: [] }, source);
+    }
+  });
+
+  test('Yield slash ambiguity does not hide exports after a comment', () => {
+    const source = 'function f() {\n yield / "/ //" /*\n}\n/*/\n}\nexports.value = 1;\n// */';
+    assert.deepStrictEqual(parse(source), { exports: ['value'], reexports: [] });
+    assert.deepStrictEqual(parse(source.replace('function f', 'function* f')), { exports: [], reexports: [] });
+  });
+
+  test('Yield context follows nested expressions and restores enclosing functions', () => {
+    const expression = 'yield / (exports.division = 1) / +1';
+    const cases = [
+      [`function* f() { call(() => ${expression}, ${expression}); }`, ['division']],
+      [`function* f() { const arrow = () => [${expression}, ${expression}]; ${expression}; }`, ['division']],
+      [`function* f() { const arrow = () => ({ value: ${expression} }); ${expression}; }`, ['division']],
+      [`function* f() { condition ? () => () => ${expression} : ${expression}; }`, ['division']],
+      [`function* f() { const text = \`head \${(() => ${expression})()} tail\`; ${expression}; }`, ['division']],
+      [`function* f() { const object = { *[(() => 'key')()]() { ${expression}; },
+        method(value = ${expression}) { ${expression}; } }; }`, ['division']],
+      [`function* f() { function ordinary(value = ${expression}) { ${expression}; } }`, ['division']],
+      [`function* f() { const nested = async function* () { ${expression}; }; ${expression}; }`, []],
+      [`function* f() { const value = async function() { ${expression}; }; yield /value/; }`, ['division']],
+      [`function* f() { label: { ${expression}; } switch (key) { case 1: { ${expression}; } } }`, []],
+      [`function* f() { try { ${expression}; } catch (error) { ${expression}; } finally {} }`, []],
+      [`function* f() { do { ${expression}; } while (condition); }`, []],
+      [`class C { *first() { ${expression}; } } function f() { ${expression}; }`, ['division']],
+      [`/* * */ const object = { function() { ${expression}; }, *class() { ${expression}; } };`, ['division']],
+      [`/* * */ function f() { object?.yield / (exports.division = 1) / +1; }`, ['division']]
+    ];
+    for (const [source, exports] of cases) {
+      assert.deepStrictEqual(parse(source), { exports, reexports: [] }, source);
+      assert.deepStrictEqual(parse(source, 'yield.cjs', { mode: 'extended' }), { exports, reexports: [] }, source);
+    }
+  });
+
+  test('Yield context preserves declarations and class member boundaries', () => {
+    const cases = [
+      'class C { field = () => {}\n *gen() { yield /"/; } } exports.after = 1;',
+      'class C { field = 1\n method() {} *gen() { yield /"/; } } exports.after = 1;',
+      'class C { field = 1\n static {} *gen() { yield /"/; } } exports.after = 1;',
+      'class C { field = () => 0\n method() {} *gen() { yield /"/; } } exports.after = 1;',
+      'class C { field = {}\n * value(); *gen() { yield /"/; } } exports.after = 1;',
+      'function* f() { const arrow = () => 0\n of = yield /"/; } exports.after = 1;',
+      'function* f() { const arrow = () => 0\n of(yield /"/); } exports.after = 1;',
+      'function* f() { class C {} /"/; yield /"/; } exports.after = 1;',
+      'function* f() { function inner() {} /"/; yield /"/; } exports.after = 1;',
+      'function* f() { {} function inner() {} /"/; yield /"/; } exports.after = 1;',
+      'function* f() { if (condition) function inner() {} /"/; yield /"/; } exports.after = 1;',
+      'function* f() { label: { class C {} /"/; } yield /"/; } exports.after = 1;',
+      'function* f() { const arrow = () => {}\n /"/; yield /"/; } exports.after = 1;',
+      'function* f() { async function inner() {} /"/; yield /"/; } exports.after = 1;',
+      'async function inner() {} /"/; function* f() { yield /"/; } exports.after = 1;',
+      'function* f() { ; async function inner() {} /"/; yield /"/; } exports.after = 1;',
+      'function* f() { label: { async function inner() {} /"/; } yield /"/; } exports.after = 1;',
+      'function* f() { const arrow = () => () => {}\n yield /"/; } exports.after = 1;',
+      'function* f() { const arrow = () => () => {} /*\n*/ yield /"/; } exports.after = 1;',
+      'function* f() { const arrow = () => value ? () => {} : () => {}\n yield /"/; } exports.after = 1;',
+      'class C { field = () => () => {}\n *gen() { yield /"/; } } exports.after = 1;',
+      'let value = async\n function inner() {} /"/; function* f() { yield /"/; } exports.after = 1;',
+      'let value = async\n class C {} /"/; function* f() { yield /"/; } exports.after = 1;',
+      'let value = async /*\n*/ function inner() {} /"/; function* f() { yield /"/; } exports.after = 1;',
+      'let value = async /*\n*/ class C {} /"/; function* f() { yield /"/; } exports.after = 1;'
+    ];
+    for (const source of cases) {
+      assert.deepStrictEqual(parse(source), { exports: ['after'], reexports: [] }, source);
+      assert.deepStrictEqual(parse(source, 'yield.cjs', { mode: 'extended' }),
+        { exports: ['after'], reexports: [] }, source);
+    }
+  });
+
+  test('Yield context storage grows and resets between parses', () => {
+    const nested = 'function* f() {' + '('.repeat(1536) + 'yield /value/' + ')'.repeat(1536) +
+      '; } exports.deep = 1;';
+    const repeated = 'function* f() {' + 'yield /value/;'.repeat(5000) + '} exports.repeated = 1;';
+    const ordinary = '/* * */ function f() { yield / (exports.division = 1) / +1; }';
+    for (let index = 0; index < 3; index++) {
+      assert.deepStrictEqual(parse(nested), { exports: ['deep'], reexports: [] });
+      assert.deepStrictEqual(parse(repeated), { exports: ['repeated'], reexports: [] });
+      assert.throws(() => parse('function* f() { const arrow = () => yield /"/; }'),
+        process.env.WASM || process.env.WASM_SYNC ? /^Error: Parse error @/ : /^Error: Unterminated string\./);
+      assert.deepStrictEqual(parse(ordinary), { exports: ['division'], reexports: [] });
+    }
+  });
+
   test('Repeated parsing preserves scanner state and earlier results', () => {
     const first = parse("exports.first = 1; __exportStar(require('first'));");
     const nested = '('.repeat(1536) + '0' + ')'.repeat(1536) + '; exports.deep = 1;';
