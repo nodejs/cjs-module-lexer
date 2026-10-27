@@ -62,6 +62,15 @@ The optional third argument to `parse(source, name, options)` controls detection
 in supported `Object.defineProperty` exports and star reexports. Whitespace and comments can separate `!` and `0`.
 This option does not change Node.js's built-in CommonJS named-export detection.
 
+```js
+const { exports } = parse(
+  "Object.defineProperty(exports, 'b', { enumerable: !0, value: 'b' });",
+  undefined,
+  { allowMinifiedEnumerable: true }
+);
+// exports === ['b']
+```
+
 ### Detection baselines (proof of concept)
 
 The default `reexports` value stays flat for one distinct final dependency list.
@@ -89,7 +98,9 @@ Flow analysis runs only after the lexer detects more than one `module.exports` r
 The counter ignores comments, strings, property writes, and comparisons.
 With fewer replacements, existing detection patterns run and their reexports stay flat.
 The optional third argument selects a versioned detection baseline.
-Select `legacy` for frozen detection, or `flow-v1` for the default conditional analysis.
+Select `baseline: 'legacy'` to disable flow analysis, or `baseline: 'flow-v1'` to enable it.
+These baselines preserve the selected detection extensions when flow analysis does not run.
+Extended mode disables flow analysis unless `baseline: 'flow-v1'` is explicit.
 A baseline can combine detection rules without an option for each rule.
 
 The C lexer compiled to Wasm owns flow analysis.
@@ -104,15 +115,6 @@ An incomplete result contains confirmed alternatives and omits unknown values.
 Token, nesting, outcome, and work limits bound the analyzer.
 Existing lexer errors still apply.
 
-
-```js
-const { exports } = parse(
-  "Object.defineProperty(exports, 'b', { enumerable: !0, value: 'b' });",
-  undefined,
-  { allowMinifiedEnumerable: true }
-);
-// exports === ['b']
-```
 
 ### Extended detection
 

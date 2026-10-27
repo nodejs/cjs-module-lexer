@@ -54,14 +54,6 @@ static bool flowStep () {
   return !flow.failed;
 }
 
-static bool flowReserve (uint32_t bytes) {
-  uint64_t required = (uint64_t)(uintptr_t)analysis_head + bytes;
-  if (required > UINT32_MAX) return false;
-  uint64_t capacity = (uint64_t)__builtin_wasm_memory_size(0) * 65536;
-  return required <= capacity ||
-    __builtin_wasm_memory_grow(0, (required - capacity + 65535) / 65536) != (size_t)-1;
-}
-
 static bool flowLineBreak (uint16_t ch) {
   return ch == '\r' || ch == '\n' || ch == 0x2028 || ch == 0x2029;
 }
@@ -719,20 +711,17 @@ static void flowClear () {
   first_unsafe_getter = unsafe_getter_read_head = unsafe_getter_write_head = NULL;
 }
 
-uint32_t parseCJSGrouped (uint16_t* input, uint32_t length, uint32_t options) {
-  uint32_t status = parseCJSWithOptions(input, length, NULL, NULL, NULL, NULL, options);
-  if ((status & 255) || moduleExportCount < 2) return status;
+static uint32_t analyzeReexports () {
   flowClear();
   flow.tokenCount = 0; flow.nodeCount = 0; flow.cursor = 0; flow.depth = 0; flow.steps = 0; flow.failed = false;
-  uint64_t aligned = ((uint64_t)(uintptr_t)analysis_head + 7) & ~7ULL;
+  uint64_t aligned = (analysis_head + 7) & ~7ULL;
   uint32_t bytes = sizeof(FlowToken) * FLOW_TOKENS + sizeof(FlowNode) * (FLOW_TOKENS + 1) +
     sizeof(FlowResult) * (FLOW_DEPTH * 3 + 1);
-  if (aligned > UINT32_MAX || aligned - (uintptr_t)analysis_head > UINT32_MAX - bytes ||
-      !flowReserve(bytes + aligned - (uintptr_t)analysis_head)) return status | FLOW_ANALYZED | FLOW_INCOMPLETE;
+  ensureAnalysisCapacity(bytes + aligned - analysis_head);
   flow.tokens = (FlowToken*)(uintptr_t)aligned;
   flow.nodes = (FlowNode*)(flow.tokens + FLOW_TOKENS);
   flow.results = (FlowResult*)(flow.nodes + FLOW_TOKENS + 1);
-  analysis_head = (void*)(flow.results + FLOW_DEPTH * 3 + 1);
+  analysis_head = aligned + bytes;
   flow.nodes[0].kind = FN_OBJECT; flow.nodes[0].left = 0;
   flowTokenize();
   uint16_t block = flowNode(FN_BLOCK, 0, 0, (FlowToken){0}), tail = 0;
@@ -744,8 +733,8 @@ uint32_t parseCJSGrouped (uint16_t* input, uint32_t length, uint32_t options) {
   }
   FlowResult* result = &flow.results[FLOW_DEPTH * 3];
   if (!flow.failed) flowExecute(block, flowValue(FV_OBJECT, 0, 1, 0), result, 0);
-  if (flow.failed || !flowReserve((flow.nodeCount + FLOW_OUTCOMES) * sizeof(Slice)))
-    return status | FLOW_ANALYZED | FLOW_INCOMPLETE;
+  if (flow.failed)
+    return FLOW_ANALYZED | FLOW_INCOMPLETE;
   bool complete = true;
   for (uint32_t i = 0; i < result->count && flowStep(); i++) {
     FlowValue value = result->values[i].root;
@@ -759,5 +748,5 @@ uint32_t parseCJSGrouped (uint16_t* input, uint32_t length, uint32_t options) {
     } else if (value.kind == FV_OBJECT) flowEmitObject(value.node, 0);
   }
   if (flow.failed) { flowClear(); complete = false; }
-  return status | FLOW_ANALYZED | (complete ? 0 : FLOW_INCOMPLETE);
+  return FLOW_ANALYZED | (complete ? 0 : FLOW_INCOMPLETE);
 }

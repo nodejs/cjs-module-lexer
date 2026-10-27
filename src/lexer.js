@@ -12,13 +12,15 @@ export function parse (source, name = '@', options) {
   const mode = options ? options.mode : undefined;
   if (mode !== undefined && mode !== 'default' && mode !== 'extended')
     throw new TypeError('Expected options.mode to be "default" or "extended".');
-  const flags = (options && options.allowMinifiedEnumerable === true ? 1 : 0) |
-    (mode === 'extended' ? 2 : 0);
-  const baseline = options === undefined ? undefined : options.baseline;
+  const minifiedEnumerable = options ? options.allowMinifiedEnumerable === true : false;
+  const baseline = options?.baseline;
   if (baseline !== undefined && typeof baseline !== 'string')
     throw new TypeError('Detection baseline must be a string');
   if (baseline !== undefined && baseline !== 'legacy' && baseline !== 'flow-v1')
     throw new RangeError('Unknown detection baseline: ' + baseline);
+  const flags = (minifiedEnumerable ? 1 : 0) |
+    (mode === 'extended' ? 2 : 0) |
+    (baseline !== 'legacy' && (mode !== 'extended' || baseline === 'flow-v1') ? 4 : 0);
   if (!wasm)
     initSync();
 
@@ -39,8 +41,7 @@ export function parse (source, name = '@', options) {
   else
     (isLE ? copyLE : copyBE)(source, new Uint16Array(memory, addr, len));
 
-  const status = baseline === 'legacy' ? wasm.parseCJSWithOptions(addr, len, 0, 0, 0, 0, flags) :
-    wasm.parseCJSGrouped(addr, len, flags);
+  const status = wasm.parseCJSWithOptions(addr, len, 0, 0, 0, 0, flags);
   const err_code = status & 255;
 
   if (err_code) {
@@ -65,7 +66,7 @@ export function parse (source, name = '@', options) {
     const reexptStr = decode(source.slice(start, wasm.ree()));
     if (reexptStr !== undefined)
       reexports.add(reexptStr);
-    else if (reexptStr === undefined)
+    else
       complete = false;
   }
   while (wasm.ru()) {

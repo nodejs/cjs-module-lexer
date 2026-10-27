@@ -17,9 +17,8 @@ export interface ParseOptions {
   baseline?: 'legacy' | 'flow-v1';
 }
 
-export declare function parse(source: string, name: string | undefined, options: { baseline: 'legacy' }): LegacyExports;
-export declare function parse(source: string, name: string | undefined, options?: { baseline?: 'flow-v1' }): Exports;
-export declare function parse(source: string, name: string | undefined, options?: ParseOptions): Exports | LegacyExports;
-export declare function parse(source: string, name?: string): Exports;
+export declare function parse(source: string, name: string | undefined, options: ParseOptions & { baseline: 'legacy' }): LegacyExports;
+export declare function parse(source: string, name: string | undefined, options: ParseOptions & { mode: 'extended'; baseline?: 'legacy' }): LegacyExports;
+export declare function parse(source: string, name?: string, options?: ParseOptions): Exports;
 export declare function init(): Promise<void>;
 export declare function initSync(): void;

@@ -34,9 +34,8 @@ uint16_t* lastReexportEnd;
 uint32_t parse_error;
 uint32_t error = 0;
 uint32_t sourceLen;
-uint32_t moduleExportCount;
-
 #ifdef __wasm__
+uint32_t moduleExportCount;
 #include "reexport-analysis.h"
 #endif
 
@@ -91,7 +90,9 @@ uint32_t parseCJSWithOptions (uint16_t* _source, uint32_t _sourceLen, void (*_ad
   sourceLen = _sourceLen;
   allowMinifiedEnumerable = (options & 1) != 0;
   extended = (options & 2) != 0;
+#ifdef __wasm__
   moduleExportCount = 0;
+#endif
   if (_addExport)
     addExport = _addExport;
   if (_addReexport)
@@ -311,11 +312,10 @@ uint32_t parseCJSWithOptions (uint16_t* _source, uint32_t _sourceLen, void (*_ad
 
   // success
 #ifdef __wasm__
-  // The low byte is reserved for parse errors in the host wrapper.
-  return moduleExportCount << 8;
-#else
-  return 0;
+  if ((options & 4) && moduleExportCount > 1)
+    return analyzeReexports();
 #endif
+  return 0;
 }
 
 void tryBacktrackAddStarExportBinding (uint16_t* bPos) {
@@ -1016,8 +1016,10 @@ void tryParseExportsDotAssign (bool assign) {
     // module.exports =
     case '=': {
       if (assign) {
+#ifdef __wasm__
         if (moduleExportCount < 2 && pos[1] != '=')
           moduleExportCount++;
+#endif
         if (!extended) clearReexports();
         pos++;
         ch = commentWhitespace();
@@ -1043,8 +1045,10 @@ void tryParseExportsDotAssign (bool assign) {
     case '&':
     case '|':
     case '?': {
+#ifdef __wasm__
       if (assign && moduleExportCount < 2 && end - pos >= 2 && pos[1] == ch && pos[2] == '=')
         moduleExportCount++;
+#endif
     }
   }
   pos = revertPos;

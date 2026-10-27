@@ -68,7 +68,7 @@ function parseCJS (source, name = '@', options) {
   if (mode !== undefined && mode !== 'default' && mode !== 'extended')
     throw new TypeError('Expected options.mode to be "default" or "extended".');
   const minifiedEnumerable = options ? options.allowMinifiedEnumerable === true : false;
-  const baseline = options === undefined ? undefined : options.baseline;
+  const baseline = options?.baseline;
   if (baseline !== undefined && typeof baseline !== 'string')
     throw new TypeError('Detection baseline must be a string');
   if (baseline !== undefined && baseline !== 'legacy' && baseline !== 'flow-v1')
@@ -85,9 +85,10 @@ function parseCJS (source, name = '@', options) {
     error.loc = pos;
     throw error;
   }
-  if (baseline !== 'legacy' && moduleExportCount > 1) {
+  if (moduleExportCount > 1 && baseline !== 'legacy' && (mode !== 'extended' || baseline === 'flow-v1')) {
     resetState();
-    return require('./dist/lexer.js').parse(source, name, baseline === undefined ? undefined : { baseline });
+    return require('./dist/lexer.js').parse(source, name,
+      { baseline, mode, allowMinifiedEnumerable: minifiedEnumerable });
   }
   const result = { exports: [..._exports].filter(expt => expt !== undefined && !unsafeGetters.has(expt)), reexports: [...reexports].filter(reexpt => reexpt !== undefined) };
   resetState();

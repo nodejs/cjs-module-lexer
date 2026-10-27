@@ -1,4 +1,4 @@
-const assert = require('node:assert').strict;
+const assert = require('node:assert/strict');
 const { mkdtempSync, rmSync, writeFileSync } = require('node:fs');
 const { createRequire } = require('node:module');
 const { tmpdir } = require('node:os');
@@ -80,6 +80,62 @@ suite('Grouped reexports', () => {
       { exports: ['valid'], reexports: [], complete: false });
     assert.deepStrictEqual(parse("module.exports = {}; module.exports = require('./\\uD800');"),
       { exports: [], reexports: [], complete: false });
+  });
+  test('preserves extended detection unless flow analysis is explicitly selected', () => {
+    const source = "if (flag) module.exports = require('./a'); else module.exports = require('./b');";
+    for (const baseline of [undefined, 'legacy']) {
+      assert.deepStrictEqual(parse(source, '@', { mode: 'extended', baseline }),
+        { exports: [], reexports: ['./a', './b'] });
+    }
+    assert.deepStrictEqual(parse(source, '@', { mode: 'extended', baseline: 'flow-v1' }),
+      { exports: [], reexports: [['./a'], ['./b']], complete: true });
+  });
+  test('combines detection options with each baseline', () => {
+    const source = "Object.defineProperty(exports, 'name', { enumerable: !0, value: 1 });";
+    for (const baseline of [undefined, 'legacy', 'flow-v1']) {
+      for (const mode of [undefined, 'default', 'extended']) {
+        for (const allowMinifiedEnumerable of [false, true]) {
+          assert.deepStrictEqual(parse(source, '@', { baseline, mode, allowMinifiedEnumerable }),
+            { exports: mode === 'extended' || allowMinifiedEnumerable ? ['name'] : [], reexports: [] });
+        }
+      }
+    }
+  });
+  test('keeps empty dependency specifiers in each analyzed alternative', () => {
+    assert.deepStrictEqual(parse("if (flag) module.exports = require(''); else module.exports = require('./b');"),
+      { exports: [], reexports: [[''], ['./b']], complete: true });
+  });
+  test('snapshots options before the shared engine is entered', () => {
+    const source = "module.exports = {}; module.exports = { final };";
+    for (const baseline of [undefined, 'legacy', 'flow-v1']) {
+      for (const mode of ['default', 'extended']) {
+        let modeReads = 0, enumerableReads = 0, baselineReads = 0;
+        const result = parse(source, '@', {
+          get mode () { modeReads++; parse('exports.nested = 1;'); return mode; },
+          get allowMinifiedEnumerable () { enumerableReads++; parse('exports.nested = 1;'); return true; },
+          get baseline () { baselineReads++; parse('exports.nested = 1;'); return baseline; }
+        });
+        assert.equal(modeReads, 1);
+        assert.equal(enumerableReads, 1);
+        assert.equal(baselineReads, 1);
+        assert.deepStrictEqual(result, baseline === 'legacy' || baseline === undefined && mode === 'extended' ?
+          { exports: ['final'], reexports: [] } : { exports: ['final'], reexports: [], complete: true });
+      }
+    }
+  });
+  test('reads detection options before a baseline getter can change them', () => {
+    const source = "Object.defineProperty(exports, 'name', { enumerable: !0, value: 1 });";
+    for (const allowMinifiedEnumerable of [false, true]) {
+      const options = {
+        allowMinifiedEnumerable,
+        get baseline () {
+          this.allowMinifiedEnumerable = !allowMinifiedEnumerable;
+          return 'legacy';
+        }
+      };
+      assert.deepStrictEqual(parse(source, '@', options),
+        { exports: allowMinifiedEnumerable ? ['name'] : [], reexports: [] });
+    }
   });
   test('initializes the shared Wasm engine through CommonJS init', async () => {
     const rootPath = require.resolve('../lexer.js'), wasmPath = require.resolve('../dist/lexer.js');

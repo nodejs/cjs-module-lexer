@@ -16,8 +16,11 @@ async function loadParser () {
     parse = require('../lexer.js').parse;
   }
   const parseSource = parse;
-  parse = /** @param {string} source @param {string} [name] */ (source, name) =>
-    parseSource(source, name, { baseline: 'legacy' });
+  parse = /**
+   * @param {string} source
+   * @param {string} [name]
+   * @param {import('../lexer').ParseOptions} [options]
+   */ (source, name, options) => parseSource(source, name, { ...options, baseline: 'legacy' });
 }
 
 /**
