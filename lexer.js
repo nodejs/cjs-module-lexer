@@ -91,7 +91,7 @@ function decode (str) {
       // Filter to exclude non-matching UTF-16 surrogate strings
       for (let i = 0; i < decoded.length; i++) {
         const surrogatePrefix = decoded.charCodeAt(i) & 0xFC00;
-        if (surrogatePrefix < 0xD800) {
+        if (surrogatePrefix < 0xD800 || surrogatePrefix >= 0xE000) {
           // Not a surrogate
           continue;
         }
@@ -101,7 +101,7 @@ function decode (str) {
             return;
         }
         else {
-          // Out-of-range surrogate code (above 0xD800)
+          // Unpaired low surrogate
           return;
         }
       }
