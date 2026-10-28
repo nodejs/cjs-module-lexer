@@ -299,9 +299,17 @@ uint32_t cjs_lexer_scan (Parser* parser) {
         templateString(parser);
         break;
       default:
+#ifndef CJS_LEXER_WASM
+        if (!isTokenRunChar(ch))
+          break;
+        goto scanTokenRun;
+#endif
       skipTokenRun:
         if (!isTokenRunChar(at(parser, parser->pos)))
           break;
+#ifndef CJS_LEXER_WASM
+      scanTokenRun:
+#endif
         while (parser->pos < parser->end &&
                isTokenRunChar(scanInput(input, parser->pos + 1)))
           parser->pos++;
