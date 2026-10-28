@@ -1,7 +1,7 @@
 #include "lexer-internal.h"
 
 void* cjs_lexer_allocate(cjs_lexer_result* result, size_t size) {
-  const size_t alignment = _Alignof(max_align_t);
+  const size_t alignment = _Alignof(ArenaValue);
   if (size > SIZE_MAX - alignment + 1) return NULL;
   size = (size + alignment - 1) & ~(alignment - 1);
   ArenaBlock* block = result->blocks;

@@ -23,6 +23,14 @@ typedef ptrdiff_t Cursor;
 #endif
 #define SOURCE_BEFORE (SOURCE_START - 1)
 
+typedef struct StarExportBinding {
+  Cursor specifier_start;
+  Cursor specifier_end;
+  Cursor id_start;
+  Cursor id_end;
+  struct StarExportBinding* next;
+} StarExportBinding;
+
 #ifdef CJS_LEXER_WASM
 typedef struct Slice {
   Cursor start;
@@ -43,11 +51,16 @@ struct cjs_lexer_result {
 };
 
 #else
+typedef union {
+  uint16_t code;
+  StarExportBinding binding;
+} ArenaValue;
+
 typedef struct ArenaBlock {
   struct ArenaBlock* next;
   size_t used;
   size_t capacity;
-  max_align_t data[];
+  ArenaValue data[];
 } ArenaBlock;
 
 typedef struct {
@@ -71,14 +84,6 @@ struct cjs_lexer_result {
 };
 
 #endif
-
-typedef struct StarExportBinding {
-  Cursor specifier_start;
-  Cursor specifier_end;
-  Cursor id_start;
-  Cursor id_end;
-  struct StarExportBinding* next;
-} StarExportBinding;
 
 typedef struct {
   const uint16_t* input;

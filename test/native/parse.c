@@ -1,6 +1,10 @@
 #include "cjs-module-lexer.h"
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
 
 static void string(cjs_lexer_string16 value) {
   putchar('"');
@@ -9,6 +13,9 @@ static void string(cjs_lexer_string16 value) {
 }
 
 int main(int argc, char** argv) {
+#ifdef _WIN32
+  if (_setmode(_fileno(stdin), _O_BINARY) == -1) return 1;
+#endif
   uint32_t flags = argc > 1 ? (uint32_t)strtoul(argv[1], NULL, 10) : 0;
   size_t length = 0;
   size_t capacity = 1024;
