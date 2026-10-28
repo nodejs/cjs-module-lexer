@@ -1214,6 +1214,14 @@ suite('Lexer', () => {
     parse(`//`);
   });
 
+  test('Quoted names preserve raw UTF-16 code units', () => {
+    const value = '\u001a\u0a0d\u0d0a';
+    assert.deepStrictEqual(parse(`exports['${value}'] = 1; module.exports = require('${value}');`), {
+      exports: [value],
+      reexports: [value]
+    });
+  });
+
   test('Quoted Unicode names preserve the BMP around surrogate boundaries', () => {
     const accepted = ['\ud7ff', '\ue000', '\uf900', '\uff21', '\ufffd', '\uffff', '\ud800\udc00', '\udbff\udfff'];
     const rejected = ['\ud800', '\udbff', '\udc00', '\udfff', '\ud800A', '\udbff\ue000'];
