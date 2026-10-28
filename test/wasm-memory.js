@@ -22,7 +22,7 @@ suite('Wasm analysis capacity', () => {
         const prefix = 'var v=0;module.exports={';
         const suffix = 'v};' + tail;
         // Each shorthand adds 4 source bytes and a 12-byte Slice.
-        const available = bytes - wasm.__heap_base.value - 2 * (prefix.length + suffix.length + 1) - 12;
+        const available = bytes - wasm.__heap_base.value - 2 * (prefix.length + suffix.length + 33) - 12;
         const count = Math.floor((available - remaining) / 16);
         const padding = (available - count * 16 - remaining) / 2;
         const source = prefix + 'v,'.repeat(count) + suffix + ' '.repeat(padding);
@@ -60,7 +60,7 @@ suite('Wasm binding capacity', () => {
       const bytes = memory.byteLength;
       const prefix = 'var v=0;module.exports={';
       const suffix = 'v};var last=require("last");' + reexport;
-      const available = bytes - wasm.__heap_base.value - 2 * (prefix.length + suffix.length + 1) - 12;
+      const available = bytes - wasm.__heap_base.value - 2 * (prefix.length + suffix.length + 33) - 12;
       const count = Math.floor((available - remaining) / 16);
       const padding = (available - count * 16 - remaining) / 2;
       const source = prefix + 'v,'.repeat(count) + suffix + ' '.repeat(padding);
@@ -169,7 +169,7 @@ suite('Wasm source reservation', () => {
             globalThis.Buffer = originalBuffer;
             if (mode === 'async') await lexer.init();
             if (mode === 'sync') lexer.initSync();
-            const length = (bytes - heap - remaining) / 2 - 1;
+            const length = (bytes - heap - remaining) / 2 - 33;
             const source = ' '.repeat(length - tail.length) + tail;
             const result = lexer.parse(source);
             assert.deepStrictEqual(result, expected);
