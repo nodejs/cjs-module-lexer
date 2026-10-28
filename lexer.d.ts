@@ -5,7 +5,7 @@ export interface Exports {
 
 export interface ParseOptions {
   allowMinifiedEnumerable?: boolean;
-  mode?: 'default' | 'extended';
+  mode?: 'default' | 'extended' | 'conservative';
 }
 
 export declare function parse(source: string, name?: string, options?: ParseOptions): Exports;

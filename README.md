@@ -95,8 +95,8 @@ parse(source, filename, { mode: 'extended' });
 
 Omitting the options, using `{}`, or selecting `mode: 'default'` preserves default detection.
 An invalid mode throws a `TypeError`.
-`allowMinifiedEnumerable` can be used with either mode.
-Both modes use the existing lexer and assume valid JavaScript input.
+`allowMinifiedEnumerable` can be used with any mode.
+All modes use the existing lexer and assume valid JavaScript input.
 They do not execute the source or validate the complete JavaScript grammar.
 
 Extended mode detects literal names in `Object.defineProperty` calls regardless of the descriptor expression or getter body.
@@ -119,6 +119,31 @@ Names created by dynamic expressions can therefore remain undetected, and shadow
 Division and regular-expression detection remains heuristic.
 Ambiguous cases can cause extended mode's bracket tracking to report parse errors on valid JavaScript.
 Selecting extended mode in this package does not change Node.js's built-in CommonJS detection.
+
+### Conservative detection
+
+Select `mode: 'conservative'` to detect more object literal exports while retaining the default getter and reexport policies:
+
+```js
+parse('module.exports = { value: call(), method() {} };', filename, { mode: 'conservative' });
+// { exports: ['value', 'method'], reexports: [] }
+```
+
+Unparenthesized object literals assigned to `module.exports` support arbitrary values, methods, shorthand properties, and computed string literal keys.
+Accessor names can be identifiers without escapes, quoted strings, or computed string literals.
+These accessors veto their names, including names detected elsewhere in the source.
+Numeric, dynamic computed, and escaped identifier keys can leave previously detected names intact.
+
+`Object.defineProperty` retains the default descriptor patterns and getter allowlist.
+`Object.defineProperties` and parenthesized assignments retain default detection.
+This excludes uncertain comma-expression names instead of selecting an object that might not become the exported value.
+Each direct `module.exports` assignment replaces earlier reexports, as in default mode.
+
+The default getter allowlist includes forwarding getters.
+Reading those exports can still execute JavaScript in a consumer such as Node.js.
+This mode is conservative detection, not a guarantee of side-effect-free namespace creation.
+It retains the lexer's limits for shadowed bindings, control flow, and ambiguous bracket tracking.
+Selecting this mode does not change Node.js's built-in detection.
 
 ### Grammar (default mode)
 
