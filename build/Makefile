@@ -21,7 +21,7 @@ lib/lexer.wasm: include-wasm/cjs-module-lexer.h src/lexer.c
         $(WASM_LDFLAGS) $(WASM_EXTRA_LDFLAGS)
 
 optimize: lib/lexer.wasm
-	${WASM_OPT} -Oz lib/lexer.wasm -o lib/lexer.wasm
+	${WASM_OPT} -Oz --converge lib/lexer.wasm -o lib/lexer.wasm
 
 clean:
 	rm lib/*
