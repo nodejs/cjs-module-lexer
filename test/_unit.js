@@ -3,6 +3,10 @@ const assert = require('node:assert/strict');
 let parse;
 async function loadParser () {
   if (parse) return;
+  if (process.env.NATIVE) {
+    parse = require('./native/parser.js').parse;
+    return;
+  }
   if (process.env.WASM) {
     const m = await import('../dist/lexer.mjs');
     await m.init();
@@ -928,6 +932,17 @@ suite('Lexer', () => {
 
   test('Regexp division', () => {
     parse(`\nconst x = num / /'/.exec(l)[0].slice(1, -1)//'"`);
+  });
+
+  test('Closing tokens consumed by export helpers do not reuse earlier brace metadata', () => {
+    for (const source of [
+      'module.exports={a}/1;exports.b=2;',
+      'class A{};module.exports={a}/1;exports.b=2;',
+      'if(x){};require("x")/1;exports.b=2;',
+      'if(x){};Object.defineProperty(exports,"a",{value:1})/1;exports.b=2;'
+    ]) {
+      assert.equal(parse(source).exports.at(-1), 'b');
+    }
   });
 
   test('Multiline string escapes', () => {

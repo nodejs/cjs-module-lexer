@@ -5,6 +5,10 @@ const options = { mode: 'extended' };
 
 suite('Extended parsing', () => {
   suiteSetup(async () => {
+    if (process.env.NATIVE) {
+      parse = require('./native/parser.js').parse;
+      return;
+    }
     if (process.env.WASM) {
       const lexer = await import('../dist/lexer.mjs');
       await lexer.init();

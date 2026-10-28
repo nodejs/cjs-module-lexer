@@ -2,3 +2,4 @@ node_modules
 dist
 yarn.lock
 build/toolchain
+build/native*
