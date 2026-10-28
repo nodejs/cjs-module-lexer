@@ -54,7 +54,7 @@ static int readHex(uint16_t code) {
 static bool validQuotedString(cjs_lexer_string16 value) {
   for (size_t index = 0; index < value.length; index++) {
     uint16_t prefix = value.data[index] & 0xfc00;
-    if (prefix < 0xd800) continue;
+    if (prefix < 0xd800 || prefix >= 0xe000) continue;
     if (prefix != 0xd800 || ++index == value.length ||
         (value.data[index] & 0xfc00) != 0xdc00) return false;
   }

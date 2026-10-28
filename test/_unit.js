@@ -1214,6 +1214,27 @@ suite('Lexer', () => {
     parse(`//`);
   });
 
+  test('Quoted Unicode names preserve the BMP around surrogate boundaries', () => {
+    const accepted = ['\ud7ff', '\ue000', '\uf900', '\uff21', '\ufffd', '\uffff', '\ud800\udc00', '\udbff\udfff'];
+    const rejected = ['\ud800', '\udbff', '\udc00', '\udfff', '\ud800A', '\udbff\ue000'];
+    for (const value of [...accepted, ...rejected]) {
+      let escaped = '';
+      for (let index = 0; index < value.length; index++)
+        escaped += '\\u' + value.charCodeAt(index).toString(16).padStart(4, '0');
+      for (const quoted of [JSON.stringify(value), '"' + escaped + '"']) {
+        const expected = accepted.includes(value) ? [value] : [];
+        assert.deepStrictEqual(parse(`exports[${quoted}] = 1; module.exports = require(${quoted});`), {
+          exports: expected,
+          reexports: expected
+        });
+      }
+    }
+    assert.deepStrictEqual(parse("exports['\ue000'] = 1; Object.defineProperty(exports, '\\ue000', { get() { return effect(); } });"), {
+      exports: [],
+      reexports: []
+    });
+  });
+
   test('Simple export with unicode conversions', () => {
     const source = `export var p𓀀s,q`;
     assert.throws(() => {
