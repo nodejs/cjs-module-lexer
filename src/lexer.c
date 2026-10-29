@@ -1500,7 +1500,7 @@ static void lineComment(Parser* parser) {
 
 static void stringLiteral(Parser* parser, uint16_t quote) {
   while (parser->pos++ < parser->end) {
-    uint16_t ch = at(parser, parser->pos);
+    uint16_t ch = scanInput(parser->input, parser->pos);
     if (ch == quote)
       return;
     if (ch == '\\') {
