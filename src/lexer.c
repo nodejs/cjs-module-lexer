@@ -1170,7 +1170,7 @@ static void readExportProperty(Parser* parser) {
     ch = commentWhitespace(parser);
   }
   Cursor nameStart = parser->pos;
-  Cursor nameEnd = SOURCE_START;
+  Cursor nameEnd = 0;
   if (ch == '\'' || ch == '"') {
     stringLiteral(parser, ch);
     nameEnd = ++parser->pos;
