@@ -493,6 +493,59 @@ test/samples/*.js (3635 KiB)
 > 27.76ms
 ```
 
+## Native embedding
+
+The source distribution provides a C11 static library with no dependencies beyond the C library.
+JavaScript installation does not require a native compiler.
+
+```sh
+cmake -S . -B build/native -DBUILD_TESTING=OFF
+cmake --build build/native --parallel
+cmake --install build/native --prefix /your/prefix
+```
+
+CMake consumers can use `find_package(cjs_module_lexer CONFIG REQUIRED)` and link
+`cjs_module_lexer::cjs_module_lexer`. Other builds can compile `src/lexer.c` and `src/native.c` with `include/`
+on the header search path. The interface does not promise a cross-version shared-library ABI.
+
+```c
+#include <cjs-module-lexer.h>
+
+/* UTF-16 code units, without a terminator. */
+const uint16_t source[] = {'e', 'x', 'p', 'o', 'r', 't', 's', '.', 'a', '=', '1'};
+cjs_lexer_result* result;
+cjs_lexer_error error;
+uint32_t status = cjs_lexer_parse_utf16(source, sizeof(source) / sizeof(source[0]), 0, &result, &error);
+if (status == CJS_LEXER_OK) {
+  for (size_t index = 0; index < cjs_lexer_export_count(result); index++) {
+    cjs_lexer_string16 name = cjs_lexer_export(result, index);
+    /* Consume name.data[0..name.length). */
+  }
+  cjs_lexer_result_free(result);
+}
+```
+
+Lengths and error offsets count UTF-16 code units. Null source is valid with zero length.
+The flags `CJS_LEXER_ALLOW_MINIFIED_ENUMERABLE` and `CJS_LEXER_EXTENDED` select the corresponding JavaScript options.
+The default remains conservative detection. The lexer does not validate JavaScript syntax.
+
+Each call creates private scanner state. Calls can run concurrently, and independently owned results can coexist.
+The result owns metadata and decoded strings. Names that need no decoding borrow the source.
+Keep the source unchanged and alive until `cjs_lexer_result_free(result)`.
+Read-only result access can run concurrently, with release synchronized by the caller.
+Indexed access requires an index below the corresponding count. `cjs_lexer_result_free(NULL)` is valid.
+
+The C interface returns decoded candidates after getter filtering and reexport replacement.
+Candidates retain source order and can contain duplicates. JavaScript wrappers retain their unique arrays.
+String rejection, getter filtering, and detection modes match the Wasm package.
+
+The status distinguishes invalid arguments, lexical failure, limits, and allocation failure.
+Every failure sets the result to null and initializes the optional error output.
+`error.has_offset` identifies an available source location, and `error.code` identifies the scanner error.
+Codes 5, 6, and 7 identify ESM syntax. Nesting is limited to 2048 tracked brackets or templates.
+Input lengths must fit `uint32_t`, `PTRDIFF_MAX - 32`, and the platform's UTF-16 allocation range.
+Output locations must not overlap each other or the source.
+
 ### Wasm Build Steps
 
 The build uses docker and make, they must be installed first.

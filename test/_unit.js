@@ -3,6 +3,10 @@ const assert = require('node:assert/strict');
 let parse;
 async function loadParser () {
   if (parse) return;
+  if (process.env.NATIVE) {
+    parse = require('./native/parser.js').parse;
+    return;
+  }
   if (process.env.WASM) {
     const m = await import('../dist/lexer.mjs');
     await m.init();
@@ -930,6 +934,17 @@ suite('Lexer', () => {
     parse(`\nconst x = num / /'/.exec(l)[0].slice(1, -1)//'"`);
   });
 
+  test('Closing tokens consumed by export helpers do not reuse earlier brace metadata', () => {
+    for (const source of [
+      'module.exports={a}/1;exports.b=2;',
+      'class A{};module.exports={a}/1;exports.b=2;',
+      'if(x){};require("x")/1;exports.b=2;',
+      'if(x){};Object.defineProperty(exports,"a",{value:1})/1;exports.b=2;'
+    ]) {
+      assert.equal(parse(source).exports.at(-1), 'b');
+    }
+  });
+
   test('Multiline string escapes', () => {
     parse("const str = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAYAAAA7MK6iAAAABmJLR0QA/wAAAAAzJ3zzAAAGTElEQV\\\r\n\t\tRIx+VXe1BU1xn/zjn7ugvL4sIuQnll5U0ELAQxig7WiQYz6NRHa6O206qdSXXSxs60dTK200zNY9q0dcRpMs1jkrRNWmaijCVoaU';\r\n");
   });
@@ -1197,6 +1212,35 @@ suite('Lexer', () => {
     parse(`\`asdf\``);
     parse(`/**/`);
     parse(`//`);
+  });
+
+  test('Quoted names preserve raw UTF-16 code units', () => {
+    const value = '\u001a\u0a0d\u0d0a';
+    assert.deepStrictEqual(parse(`exports['${value}'] = 1; module.exports = require('${value}');`), {
+      exports: [value],
+      reexports: [value]
+    });
+  });
+
+  test('Quoted Unicode names preserve the BMP around surrogate boundaries', () => {
+    const accepted = ['\ud7ff', '\ue000', '\uf900', '\uff21', '\ufffd', '\uffff', '\ud800\udc00', '\udbff\udfff'];
+    const rejected = ['\ud800', '\udbff', '\udc00', '\udfff', '\ud800A', '\udbff\ue000'];
+    for (const value of [...accepted, ...rejected]) {
+      let escaped = '';
+      for (let index = 0; index < value.length; index++)
+        escaped += '\\u' + value.charCodeAt(index).toString(16).padStart(4, '0');
+      for (const quoted of [JSON.stringify(value), '"' + escaped + '"']) {
+        const expected = accepted.includes(value) ? [value] : [];
+        assert.deepStrictEqual(parse(`exports[${quoted}] = 1; module.exports = require(${quoted});`), {
+          exports: expected,
+          reexports: expected
+        });
+      }
+    }
+    assert.deepStrictEqual(parse("exports['\ue000'] = 1; Object.defineProperty(exports, '\\ue000', { get() { return effect(); } });"), {
+      exports: [],
+      reexports: []
+    });
   });
 
   test('Simple export with unicode conversions', () => {

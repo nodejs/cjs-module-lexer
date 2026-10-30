@@ -1,0 +1,41 @@
+name: Native
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  native:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 18.x
+      - run: cmake -S . -B build/native -DCMAKE_BUILD_TYPE=Debug
+      - run: cmake --build build/native --config Debug --parallel
+      - run: ctest --test-dir build/native -C Debug --output-on-failure
+      - run: cmake --install build/native --config Debug --prefix "${{ github.workspace }}/build/native-install"
+      - run: cmake -S test/native/consumer -B build/native-consumer -DCMAKE_PREFIX_PATH="${{ github.workspace }}/build/native-install"
+      - run: cmake --build build/native-consumer --config Debug --parallel
+      - run: ctest --test-dir build/native-consumer -C Debug --output-on-failure
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test-native
+  sanitizers:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        sanitizer: ['address,undefined', thread]
+    steps:
+      - uses: actions/checkout@v7
+      - run: cmake -S . -B build/native -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_FLAGS="-fsanitize=${{ matrix.sanitizer }} -fno-omit-frame-pointer" -DCMAKE_CXX_FLAGS="-fsanitize=${{ matrix.sanitizer }} -fno-omit-frame-pointer"
+      - run: cmake --build build/native --parallel
+      - run: ctest --test-dir build/native --output-on-failure
+      - if: matrix.sanitizer == 'address,undefined'
+        run: clang -std=c11 -g -Iinclude -fsanitize=fuzzer,address,undefined src/lexer.c src/native.c test/native/fuzz.c -o build/native/fuzz && build/native/fuzz -runs=100000

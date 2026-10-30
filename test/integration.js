@@ -4,6 +4,10 @@ const assert = require('assert');
 let parse;
 async function loadParser () {
   if (parse) return;
+  if (process.env.NATIVE) {
+    parse = require('./native/parser.js').parse;
+    return;
+  }
   if (process.env.WASM) {
     const m = await import('../dist/lexer.mjs');
     await m.init();

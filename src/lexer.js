@@ -18,15 +18,17 @@ export function parse (source, name = '@', options) {
     initSync();
 
   const len = source.length;
+  if (len === 0)
+    return { exports: [], reexports: [] };
 
-  // sa(len) writes a terminator at index len.
+  // The guest reserves 32 zero code units before the source and a terminator.
   let memory = wasm.memory.buffer;
-  const extraMem = (wasm.__heap_base.value || wasm.__heap_base) + (len + 1) * 2 - memory.byteLength;
+  const extraMem = (wasm.__heap_base.value || wasm.__heap_base) + (len + 33) * 2 - memory.byteLength;
   if (extraMem > 0) {
     wasm.memory.grow(Math.ceil(extraMem / 65536));
     memory = wasm.memory.buffer;
   }
-    
+
   const addr = wasm.sa(len);
   // Buffer setup is slower than the loop for short sources.
   if (len >= 64 && hasBuffer)
@@ -45,7 +47,7 @@ export function parse (source, name = '@', options) {
   }
 
   let exports = new Set(), reexports = new Set(), unsafeGetters;
-  
+
   while (wasm.rre()) {
     const reexptStr = decode(source.slice(wasm.res(), wasm.ree()));
     if (reexptStr !== undefined)
@@ -71,7 +73,7 @@ function decode (str) {
       // Filter to exclude non-matching UTF-16 surrogate strings
       for (let i = 0; i < decoded.length; i++) {
         const surrogatePrefix = decoded.charCodeAt(i) & 0xFC00;
-        if (surrogatePrefix < 0xD800) {
+        if (surrogatePrefix < 0xD800 || surrogatePrefix >= 0xE000) {
           // Not a surrogate
           continue;
         }
@@ -81,7 +83,7 @@ function decode (str) {
             return;
         }
         else {
-          // Out-of-range surrogate code (above 0xD800)
+          // Unpaired low surrogate
           return;
         }
       }
