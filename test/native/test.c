@@ -72,6 +72,34 @@ int main(void) {
     free(prefix);
   }
   free(source);
+  const char* scans[] = {
+    "const value=`a\\`b${1}c`;exports.after=1;",
+    "/* a* * / **/exports.after=1;",
+    "// a\\\r\nexports.after=1;",
+    "const value=/a\\/[b\\]c]*/;exports.after=1;",
+    "module.exports=(first,second,{});exports.after=1;",
+    "Object.defineProperty(exports,'item',{value:1});exports.after=1;",
+    "Object.defineProperties(exports,{item:{value:1}});exports.after=1;",
+    "_interopRequireWildcard(require('item'));__exportStar(require('other'));exports.after=1;"
+  };
+  for (size_t index = 0; index < sizeof(scans) / sizeof(*scans); index++) {
+    length = strlen(scans[index]);
+    for (uint32_t flags = 0; flags <= 3; flags++) {
+      for (size_t count = 0; count <= length; count++) {
+        source = copy(scans[index], count);
+        uint32_t status = cjs_lexer_parse_utf16(source, count, flags, &result, &error);
+        assert(status == CJS_LEXER_OK || status == CJS_LEXER_SYNTAX_ERROR);
+        assert(!error.has_offset || error.offset <= count);
+        if (count == length) {
+          assert(status == CJS_LEXER_OK);
+          assert(cjs_lexer_export_count(result));
+          name(cjs_lexer_export(result, cjs_lexer_export_count(result) - 1), "after");
+        }
+        cjs_lexer_result_free(result);
+        free(source);
+      }
+    }
+  }
   // The nesting boundary and recovery share the public parse path.
   for (size_t depth = 2047; depth <= 2049; depth++) {
     source = malloc(depth * 4);
