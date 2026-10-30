@@ -1090,7 +1090,7 @@ static bool tryParseRequire(Parser* parser, enum RequireType requireType) {
 static bool matchesKeyword(Parser* parser, const char* keyword, uint32_t length) {
   if (parser->pos > parser->end || (uint32_t)(parser->end - parser->pos + 1) < length) return false;
   for (uint32_t i = 0; i < length; i++) {
-    if (at(parser, parser->pos + i) != keyword[i]) return false;
+    if (scanInput(parser->input, parser->pos + i) != keyword[i]) return false;
   }
   return true;
 }
@@ -1114,8 +1114,8 @@ static uint16_t readExportExpressionStart(Parser* parser) {
       }
     }
     else {
-      while (parser->pos <= parser->end && isIdentifierChar(fullCharCode(parser, at(parser, parser->pos))))
-        parser->pos += charCodeByteLen(fullCharCode(parser, at(parser, parser->pos)));
+      while (parser->pos <= parser->end && isIdentifierChar(fullCharCode(parser, scanInput(parser->input, parser->pos))))
+        parser->pos += charCodeByteLen(fullCharCode(parser, scanInput(parser->input, parser->pos)));
     }
     if (parser->pos == start || commentWhitespace(parser) != ',') {
       parser->pos = start;
@@ -1464,7 +1464,7 @@ static uint16_t commentWhitespace(Parser* parser) {
 
 static void templateString(Parser* parser) {
   while (parser->pos++ < parser->end) {
-    uint16_t ch = at(parser, parser->pos);
+    uint16_t ch = scanInput(parser->input, parser->pos);
     if (ch == '$' && at(parser, parser->pos + 1) == '{') {
       parser->pos++;
       if (!pushTemplate(parser))
@@ -1482,7 +1482,7 @@ static void templateString(Parser* parser) {
 static void blockComment(Parser* parser) {
   parser->pos++;
   while (parser->pos++ < parser->end) {
-    uint16_t ch = at(parser, parser->pos);
+    uint16_t ch = scanInput(parser->input, parser->pos);
     if (ch == '*' && at(parser, parser->pos + 1) == '/') {
       parser->pos++;
       return;
@@ -1492,7 +1492,7 @@ static void blockComment(Parser* parser) {
 
 static void lineComment(Parser* parser) {
   while (parser->pos++ < parser->end) {
-    uint16_t ch = at(parser, parser->pos);
+    uint16_t ch = scanInput(parser->input, parser->pos);
     if (ch == '\n' || ch == '\r')
       return;
   }
@@ -1516,7 +1516,7 @@ static void stringLiteral(Parser* parser, uint16_t quote) {
 
 static uint16_t regexCharacterClass(Parser* parser) {
   while (parser->pos++ < parser->end) {
-    uint16_t ch = at(parser, parser->pos);
+    uint16_t ch = scanInput(parser->input, parser->pos);
     if (ch == ']')
       return ch;
     if (ch == '\\')
@@ -1530,7 +1530,7 @@ static uint16_t regexCharacterClass(Parser* parser) {
 
 static void regularExpression(Parser* parser) {
   while (parser->pos++ < parser->end) {
-    uint16_t ch = at(parser, parser->pos);
+    uint16_t ch = scanInput(parser->input, parser->pos);
     if (ch == '/')
       return;
     if (ch == '[')
@@ -1559,48 +1559,48 @@ static bool isBrOrWsOrPunctuatorNotDot (uint16_t c) {
 }
 
 static bool str_eq2(Parser* parser, Cursor cursor, uint16_t c1, uint16_t c2) {
-  return hasChars(parser, cursor, 2) && at(parser, cursor + 0) == c1 && at(parser, cursor + 1) == c2;
+  return hasChars(parser, cursor, 2) && scanInput(parser->input, cursor + 0) == c1 && scanInput(parser->input, cursor + 1) == c2;
 }
 
 static bool str_eq3(Parser* parser, Cursor cursor, uint16_t c1, uint16_t c2, uint16_t c3) {
-  return hasChars(parser, cursor, 3) && at(parser, cursor + 0) == c1 && at(parser, cursor + 1) == c2 && at(parser, cursor + 2) == c3;
+  return hasChars(parser, cursor, 3) && scanInput(parser->input, cursor + 0) == c1 && scanInput(parser->input, cursor + 1) == c2 && scanInput(parser->input, cursor + 2) == c3;
 }
 
 static bool str_eq4(Parser* parser, Cursor cursor, uint16_t c1, uint16_t c2, uint16_t c3, uint16_t c4) {
-  return hasChars(parser, cursor, 4) && at(parser, cursor + 0) == c1 && at(parser, cursor + 1) == c2 && at(parser, cursor + 2) == c3 && at(parser, cursor + 3) == c4;
+  return hasChars(parser, cursor, 4) && scanInput(parser->input, cursor + 0) == c1 && scanInput(parser->input, cursor + 1) == c2 && scanInput(parser->input, cursor + 2) == c3 && scanInput(parser->input, cursor + 3) == c4;
 }
 
 static bool str_eq5(Parser* parser, Cursor cursor, uint16_t c1, uint16_t c2, uint16_t c3, uint16_t c4, uint16_t c5) {
-  return hasChars(parser, cursor, 5) && at(parser, cursor + 0) == c1 && at(parser, cursor + 1) == c2 && at(parser, cursor + 2) == c3 && at(parser, cursor + 3) == c4 && at(parser, cursor + 4) == c5;
+  return hasChars(parser, cursor, 5) && scanInput(parser->input, cursor + 0) == c1 && scanInput(parser->input, cursor + 1) == c2 && scanInput(parser->input, cursor + 2) == c3 && scanInput(parser->input, cursor + 3) == c4 && scanInput(parser->input, cursor + 4) == c5;
 }
 
 static bool str_eq6(Parser* parser, Cursor cursor, uint16_t c1, uint16_t c2, uint16_t c3, uint16_t c4, uint16_t c5, uint16_t c6) {
-  return hasChars(parser, cursor, 6) && at(parser, cursor + 0) == c1 && at(parser, cursor + 1) == c2 && at(parser, cursor + 2) == c3 && at(parser, cursor + 3) == c4 && at(parser, cursor + 4) == c5 && at(parser, cursor + 5) == c6;
+  return hasChars(parser, cursor, 6) && scanInput(parser->input, cursor + 0) == c1 && scanInput(parser->input, cursor + 1) == c2 && scanInput(parser->input, cursor + 2) == c3 && scanInput(parser->input, cursor + 3) == c4 && scanInput(parser->input, cursor + 4) == c5 && scanInput(parser->input, cursor + 5) == c6;
 }
 
 static bool str_eq7(Parser* parser, Cursor cursor, uint16_t c1, uint16_t c2, uint16_t c3, uint16_t c4, uint16_t c5, uint16_t c6, uint16_t c7) {
-  return hasChars(parser, cursor, 7) && at(parser, cursor + 0) == c1 && at(parser, cursor + 1) == c2 && at(parser, cursor + 2) == c3 && at(parser, cursor + 3) == c4 && at(parser, cursor + 4) == c5 && at(parser, cursor + 5) == c6 && at(parser, cursor + 6) == c7;
+  return hasChars(parser, cursor, 7) && scanInput(parser->input, cursor + 0) == c1 && scanInput(parser->input, cursor + 1) == c2 && scanInput(parser->input, cursor + 2) == c3 && scanInput(parser->input, cursor + 3) == c4 && scanInput(parser->input, cursor + 4) == c5 && scanInput(parser->input, cursor + 5) == c6 && scanInput(parser->input, cursor + 6) == c7;
 }
 
 static bool str_eq8(Parser* parser, Cursor cursor, uint16_t c1, uint16_t c2, uint16_t c3, uint16_t c4, uint16_t c5, uint16_t c6, uint16_t c7, uint16_t c8) {
-  return hasChars(parser, cursor, 8) && at(parser, cursor + 0) == c1 && at(parser, cursor + 1) == c2 && at(parser, cursor + 2) == c3 && at(parser, cursor + 3) == c4 && at(parser, cursor + 4) == c5 && at(parser, cursor + 5) == c6 && at(parser, cursor + 6) == c7 && at(parser, cursor + 7) == c8;
+  return hasChars(parser, cursor, 8) && scanInput(parser->input, cursor + 0) == c1 && scanInput(parser->input, cursor + 1) == c2 && scanInput(parser->input, cursor + 2) == c3 && scanInput(parser->input, cursor + 3) == c4 && scanInput(parser->input, cursor + 4) == c5 && scanInput(parser->input, cursor + 5) == c6 && scanInput(parser->input, cursor + 6) == c7 && scanInput(parser->input, cursor + 7) == c8;
 }
 
 static bool str_eq9(Parser* parser, Cursor cursor, uint16_t c1, uint16_t c2, uint16_t c3, uint16_t c4, uint16_t c5, uint16_t c6, uint16_t c7, uint16_t c8, uint16_t c9) {
-  return hasChars(parser, cursor, 9) && at(parser, cursor + 0) == c1 && at(parser, cursor + 1) == c2 && at(parser, cursor + 2) == c3 && at(parser, cursor + 3) == c4 && at(parser, cursor + 4) == c5 && at(parser, cursor + 5) == c6 && at(parser, cursor + 6) == c7 && at(parser, cursor + 7) == c8 && at(parser, cursor + 8) == c9;
+  return hasChars(parser, cursor, 9) && scanInput(parser->input, cursor + 0) == c1 && scanInput(parser->input, cursor + 1) == c2 && scanInput(parser->input, cursor + 2) == c3 && scanInput(parser->input, cursor + 3) == c4 && scanInput(parser->input, cursor + 4) == c5 && scanInput(parser->input, cursor + 5) == c6 && scanInput(parser->input, cursor + 6) == c7 && scanInput(parser->input, cursor + 7) == c8 && scanInput(parser->input, cursor + 8) == c9;
 }
 
 static bool str_eq10(Parser* parser, Cursor cursor, uint16_t c1, uint16_t c2, uint16_t c3, uint16_t c4, uint16_t c5, uint16_t c6, uint16_t c7, uint16_t c8, uint16_t c9, uint16_t c10) {
-  return hasChars(parser, cursor, 10) && at(parser, cursor + 0) == c1 && at(parser, cursor + 1) == c2 && at(parser, cursor + 2) == c3 && at(parser, cursor + 3) == c4 && at(parser, cursor + 4) == c5 && at(parser, cursor + 5) == c6 && at(parser, cursor + 6) == c7 && at(parser, cursor + 7) == c8 && at(parser, cursor + 8) == c9 && at(parser, cursor + 9) == c10;
+  return hasChars(parser, cursor, 10) && scanInput(parser->input, cursor + 0) == c1 && scanInput(parser->input, cursor + 1) == c2 && scanInput(parser->input, cursor + 2) == c3 && scanInput(parser->input, cursor + 3) == c4 && scanInput(parser->input, cursor + 4) == c5 && scanInput(parser->input, cursor + 5) == c6 && scanInput(parser->input, cursor + 6) == c7 && scanInput(parser->input, cursor + 7) == c8 && scanInput(parser->input, cursor + 8) == c9 && scanInput(parser->input, cursor + 9) == c10;
 }
 
 static bool str_eq13(Parser* parser, Cursor cursor, uint16_t c1, uint16_t c2, uint16_t c3, uint16_t c4, uint16_t c5, uint16_t c6, uint16_t c7, uint16_t c8, uint16_t c9, uint16_t c10, uint16_t c11, uint16_t c12, uint16_t c13) {
-  return hasChars(parser, cursor, 13) && at(parser, cursor + 0) == c1 && at(parser, cursor + 1) == c2 && at(parser, cursor + 2) == c3 && at(parser, cursor + 3) == c4 && at(parser, cursor + 4) == c5 && at(parser, cursor + 5) == c6 && at(parser, cursor + 6) == c7 && at(parser, cursor + 7) == c8 && at(parser, cursor + 8) == c9 && at(parser, cursor + 9) == c10 && at(parser, cursor + 10) == c11 && at(parser, cursor + 11) == c12 && at(parser, cursor + 12) == c13;
+  return hasChars(parser, cursor, 13) && scanInput(parser->input, cursor + 0) == c1 && scanInput(parser->input, cursor + 1) == c2 && scanInput(parser->input, cursor + 2) == c3 && scanInput(parser->input, cursor + 3) == c4 && scanInput(parser->input, cursor + 4) == c5 && scanInput(parser->input, cursor + 5) == c6 && scanInput(parser->input, cursor + 6) == c7 && scanInput(parser->input, cursor + 7) == c8 && scanInput(parser->input, cursor + 8) == c9 && scanInput(parser->input, cursor + 9) == c10 && scanInput(parser->input, cursor + 10) == c11 && scanInput(parser->input, cursor + 11) == c12 && scanInput(parser->input, cursor + 12) == c13;
 }
 
 
 static bool str_eq22(Parser* parser, Cursor cursor, uint16_t c1, uint16_t c2, uint16_t c3, uint16_t c4, uint16_t c5, uint16_t c6, uint16_t c7, uint16_t c8, uint16_t c9, uint16_t c10, uint16_t c11, uint16_t c12, uint16_t c13, uint16_t c14, uint16_t c15, uint16_t c16, uint16_t c17, uint16_t c18, uint16_t c19, uint16_t c20, uint16_t c21, uint16_t c22) {
-  return hasChars(parser, cursor, 22) && at(parser, cursor + 0) == c1 && at(parser, cursor + 1) == c2 && at(parser, cursor + 2) == c3 && at(parser, cursor + 3) == c4 && at(parser, cursor + 4) == c5 && at(parser, cursor + 5) == c6 && at(parser, cursor + 6) == c7 && at(parser, cursor + 7) == c8 && at(parser, cursor + 8) == c9 && at(parser, cursor + 9) == c10 && at(parser, cursor + 10) == c11 && at(parser, cursor + 11) == c12 && at(parser, cursor + 12) == c13 && at(parser, cursor + 13) == c14 && at(parser, cursor + 14) == c15 && at(parser, cursor + 15) == c16 && at(parser, cursor + 16) == c17 && at(parser, cursor + 17) == c18 && at(parser, cursor + 18) == c19 && at(parser, cursor + 19) == c20 && at(parser, cursor + 20) == c21 && at(parser, cursor + 21) == c22;
+  return hasChars(parser, cursor, 22) && scanInput(parser->input, cursor + 0) == c1 && scanInput(parser->input, cursor + 1) == c2 && scanInput(parser->input, cursor + 2) == c3 && scanInput(parser->input, cursor + 3) == c4 && scanInput(parser->input, cursor + 4) == c5 && scanInput(parser->input, cursor + 5) == c6 && scanInput(parser->input, cursor + 6) == c7 && scanInput(parser->input, cursor + 7) == c8 && scanInput(parser->input, cursor + 8) == c9 && scanInput(parser->input, cursor + 9) == c10 && scanInput(parser->input, cursor + 10) == c11 && scanInput(parser->input, cursor + 11) == c12 && scanInput(parser->input, cursor + 12) == c13 && scanInput(parser->input, cursor + 13) == c14 && scanInput(parser->input, cursor + 14) == c15 && scanInput(parser->input, cursor + 15) == c16 && scanInput(parser->input, cursor + 16) == c17 && scanInput(parser->input, cursor + 17) == c18 && scanInput(parser->input, cursor + 18) == c19 && scanInput(parser->input, cursor + 19) == c20 && scanInput(parser->input, cursor + 20) == c21 && scanInput(parser->input, cursor + 21) == c22;
 }
 
 static bool keywordStart(Parser* parser, Cursor cursor) {
