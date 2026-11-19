@@ -129,6 +129,7 @@ function parseSource (cjsSource) {
   pos = -1;
   end = source.length - 1;
   let ch = 0;
+  let targetFirst = -1, moduleFirst = -1;
 
   // Handle #!
   if (source.charCodeAt(0) === 35/*#*/ && source.charCodeAt(1) === 33/*!*/) {
@@ -148,7 +149,7 @@ function parseSource (cjsSource) {
     if (ch === 32 || ch < 14 && ch > 8)
       continue;
 
-    if (extendedMode && (ch === 95 || webpack?.current) && keywordStart(pos) && readWebpackToken(ch)) {
+    if (extendedMode && (ch === 95 || ch === targetFirst || ch === moduleFirst) && keywordStart(pos) && readWebpackToken(ch)) {
       skipTokenRun();
       lastTokenPos = pos;
       continue;
@@ -272,6 +273,8 @@ function parseSource (cjsSource) {
         }
         else if (extendedMode && pos === webpack?.factoryPos) {
           webpack.current = webpack.pending;
+          targetFirst = webpack.current.target?.charCodeAt(0) ?? -1;
+          moduleFirst = webpack.current.module?.charCodeAt(0) ?? -1;
           webpack.current.depth = openTokenDepth;
           _exports = webpack.current.exports ??= new Set();
           reexports = webpack.current.reexports ??= new Set();
@@ -283,6 +286,7 @@ function parseSource (cjsSource) {
           throw new Error('Unexpected closing brace.');
         if (extendedMode && webpack?.current?.depth === openTokenDepth) {
           webpack.current = undefined;
+          targetFirst = moduleFirst = -1;
           _exports = webpack.exports;
           reexports = webpack.reexports;
           starExportMap = webpack.starExportMap;
@@ -1225,6 +1229,8 @@ function tryParseObjectDefineOrKeys (keys) {
           pos = revertPos;
           return;
         }
+        if (webpack?.current) webpack.current.uncertain = true;
+        else if (webpack?.inline) webpack.invalid = true;
         return;
       }
     }

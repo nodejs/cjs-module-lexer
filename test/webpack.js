@@ -76,6 +76,12 @@ suite('Webpack extended detection', () => {
     'entry: (module, exports) => { exports.visible = 1; }',
     'entry: function(module, exports) { exports.visible = 1; }',
     'entry: (m, e) => { e.visible = 1; }',
+    `entry: (record, output) => {
+      const outputOther = {};
+      outputOther.hidden = 1;
+      record.exports.visible = 1;
+      output.alsoVisible = 1;
+    }`,
     'entry: (m) => { m.exports = { visible: 1 }; }',
     'entry: () => {}'
   ];
@@ -248,6 +254,31 @@ suite('Webpack extended detection', () => {
     vm.runInNewContext(source, { module });
     assert.deepEqual(parse(source, 'bundle.cjs', options).exports, Object.keys(module.exports));
   });
+
+  const starBindings = [
+    ['missing semicolon', 'const dep = __webpack_require__("dependency")', ['old', 'visible']],
+    ['wrapped require', 'const dep = identity(__webpack_require__("dependency"));', ['old', 'visible']],
+    ['redeclared variable', 'var dep = __webpack_require__("old"); var dep = __webpack_require__("dependency");', ['visible']]
+  ];
+  for (const [binding, declaration, expected] of starBindings) {
+    for (const inline of [false, true]) {
+      test(`${inline ? 'inlined' : 'factory'} entry star reexport with ${binding}`, () => {
+        const factories = `
+          old: (module, exports) => { exports.old = 1; },
+          dependency: (module, exports) => { exports.visible = 2; }
+        `;
+        const body = `const identity = value => value; ${star('dependency').replace(/^.+/, declaration)}`;
+        const source = inline ? bundle(factories).replace("const __webpack_exports__ = __webpack_require__('entry');", `
+          const __webpack_exports__ = {};
+          (() => { var exports = __webpack_exports__; ${body} })();`) :
+          bundle(`${factories}, entry: (module, exports) => { ${body} }`);
+        const module = { exports: {} };
+        vm.runInNewContext(source, { module });
+        assert.deepEqual(Object.keys(module.exports), ['visible']);
+        assert.deepEqual(parse(source, 'bundle.cjs', options), { exports: expected, reexports: [] });
+      });
+    }
+  }
 
   test('star reexports terminate on cycles', () => {
     const source = bundle(`

@@ -614,7 +614,9 @@ static __attribute__((always_inline)) uint32_t parseCJSMode (uint16_t* _source, 
     if (ch == 32 || ch < 14 && ch > 8)
       continue;
 
-    if (extendedMode && (ch == '_' || webpackCurrent) && keywordStart(pos) && readWebpackToken(ch))
+    if (extendedMode && (ch == '_' || webpackCurrent &&
+        (webpackCurrent->target && *webpackCurrent->target == ch ||
+         webpackCurrent->module && *webpackCurrent->module == ch)) && keywordStart(pos) && readWebpackToken(ch))
       goto skipTokenRun;
 
     if (openTokenDepth == 0 || extendedMode && webpackCurrent && webpackCurrent->depth == openTokenDepth) {
@@ -1437,26 +1439,32 @@ void tryParseObjectDefineOrKeys (bool keys) {
         // this is done last because it is a linear search through all require bindings
         // and by doing this search last after verifying the structure match,
         // we don't have to worry about the slow search algorithm
-        StarExportBinding* binding = firstStarExport;
-        while (binding) {
-          if (id_len == binding->id_end - binding->id_start &&
-              0 == memcmp(id_start, binding->id_start, id_len * sizeof(uint16_t))) {
-            bool internal = false;
-            if (extended) {
-              trustWebpackExports(pos);
-              trustWebpackExports(pos);
-              WebpackModule* owner = webpackCurrent ? webpackCurrent : &webpackInlineRoot;
-              for (Slice* slice = owner->imports; slice; slice = slice->next)
-                if (slice->start == binding->specifier_start) { internal = true; break; }
-            }
-            if (internal)
-              addWebpackDependency(binding->specifier_start, binding->specifier_end, true);
-            else
-              addReexport(binding->specifier_start, binding->specifier_end);
-            pos = revertPos;
-            return;
+        bool projectingWebpack = extended && (webpackCurrent || webpackInline);
+        StarExportBinding* binding = NULL;
+        for (StarExportBinding* candidate = firstStarExport; candidate; candidate = candidate->next) {
+          if (id_len == candidate->id_end - candidate->id_start &&
+              0 == memcmp(id_start, candidate->id_start, id_len * sizeof(uint16_t))) {
+            binding = candidate;
+            if (!projectingWebpack) break;
           }
-          binding = binding->next;
+        }
+        if (binding) {
+          bool internal = false;
+          if (projectingWebpack) {
+            trustWebpackExports(pos);
+            WebpackModule* owner = webpackCurrent ? webpackCurrent : &webpackInlineRoot;
+            for (Slice* slice = owner->imports; slice; slice = slice->next)
+              if (slice->start == binding->specifier_start) { internal = true; break; }
+          }
+          if (internal)
+            addWebpackDependency(binding->specifier_start, binding->specifier_end, true);
+          else
+            addReexport(binding->specifier_start, binding->specifier_end);
+          pos = revertPos;
+        }
+        else if (projectingWebpack) {
+          if (webpackCurrent) webpackCurrent->uncertain = true;
+          else webpackInvalid = true;
         }
         return;
       }
