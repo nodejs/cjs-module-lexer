@@ -197,8 +197,8 @@ void tryParseLiteralExports ();
 void readExportDefinition ();
 void readExportProperty ();
 bool readExportsOrModuleDotExports (uint16_t ch);
-void tryParseModuleExportsDotAssign (uint32_t length);
-void tryParseExportsDotAssign (bool assign, uint32_t length);
+bool tryParseModuleExportsDotAssign (uint32_t length);
+bool tryParseExportsDotAssign (bool assign, uint32_t length);
 void tryParseObjectDefineOrKeys (bool keys);
 bool identifier (uint16_t ch);
 

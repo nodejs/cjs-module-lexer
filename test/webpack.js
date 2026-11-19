@@ -72,6 +72,7 @@ suite('Webpack extended detection', () => {
   });
 
   const factories = [
+    '"entry"(m, e) { e.visible = 1; }',
     'entry: (module, exports) => { exports.visible = 1; }',
     'entry: function(module, exports) { exports.visible = 1; }',
     'entry: (m, e) => { e.visible = 1; }',
@@ -97,6 +98,74 @@ suite('Webpack extended detection', () => {
       }
     `);
     assert.deepEqual(parse(source, 'bundle.cjs', options), { exports: ['visible', 'quoted'], reexports: [] });
+  });
+
+  test('Webpack 5.112 harmony reexports exclude internal factory exports', () => {
+    const source = readFileSync(join(__dirname, 'fixtures/webpack/webpack-5.112-harmony.cjs'), 'utf8');
+    const module = { exports: {} };
+    vm.runInNewContext(source, { module });
+    assert.deepEqual(parse(source, 'bundle.cjs', options).exports.sort(),
+      Object.getOwnPropertyNames(module.exports).sort());
+  });
+
+  test('Webpack 5.112 TypeScript export star retains candidates', () => {
+    const source = readFileSync(join(__dirname, 'fixtures/webpack/webpack-5.112-ts-star.cjs'), 'utf8');
+    const module = { exports: {} };
+    vm.runInNewContext(source, { module });
+    assert.deepEqual(parse(source, 'bundle.cjs', options).exports.sort(),
+      [...Object.getOwnPropertyNames(module.exports), 'hidden'].sort());
+  });
+
+  test('Webpack getter arrays distinguish keys, getters, and values', () => {
+    const source = bundle(`
+      unused: (m, e) => { e.hidden = 1; },
+      entry: (m, e) => {
+        __webpack_require__.d(e, []);
+        __webpack_require__.d(e, ["visible", 0, "notAKey", "getter", () => ({ nested: [1, 2] }),]);
+        e.tail = 2;
+      }
+    `);
+    assert.deepEqual(parse(source, 'bundle.cjs', options),
+      { exports: ['visible', 'getter', 'tail'], reexports: [] });
+  });
+
+  test('a factory without an exports parameter does not use the startup getter binding', () => {
+    const source = bundle(`entry: (m) => {
+      __webpack_require__.d(__webpack_exports__, { hidden: () => 1 });
+      m.exports.visible = 1;
+    }`);
+    assert.deepEqual(parse(source, 'bundle.cjs', options), { exports: ['visible'], reexports: [] });
+  });
+
+  for (const body of [
+    `__exportStar(__webpack_require__("dependency"), exports);`,
+    `Object.assign(exports, __webpack_require__("dependency"));`,
+    `const dep = __webpack_require__("dependency"); for (const key in dep) exports[key] = dep[key];`,
+    `module.exports = { ...__webpack_require__("dependency") };`,
+    `module.exports = wrap(__webpack_require__("dependency"));`,
+    `Object.defineProperty(exports, computed, { value: 1 });`,
+    `Object.assign(module["exports"], __webpack_require__("dependency"));`,
+    `__webpack_require__.d(exports, [computed, () => 1]);`,
+  ]) {
+    test(`retains candidates for an unrecognized export use: ${body}`, () => {
+      const source = bundle(`
+        unused: (module, exports) => { exports.hidden = 1; },
+        dependency: (module, exports) => { exports.depA = 1; },
+        entry: (module, exports) => { exports.own = 1; ${body} }
+      `);
+      assert.deepEqual(parse(source, 'bundle.cjs', options).exports.sort(), ['depA', 'hidden', 'own']);
+    });
+  }
+
+  test('unrecognized uses only affect projection when reachable', () => {
+    const factories = `
+      unused: (m, e) => { e.hidden = 1; Object.assign(e, __webpack_require__("leaf")); },
+      leaf: (m, e) => { e.visible = 1; }
+    `;
+    const direct = bundle(`${factories}, entry: (m, e) => { m.exports = __webpack_require__("leaf"); }`);
+    const indirect = bundle(`${factories}, entry: (m, e) => { m.exports = __webpack_require__("unused"); }`);
+    assert.deepEqual(parse(direct, 'bundle.cjs', options).exports, ['visible']);
+    assert.deepEqual(parse(indirect, 'bundle.cjs', options).exports.sort(), ['hidden', 'visible']);
   });
 
   test('descriptors can target the module parameter', () => {
@@ -158,6 +227,15 @@ suite('Webpack extended detection', () => {
     assert.deepEqual(parse(source, 'bundle.cjs', options), { exports: ['default', 'visible'], reexports: [] });
   });
 
+  test('an internal reexport without a semicolon does not consume the factory brace', () => {
+    const source = bundle(`
+      entry(module) { module.exports = __webpack_require__("dependency") },
+      dependency(module, exports) { exports.visible = 1 },
+      unused(module, exports) { exports.hidden = 1 }
+    `);
+    assert.deepEqual(parse(source, 'bundle.cjs', options), { exports: ['visible'], reexports: [] });
+  });
+
   test('internal star reexports exclude default and __esModule', () => {
     const source = bundle(`
       unused: (m, exports) => { exports.hidden = 1; },
@@ -196,6 +274,20 @@ suite('Webpack extended detection', () => {
       entry: (module) => { module.exports = require('visible'); }
     `);
     assert.deepEqual(parse(source, 'bundle.cjs', options), { exports: [], reexports: ['visible'] });
+  });
+
+  test('a factory does not replace the surrounding star reexport bindings', () => {
+    const bundled = bundle(`
+      dependency: (module, exports) => { exports.internal = 1; },
+      entry: (module, exports) => { ${star('dependency')} }
+    `);
+    const source = `var dep = require("external");
+      ${bundled}
+      Object.keys(dep).forEach(function (key) {
+        if (key === "default" || key === "__esModule") return;
+        exports[key] = dep[key];
+      });`;
+    assert.deepEqual(parse(source, 'bundle.cjs', options), { exports: ['internal'], reexports: ['external'] });
   });
 
   test('numeric module identifiers', () => {

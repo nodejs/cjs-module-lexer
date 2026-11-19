@@ -1,10 +1,13 @@
 let source, pos, end;
 let extended, exportObjectPos;
-let webpack;
+let webpack, webpackTrustedEnd, webpackArrayPos;
 const STACK_DEPTH = 2048;
 const ClassToken = 1;
 const ExportObjectToken = 2;
 const WebpackTableToken = 4;
+const WebpackArrayKeyToken = 8;
+const WebpackArrayBindingToken = 16;
+const WebpackArrayValueToken = 32;
 const templateStack = new Array(1024);
 const openTokenPosStack = new Array(1024);
 const openTokenTypeStack = new Array(1024);
@@ -30,6 +33,7 @@ function resetState () {
   nextBraceIsClass = false;
   allowMinifiedEnumerable = false;
   webpack = undefined;
+  webpackTrustedEnd = webpackArrayPos = -1;
   starExportMap = Object.create(null);
   lastStarExportSpecifier = null;
 
@@ -144,7 +148,7 @@ function parseSource (cjsSource) {
     if (ch === 32 || ch < 14 && ch > 8)
       continue;
 
-    if (extendedMode && keywordStart(pos) && readWebpackToken(ch)) {
+    if (extendedMode && (ch === 95 || webpack?.current) && keywordStart(pos) && readWebpackToken(ch)) {
       skipTokenRun();
       lastTokenPos = pos;
       continue;
@@ -228,6 +232,10 @@ function parseSource (cjsSource) {
       case 91/*[*/:
         if (extendedMode) {
           pushOpenToken(lastTokenPos);
+          if (pos === webpackArrayPos) {
+            webpackArrayPos = -1;
+            readWebpackArrayElement(WebpackArrayKeyToken);
+          }
         }
         break;
       case 93/*]*/:
@@ -237,10 +245,12 @@ function parseSource (cjsSource) {
         }
         break;
       case 44/*,*/:
-        if (extendedMode && openTokenDepth && (openTokenTypeStack[openTokenDepth - 1] & WebpackTableToken))
-          readWebpackFactory();
-        if (extendedMode && openTokenDepth && (openTokenTypeStack[openTokenDepth - 1] & ExportObjectToken))
-          readExportProperty();
+        if (extendedMode && openTokenDepth) {
+          const token = openTokenTypeStack[openTokenDepth - 1];
+          if (token & WebpackTableToken) readWebpackFactory();
+          if (token & ExportObjectToken) readExportProperty();
+          if (token >= WebpackArrayKeyToken) readWebpackArrayElement(token);
+        }
         break;
       case 41/*)*/:
         if (openTokenDepth === 0)
@@ -350,14 +360,17 @@ function parseSource (cjsSource) {
 /** @param {number} ch */
 function readWebpackToken (ch) {
   const current = webpack?.current;
+  const start = pos;
   const target = current?.target;
   if (target && source.startsWith(target, pos) && !isIdentifierChar(source.codePointAt(pos + target.length), true)) {
-    tryParseExportsDotAssign(false, target.length);
+    if (!tryParseExportsDotAssign(false, target.length) && start >= webpackTrustedEnd)
+      current.uncertain = true;
     return true;
   }
   if (current?.module && source.startsWith(current.module, pos) &&
       !isIdentifierChar(source.codePointAt(pos + current.module.length), true)) {
-    tryParseModuleExportsDotAssign(current.module.length);
+    if (!tryParseModuleExportsDotAssign(current.module.length) && start >= webpackTrustedEnd)
+      current.uncertain = true;
     return true;
   }
   if (ch !== 95/*_*/) return false;
@@ -401,7 +414,6 @@ function readWebpackToken (ch) {
   }
   if (!source.startsWith('__webpack_require__', pos) ||
       isIdentifierChar(source.codePointAt(pos + 19), true)) return false;
-  const start = pos;
   if (current ? openTokenDepth === current.depth : webpack?.inline) {
     const id = readWebpackCall();
     if (id !== undefined) {
@@ -413,19 +425,65 @@ function readWebpackToken (ch) {
   pos = start + 19;
   if (commentWhitespace() === 46/*.*/) {
     pos++;
-    if (commentWhitespace() === 100/*d*/) {
+    const method = commentWhitespace();
+    if (method === 100/*d*/ || method === 114/*r*/) {
       pos++;
       if (commentWhitespace() === 40/*(*/) {
         pos++;
-        if (readExportsOrModuleDotExports(commentWhitespace()) && commentWhitespace() === 44/*,*/) {
-          pos++;
-          if (commentWhitespace() === 123/*{*/) exportObjectPos = pos;
+        if (readExportsOrModuleDotExports(commentWhitespace())) {
+          const argEnd = pos;
+          const next = commentWhitespace();
+          if (method === 114 && next === 41) trustWebpackExports(argEnd);
+          if (method === 100 && next === 44) {
+            pos++;
+            const definition = commentWhitespace();
+            if (definition === 123) {
+              exportObjectPos = pos;
+              trustWebpackExports(argEnd);
+            } else if (definition === 91) {
+              webpackArrayPos = pos;
+              trustWebpackExports(argEnd);
+            }
+          }
         }
       }
     }
   }
   pos = start;
   return false;
+}
+
+/** @param {number} finish */
+function trustWebpackExports (finish) {
+  if (webpack?.current && finish > webpackTrustedEnd) webpackTrustedEnd = finish;
+}
+
+/** @param {number} token */
+function readWebpackArrayElement (token) {
+  const start = pos++;
+  const ch = commentWhitespace();
+  let next = WebpackArrayKeyToken;
+  if (token === WebpackArrayKeyToken) {
+    next = 0;
+    if (ch === 34 || ch === 39) {
+      const name = pos;
+      stringLiteral(ch);
+      const nameEnd = ++pos;
+      if (commentWhitespace() === 44) {
+        _exports.add(decode(source.slice(name, nameEnd)));
+        next = WebpackArrayBindingToken;
+      }
+    }
+    if (!next && ch !== 93) {
+      if (webpack?.current) webpack.current.uncertain = true;
+      else if (webpack?.inline) webpack.invalid = true;
+    }
+  } else if (token === WebpackArrayBindingToken && ch === 48) {
+    pos++;
+    if (commentWhitespace() === 44) next = WebpackArrayValueToken;
+  }
+  openTokenTypeStack[openTokenDepth - 1] = next;
+  pos = start;
 }
 
 function readWebpackId () {
@@ -451,9 +509,12 @@ function readWebpackCall () {
       const ch = commentWhitespace();
       const id = ch === 34 || ch === 39 || ch >= 48 && ch <= 57 ? readWebpackId() : undefined;
       if (id !== undefined && commentWhitespace() === 41/*)*/) {
-        pos++;
+        const callEnd = pos++;
         const ch = commentWhitespace();
-        if (pos > end || ch === 59 || ch === 44 || ch === 41 || ch === 125) return id;
+        if (pos > end || ch === 59 || ch === 44 || ch === 41 || ch === 125) {
+          pos = callEnd;
+          return id;
+        }
       }
     }
   }
@@ -464,10 +525,11 @@ function readWebpackFactory () {
   const start = pos;
   pos++;
   const id = readWebpackId();
-  if (id !== undefined && commentWhitespace() === 58/*:*/) {
-    pos++;
+  const separator = commentWhitespace();
+  if (id !== undefined && (separator === 58 || separator === 40)) {
+    if (separator === 58) pos++;
     let ch = commentWhitespace();
-    if (ch === 40/*(*/) {
+    if (separator === 58 && ch === 40/*(*/) {
       const opening = pos;
       pos++;
       ch = commentWhitespace();
@@ -500,10 +562,11 @@ function readWebpackFactory () {
       if (ch === 41) {
         pos++;
         ch = commentWhitespace();
-        if (!fn && ch === 61 && source.charCodeAt(pos + 1) === 62) {
+        const arrow = !fn && separator === 58;
+        if (arrow && ch === 61 && source.charCodeAt(pos + 1) === 62) {
           pos += 2;
           ch = commentWhitespace();
-        }
+        } else if (arrow) ch = 0;
         if (ch === 123) {
           webpack.factoryPos = pos;
           const existing = webpack.modules.get(id);
@@ -536,7 +599,7 @@ function finishWebpack () {
     for (let i = 0; i < queue.length; i++) {
       const { id, star } = queue[i];
       const module = webpack.modules.get(id);
-      if (!module) { webpack.invalid = true; break; }
+      if (!module || module.uncertain) { webpack.invalid = true; break; }
       const flag = star ? 1 : 2;
       if ((visited.get(id) ?? 0) & flag) continue;
       visited.set(id, (visited.get(id) ?? 0) | flag);
@@ -1153,6 +1216,7 @@ function tryParseObjectDefineOrKeys (keys) {
 
         const starExportSpecifier = starExportMap[id];
         if (starExportSpecifier) {
+          if (extended) trustWebpackExports(pos);
           if (typeof starExportSpecifier === 'object')
             (webpack.current?.dependencies ?? webpack.inlineDependencies)
               .push({ id: starExportSpecifier.webpack, star: true });
@@ -1170,7 +1234,7 @@ function tryParseObjectDefineOrKeys (keys) {
 
 function readExportsOrModuleDotExports (ch) {
   const revertPos = pos;
-  const target = extended && (webpack?.current?.target ?? '__webpack_exports__');
+  const target = extended && (webpack?.current ? webpack.current.target : '__webpack_exports__');
   if (target && source.startsWith(target, pos) && !isIdentifierChar(source.codePointAt(pos + target.length), true)) {
     pos += target.length;
     return true;
@@ -1206,14 +1270,13 @@ function tryParseModuleExportsDotAssign (length = 6) {
     pos++;
     ch = commentWhitespace();
     if (ch === 101/*e*/ && source.startsWith('xports', pos + 1)) {
-      tryParseExportsDotAssign(true);
-      return;
+      return tryParseExportsDotAssign(true);
     }
   }
   pos = revertPos;
+  return false;
 }
 
-/** @param {boolean} assign */
 /**
  * @param {boolean} assign
  * @param {number} [length]
@@ -1233,7 +1296,7 @@ function tryParseExportsDotAssign (assign, length = 7) {
         ch = commentWhitespace();
         if (ch === 61/*=*/) {
           _exports.add(decode(source.slice(startPos, endPos)));
-          return;
+          return true;
         }
       }
       break;
@@ -1252,6 +1315,8 @@ function tryParseExportsDotAssign (assign, length = 7) {
         ch = commentWhitespace();
         if (ch !== 61/*=*/) break;
         _exports.add(decode(source.slice(startPos, endPos)));
+        pos = revertPos;
+        return true;
       }
       break;
     }
@@ -1263,10 +1328,12 @@ function tryParseExportsDotAssign (assign, length = 7) {
         pos++;
         ch = commentWhitespace();
         if (extended) {
+          let recognized = false;
           if (ch === 95/*_*/) {
             const start = pos;
             const id = readWebpackCall();
             if (webpack && id !== undefined) {
+              recognized = true;
               if (webpack.current) webpack.current.dependencies.push({ id, star: false });
               else { webpack.entry = id; webpack.published = true; }
             }
@@ -1282,10 +1349,14 @@ function tryParseExportsDotAssign (assign, length = 7) {
             }
           }
           if (ch === 40/*(*/) ch = readExportExpressionStart();
-          if (ch === 123/*{*/) exportObjectPos = pos;
-          else if (ch === 114/*r*/) tryParseRequire(ExportAssign);
+          if (ch === 123/*{*/) {
+            exportObjectPos = pos;
+            recognized = true;
+          } else if (ch === 114/*r*/) {
+            recognized = tryParseRequire(ExportAssign);
+          }
           pos = revertPos;
-          return;
+          return recognized;
         }
         // { ... }
         if (ch === 123/*{*/) {
@@ -1300,6 +1371,7 @@ function tryParseExportsDotAssign (assign, length = 7) {
     }
   }
   pos = revertPos;
+  return false;
 }
 
 function tryParseRequire (requireType) {
@@ -1376,19 +1448,25 @@ function readExportDefinition () {
   pos++;
   ch = commentWhitespace();
   if (!readExportsOrModuleDotExports(ch)) return;
+  const argEnd = pos;
   if (commentWhitespace() !== 44/*,*/) return;
   pos++;
   ch = commentWhitespace();
   if (properties) {
     if (ch === 40/*(*/) ch = readExportExpressionStart();
-    if (ch === 123/*{*/) exportObjectPos = pos;
+    if (ch === 123/*{*/) {
+      exportObjectPos = pos;
+      trustWebpackExports(argEnd);
+    }
   }
   else if (ch === 39/*'*/ || ch === 34/*"*/) {
     const nameStart = pos;
     stringLiteral(ch);
     const nameEnd = ++pos;
-    if (commentWhitespace() === 44/*,*/)
+    if (commentWhitespace() === 44/*,*/) {
       _exports.add(decode(source.slice(nameStart, nameEnd)));
+      trustWebpackExports(argEnd);
+    }
   }
   pos = start;
 }
@@ -1397,10 +1475,12 @@ function readExportProperty () {
   const revertPos = pos;
   pos++;
   let ch = commentWhitespace();
+  const propertyStart = ch;
   if (ch === 46/*.*/ && source.startsWith('..', pos + 1)) {
     pos += 3;
     ch = commentWhitespace();
-    if (ch === 114/*r*/) tryParseRequire(ExportAssign);
+    if (!(ch === 114/*r*/ && tryParseRequire(ExportAssign)) && webpack?.current)
+      webpack.current.uncertain = true;
     pos = revertPos;
     return;
   }
@@ -1455,6 +1535,8 @@ function readExportProperty () {
   if (nameEnd !== undefined && (ch === 58/*:*/ || ch === 40/*(*/ ||
       !computed && (ch === 44/*,*/ || ch === 125/*}*/)))
     _exports.add(decode(source.slice(nameStart, nameEnd)));
+  else if (propertyStart !== 125 && webpack?.current)
+    webpack.current.uncertain = true;
   pos = revertPos;
 }
 

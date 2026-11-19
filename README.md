@@ -112,12 +112,13 @@ The same limitation applies to `Object.defineProperties`.
 Direct reexport assignments contribute all detected dependencies instead of only the last assignment.
 Object spreads of `require('literal')` contribute reexports, but named properties with require-valued expressions do not.
 
-Extended mode recognizes Webpack assignments through `__webpack_exports__` and getter maps in `__webpack_require__.d`.
+Extended mode recognizes Webpack assignments through `__webpack_exports__` and object or array getter maps in `__webpack_require__.d`.
 For object-shaped `__webpack_modules__` tables, a literal startup module ID selects the entry factory.
 Detection follows internal whole-module reexports and supported star reexports, which exclude `default` and `__esModule`.
 An inlined entry can instead initialize `__webpack_exports__` with an object literal.
 Unrelated factories do not contribute names when the bundle publishes the recognized entry.
-Unrecognized startup expressions and unresolved internal reexports retain candidate detection.
+Detection retains candidates from all factories if it cannot recognize the startup expression or resolve an internal reexport.
+It also retains those candidates if it encounters an unsupported use of the exports or module parameter in a reachable factory.
 
 The result contains syntactic candidates, which can include non-enumerable properties, throwing getters, and unreachable assignments.
 Extended mode does not apply the default getter side-effect veto.
