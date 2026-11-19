@@ -542,8 +542,10 @@ String rejection, getter filtering, and detection modes match the Wasm package.
 
 The status distinguishes invalid arguments, lexical failure, limits, and allocation failure.
 Every failure sets the result to null and initializes the optional error output.
-`error.has_offset` identifies an available source location, and `error.code` identifies the scanner error.
-Codes 5, 6, and 7 identify ESM syntax. Nesting is limited to 2048 tracked brackets or templates.
+`error.has_offset` signals that `error.offset` gives a source location.
+`error.code` is a `CJS_LEXER_ERROR_*` constant from the header, or `CJS_LEXER_ERROR_NONE` if there is no scanner error.
+`CJS_LEXER_ERROR_UNEXPECTED_IMPORT_META`, `CJS_LEXER_ERROR_UNEXPECTED_ESM_IMPORT`, and
+`CJS_LEXER_ERROR_UNEXPECTED_ESM_EXPORT` identify ESM syntax. Nesting is limited to 2048 tracked brackets or templates.
 Input lengths must fit `uint32_t`, `PTRDIFF_MAX - 32`, and the platform's UTF-16 allocation range.
 Output locations must not overlap each other or the source.
 

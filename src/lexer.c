@@ -85,7 +85,7 @@ static CJS_INLINE bool isTokenRunChar (uint16_t ch) {
 
 static CJS_INLINE bool pushOpenToken(Parser* parser, Cursor tokenPos) {
   if (parser->openTokenDepth == STACK_DEPTH) {
-    syntaxError(parser, 12);
+    syntaxError(parser, CJS_LEXER_ERROR_NESTING_LIMIT);
     return false;
   }
   parser->openTokenTypeStack[parser->openTokenDepth] = 0;
@@ -95,7 +95,7 @@ static CJS_INLINE bool pushOpenToken(Parser* parser, Cursor tokenPos) {
 
 static CJS_INLINE bool pushTemplate(Parser* parser) {
   if (parser->templateStackDepth == STACK_DEPTH || parser->openTokenDepth == STACK_DEPTH) {
-    syntaxError(parser, 12);
+    syntaxError(parser, CJS_LEXER_ERROR_NESTING_LIMIT);
     return false;
   }
   parser->templateStack[parser->templateStackDepth++] = parser->templateDepth;
@@ -205,7 +205,7 @@ uint32_t cjs_lexer_scan (Parser* parser) {
       case ']':
         if (parser->extended) {
           if (parser->openTokenDepth == 0)
-            return syntaxError(parser, 8), parser->error;
+            return syntaxError(parser, CJS_LEXER_ERROR_UNBALANCED_DELIMITER), parser->error;
           parser->openTokenDepth--;
         }
         break;
@@ -215,10 +215,9 @@ uint32_t cjs_lexer_scan (Parser* parser) {
         break;
       case ')':
         if (parser->openTokenDepth == 0)
-          return syntaxError(parser, 8), parser->error;
+          return syntaxError(parser, CJS_LEXER_ERROR_UNBALANCED_DELIMITER), parser->error;
         parser->openTokenDepth--;
         lastOpenTokenPos = parser->openTokenPosStack[parser->openTokenDepth];
-        lastOpenTokenType = 0;
         lastClosedTokenPos = parser->pos;
         break;
       case '{':
@@ -234,7 +233,7 @@ uint32_t cjs_lexer_scan (Parser* parser) {
         break;
       case '}':
         if (parser->openTokenDepth == 0)
-          return syntaxError(parser, 2), parser->error;
+          return syntaxError(parser, CJS_LEXER_ERROR_UNEXPECTED_CLOSING_BRACE), parser->error;
         lastOpenTokenPos = parser->openTokenPosStack[parser->openTokenDepth - 1];
         lastOpenTokenType = parser->openTokenTypeStack[parser->openTokenDepth - 1];
         lastClosedTokenPos = parser->pos;
@@ -244,7 +243,7 @@ uint32_t cjs_lexer_scan (Parser* parser) {
         }
         else {
           if (parser->templateDepth != UINT16_MAX && parser->openTokenDepth < parser->templateDepth)
-            return syntaxError(parser, 3), parser->error;
+            return syntaxError(parser, CJS_LEXER_ERROR_UNEXPECTED_TEMPLATE_BRACE), parser->error;
         }
         break;
       case '<':
@@ -272,15 +271,13 @@ uint32_t cjs_lexer_scan (Parser* parser) {
           // - if a closing brace or paren, what token came before the corresponding
           //   opening brace or paren (lastOpenTokenIndex)
           uint16_t lastToken = at(parser, parser->lastTokenPos);
-          Cursor preceding = parser->lastTokenPos == lastClosedTokenPos ? lastOpenTokenPos : SOURCE_BEFORE;
-          uint8_t closingType = parser->lastTokenPos == lastClosedTokenPos ? lastOpenTokenType : 0;
           if (isExpressionPunctuator(lastToken) &&
               !(lastToken == '.' && (at(parser, parser->lastTokenPos - 1) >= '0' && at(parser, parser->lastTokenPos - 1) <= '9')) &&
               !(lastToken == '+' && at(parser, parser->lastTokenPos - 1) == '+') && !(lastToken == '-' && at(parser, parser->lastTokenPos - 1) == '-') ||
-              lastToken == ')' && isParenKeyword(parser, preceding) ||
-              lastToken == '}' && (isExpressionTerminator(parser, preceding) ||
-              (closingType & ClassToken) ||
-              parser->extended && isStatementBrace(parser, preceding, parser->openTokenDepth)) ||
+              parser->lastTokenPos == lastClosedTokenPos && (lastToken == ')' && isParenKeyword(parser, lastOpenTokenPos) ||
+              lastToken == '}' && (isExpressionTerminator(parser, lastOpenTokenPos) ||
+              (lastOpenTokenType & ClassToken) ||
+              parser->extended && isStatementBrace(parser, lastOpenTokenPos, parser->openTokenDepth))) ||
               lastToken == '/' && parser->lastSlashWasDivision ||
               isExpressionKeyword(parser, parser->lastTokenPos) ||
               !lastToken) {
@@ -295,7 +292,7 @@ uint32_t cjs_lexer_scan (Parser* parser) {
       }
       case '`':
         if (parser->templateDepth == UINT16_MAX - 1)
-          return syntaxError(parser, 4), parser->error;
+          return syntaxError(parser, CJS_LEXER_ERROR_INVALID_TEMPLATE_DEPTH), parser->error;
         templateString(parser);
         break;
       default:
@@ -319,7 +316,7 @@ uint32_t cjs_lexer_scan (Parser* parser) {
 
   if (parser->templateDepth != UINT16_MAX || parser->openTokenDepth || parser->error) {
     if (!parser->error)
-      syntaxError(parser, 1);
+      syntaxError(parser, CJS_LEXER_ERROR_UNEXPECTED_EOF);
     return parser->error;
   }
 
@@ -363,7 +360,7 @@ static void tryBacktrackAddStarExportBinding(Parser* parser, Cursor bPos) {
       }
       StarExportBinding* binding = cjs_lexer_allocate(parser->result, sizeof(StarExportBinding));
       if (!binding) {
-        syntaxError(parser, 13);
+        syntaxError(parser, CJS_LEXER_ERROR_ALLOCATION);
         return;
       }
       *binding = parser->starExportBinding_;
@@ -486,7 +483,7 @@ static void tryParseObjectDefineOrKeys(Parser* parser, bool keys) {
           parser->pos += 5;
           ch = commentWhitespace(parser);
           if (ch != ':') break;
-          cjs_lexer_add(parser, &parser->result->exports, exportStart, exportEnd);
+          cjs_lexer_add(parser, ExportCandidate, exportStart, exportEnd);
           parser->pos = revertPos;
           return;
         }
@@ -552,13 +549,13 @@ static void tryParseObjectDefineOrKeys(Parser* parser, bool keys) {
           parser->pos++;
           ch = commentWhitespace(parser);
           if (ch != ')') break;
-          cjs_lexer_add(parser, &parser->result->exports, exportStart, exportEnd);
+          cjs_lexer_add(parser, ExportCandidate, exportStart, exportEnd);
           return;
         }
         break;
       }
       if (exportEnd > SOURCE_START) {
-        cjs_lexer_add(parser, &parser->result->unsafe_getters, exportStart, exportEnd);
+        cjs_lexer_add(parser, UnsafeGetterCandidate, exportStart, exportEnd);
       }
     }
     else if (keys && ch == 'k' && str_eq3(parser, parser->pos + 1, 'e', 'y', 's')) {
@@ -937,7 +934,7 @@ static void tryParseObjectDefineOrKeys(Parser* parser, bool keys) {
         while (binding) {
           if (id_len == binding->id_end - binding->id_start &&
               matches(parser, id_start, binding->id_start, (size_t)id_len)) {
-            cjs_lexer_add(parser, &parser->result->reexports, binding->specifier_start, binding->specifier_end);
+            cjs_lexer_add(parser, ReexportCandidate, binding->specifier_start, binding->specifier_end);
             parser->pos = revertPos;
             return;
           }
@@ -1001,7 +998,7 @@ static void tryParseExportsDotAssign(Parser* parser, bool assign) {
         Cursor endPos = parser->pos;
         ch = commentWhitespace(parser);
         if (ch == '=') {
-          cjs_lexer_add(parser, &parser->result->exports, startPos, endPos);
+          cjs_lexer_add(parser, ExportCandidate, startPos, endPos);
           return;
         }
       }
@@ -1020,14 +1017,14 @@ static void tryParseExportsDotAssign(Parser* parser, bool assign) {
         parser->pos++;
         ch = commentWhitespace(parser);
         if (ch != '=') break;
-        cjs_lexer_add(parser, &parser->result->exports, startPos, endPos);
+        cjs_lexer_add(parser, ExportCandidate, startPos, endPos);
       }
       break;
     }
     // module.exports =
     case '=': {
       if (assign) {
-        if (!parser->extended) clearCandidates(&parser->result->reexports);
+        if (!parser->extended) cjs_lexer_clear_reexports(parser->result);
         parser->pos++;
         ch = commentWhitespace(parser);
         if (parser->extended) {
@@ -1069,10 +1066,10 @@ static bool tryParseRequire(Parser* parser, enum RequireType requireType) {
         if (ch == ')') {
           switch (requireType) {
             case ExportStar:
-              cjs_lexer_add(parser, &parser->result->reexports, reexportStart, reexportEnd);
+              cjs_lexer_add(parser, ReexportCandidate, reexportStart, reexportEnd);
               return true;
             case ExportAssign:
-              cjs_lexer_add(parser, &parser->result->reexports, reexportStart, reexportEnd);
+              cjs_lexer_add(parser, ReexportCandidate, reexportStart, reexportEnd);
               return true;
             default:
               parser->starExportBinding_.specifier_start = reexportStart;
@@ -1145,7 +1142,7 @@ static void readExportDefinition(Parser* parser) {
     Cursor nameStart = parser->pos;
     stringLiteral(parser, ch);
     Cursor nameEnd = ++parser->pos;
-    if (commentWhitespace(parser) == ',') cjs_lexer_add(parser, &parser->result->exports, nameStart, nameEnd);
+    if (commentWhitespace(parser) == ',') cjs_lexer_add(parser, ExportCandidate, nameStart, nameEnd);
   }
 }
 
@@ -1208,7 +1205,7 @@ static void readExportProperty(Parser* parser) {
     }
   }
   if (nameEnd && (ch == ':' || ch == '(' || !computed && (ch == ',' || ch == '}')))
-    cjs_lexer_add(parser, &parser->result->exports, nameStart, nameEnd);
+    cjs_lexer_add(parser, ExportCandidate, nameStart, nameEnd);
   parser->pos = revertPos;
 }
 
@@ -1234,7 +1231,7 @@ static void tryParseLiteralExports(Parser* parser) {
         parser->pos = revertPos;
         return;
       }
-      cjs_lexer_add(parser, &parser->result->exports, startPos, endPos);
+      cjs_lexer_add(parser, ExportCandidate, startPos, endPos);
     }
     else if (ch == '\'' || ch == '"') {
       Cursor startPos = parser->pos;
@@ -1250,7 +1247,7 @@ static void tryParseLiteralExports(Parser* parser) {
           return;
         }
         ch = at(parser, parser->pos);
-        cjs_lexer_add(parser, &parser->result->exports, startPos, endPos);
+        cjs_lexer_add(parser, ExportCandidate, startPos, endPos);
       }
     }
     else if (ch == '.' && str_eq2(parser, parser->pos + 1, '.', '.')) {
@@ -1412,7 +1409,7 @@ static void throwIfImportStatement(Parser* parser) {
       return;
     // import.meta
     case '.':
-      syntaxError(parser, 5);
+      syntaxError(parser, CJS_LEXER_ERROR_UNEXPECTED_IMPORT_META);
       return;
 
     default:
@@ -1429,7 +1426,7 @@ static void throwIfImportStatement(Parser* parser) {
         return;
       }
       // import statements are a syntax error in CommonJS
-      syntaxError(parser, 6);
+      syntaxError(parser, CJS_LEXER_ERROR_UNEXPECTED_ESM_IMPORT);
   }
 }
 
@@ -1439,7 +1436,7 @@ static void throwIfExportStatement(Parser* parser) {
   uint16_t ch = commentWhitespace(parser);
   if (parser->pos == curPos && !isPunctuator(ch))
     return;
-  syntaxError(parser, 7);
+  syntaxError(parser, CJS_LEXER_ERROR_UNEXPECTED_ESM_EXPORT);
 }
 
 static uint16_t commentWhitespace(Parser* parser) {
@@ -1476,7 +1473,7 @@ static void templateString(Parser* parser) {
     if (ch == '\\')
       parser->pos++;
   }
-  syntaxError(parser, 8);
+  syntaxError(parser, CJS_LEXER_ERROR_UNBALANCED_DELIMITER);
 }
 
 static void blockComment(Parser* parser) {
@@ -1511,7 +1508,7 @@ static void stringLiteral(Parser* parser, uint16_t quote) {
     else if (isBr(ch))
       break;
   }
-  syntaxError(parser, 9);
+  syntaxError(parser, CJS_LEXER_ERROR_UNTERMINATED_STRING);
 }
 
 static uint16_t regexCharacterClass(Parser* parser) {
@@ -1524,7 +1521,7 @@ static uint16_t regexCharacterClass(Parser* parser) {
     else if (ch == '\n' || ch == '\r')
       break;
   }
-  syntaxError(parser, 10);
+  syntaxError(parser, CJS_LEXER_ERROR_UNTERMINATED_REGEX_CLASS);
   return '\0';
 }
 
@@ -1540,7 +1537,7 @@ static void regularExpression(Parser* parser) {
     else if (ch == '\n' || ch == '\r')
       break;
   }
-  syntaxError(parser, 11);
+  syntaxError(parser, CJS_LEXER_ERROR_UNTERMINATED_REGEX);
 }
 
 
@@ -1816,7 +1813,9 @@ static bool isExpressionTerminator(Parser* parser, Cursor curPos) {
 }
 
 static void syntaxError(Parser* parser, uint32_t code) {
-  if (parser->error == 0) parser->error = code;
-  parser->parse_error = sourceIndex(parser, parser->pos);
+  if (parser->error == 0) {
+    parser->error = code;
+    parser->parse_error = sourceIndex(parser, parser->pos);
+  }
   parser->pos = parser->end + 1;
 }

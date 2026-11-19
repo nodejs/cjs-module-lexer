@@ -1,5 +1,39 @@
 #include "lexer-internal.h"
 
+typedef union {
+  uint16_t code;
+  StarExportBinding binding;
+} ArenaValue;
+
+typedef struct ArenaBlock {
+  struct ArenaBlock* next;
+  size_t used;
+  size_t capacity;
+  ArenaValue data[];
+} ArenaBlock;
+
+typedef struct {
+  Cursor start;
+  Cursor end;
+  cjs_lexer_string16 value;
+  uint32_t hash;
+} Candidate;
+
+typedef struct {
+  Candidate* data;
+  size_t count;
+  size_t capacity;
+} Candidates;
+
+struct cjs_lexer_result {
+  Candidates candidates[CandidateKindCount];
+  ArenaBlock* blocks;
+};
+
+void cjs_lexer_clear_reexports(cjs_lexer_result* result) {
+  result->candidates[ReexportCandidate].count = 0;
+}
+
 void* cjs_lexer_allocate(cjs_lexer_result* result, size_t size) {
   const size_t alignment = _Alignof(ArenaValue);
   if (size > SIZE_MAX - alignment + 1) return NULL;
@@ -20,19 +54,20 @@ void* cjs_lexer_allocate(cjs_lexer_result* result, size_t size) {
   return value;
 }
 
-void cjs_lexer_add(Parser* parser, Candidates* list, ptrdiff_t start, ptrdiff_t end) {
+void cjs_lexer_add(Parser* parser, CandidateKind kind, Cursor start, Cursor end) {
   if (parser->error) return;
   if (start < 0 || end < start || (size_t)end > parser->sourceLen) return;
+  Candidates* list = &parser->result->candidates[kind];
   if (list->count == list->capacity) {
     size_t capacity = list->capacity ? list->capacity * 2 : 16;
     if (capacity < list->capacity || capacity > SIZE_MAX / sizeof(Candidate)) {
-      parser->error = 13;
+      parser->error = CJS_LEXER_ERROR_ALLOCATION;
       parser->pos = parser->end + 1;
       return;
     }
     Candidate* data = realloc(list->data, capacity * sizeof(Candidate));
     if (!data) {
-      parser->error = 13;
+      parser->error = CJS_LEXER_ERROR_ALLOCATION;
       parser->pos = parser->end + 1;
       return;
     }
@@ -210,55 +245,58 @@ uint32_t cjs_lexer_parse_utf16(const uint16_t* source, size_t length,
   parser.firstStarExport = NULL;
   parser.lastStarExport = NULL;
   parser.result = output;
+  Candidates* exports = &output->candidates[ExportCandidate];
+  Candidates* reexports = &output->candidates[ReexportCandidate];
+  Candidates* unsafe_getters = &output->candidates[UnsafeGetterCandidate];
   uint32_t status = cjs_lexer_scan(&parser);
   if (status) {
-    if (error && status != 13) {
+    if (error && status != CJS_LEXER_ERROR_ALLOCATION) {
       error->code = status;
       error->has_offset = 1;
       error->offset = parser.parse_error > length ? length : parser.parse_error;
     }
-    status = status == 13 ? CJS_LEXER_OUT_OF_MEMORY :
-      status == 12 ? CJS_LEXER_LIMIT : CJS_LEXER_SYNTAX_ERROR;
-  } else if (!normalize(output, source, &output->exports) ||
-             !normalize(output, source, &output->reexports) ||
-             !normalize(output, source, &output->unsafe_getters)) {
+    status = status == CJS_LEXER_ERROR_ALLOCATION ? CJS_LEXER_OUT_OF_MEMORY :
+      status == CJS_LEXER_ERROR_NESTING_LIMIT ? CJS_LEXER_LIMIT : CJS_LEXER_SYNTAX_ERROR;
+  } else if (!normalize(output, source, exports) ||
+             !normalize(output, source, reexports) ||
+             !normalize(output, source, unsafe_getters)) {
     status = CJS_LEXER_OUT_OF_MEMORY;
-  } else if (output->unsafe_getters.count) {
-    hashNames(&output->exports);
-    hashNames(&output->unsafe_getters);
-    qsort(output->unsafe_getters.data, output->unsafe_getters.count, sizeof(Candidate), compareNames);
+  } else if (unsafe_getters->count) {
+    hashNames(exports);
+    hashNames(unsafe_getters);
+    qsort(unsafe_getters->data, unsafe_getters->count, sizeof(Candidate), compareNames);
     size_t count = 0;
-    for (size_t index = 0; index < output->exports.count; index++) {
-      Candidate candidate = output->exports.data[index];
-      if (!bsearch(&candidate, output->unsafe_getters.data, output->unsafe_getters.count,
-                   sizeof(Candidate), compareNames)) output->exports.data[count++] = candidate;
+    for (size_t index = 0; index < exports->count; index++) {
+      Candidate candidate = exports->data[index];
+      if (!bsearch(&candidate, unsafe_getters->data, unsafe_getters->count,
+                   sizeof(Candidate), compareNames)) exports->data[count++] = candidate;
     }
-    output->exports.count = count;
+    exports->count = count;
   }
   if (status) {
     cjs_lexer_result_free(output);
     return status;
   }
-  free(output->unsafe_getters.data);
-  output->unsafe_getters = (Candidates){0};
+  free(unsafe_getters->data);
+  *unsafe_getters = (Candidates){0};
   *result = output;
   return CJS_LEXER_OK;
 }
 
 size_t cjs_lexer_export_count(const cjs_lexer_result* result) {
-  return result->exports.count;
+  return result->candidates[ExportCandidate].count;
 }
 
 size_t cjs_lexer_reexport_count(const cjs_lexer_result* result) {
-  return result->reexports.count;
+  return result->candidates[ReexportCandidate].count;
 }
 
 cjs_lexer_string16 cjs_lexer_export(const cjs_lexer_result* result, size_t index) {
-  return result->exports.data[index].value;
+  return result->candidates[ExportCandidate].data[index].value;
 }
 
 cjs_lexer_string16 cjs_lexer_reexport(const cjs_lexer_result* result, size_t index) {
-  return result->reexports.data[index].value;
+  return result->candidates[ReexportCandidate].data[index].value;
 }
 
 void cjs_lexer_result_free(cjs_lexer_result* result) {
@@ -269,8 +307,7 @@ void cjs_lexer_result_free(cjs_lexer_result* result) {
     free(block);
     block = next;
   }
-  free(result->exports.data);
-  free(result->reexports.data);
-  free(result->unsafe_getters.data);
+  for (size_t index = 0; index < CandidateKindCount; index++)
+    free(result->candidates[index].data);
   free(result);
 }

@@ -1,19 +1,20 @@
 cmake_minimum_required(VERSION 3.15)
-project(cjs_module_lexer VERSION 2.3.0 LANGUAGES C)
+project(cjs_module_lexer LANGUAGES C)
+
+include(GNUInstallDirs)
 
 add_library(cjs_module_lexer STATIC src/lexer.c src/native.c)
 add_library(cjs_module_lexer::cjs_module_lexer ALIAS cjs_module_lexer)
 target_compile_features(cjs_module_lexer PUBLIC c_std_11)
 target_include_directories(cjs_module_lexer PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 if(MSVC)
   target_compile_options(cjs_module_lexer PRIVATE /W4)
 else()
   target_compile_options(cjs_module_lexer PRIVATE -Wall -Wextra -Wno-parentheses)
 endif()
 
-include(GNUInstallDirs)
 install(TARGETS cjs_module_lexer EXPORT cjs_module_lexer_targets ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES include/cjs-module-lexer.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(EXPORT cjs_module_lexer_targets FILE cjs_module_lexer-config.cmake

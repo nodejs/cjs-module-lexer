@@ -937,11 +937,15 @@ suite('Lexer', () => {
   test('Closing tokens consumed by export helpers do not reuse earlier brace metadata', () => {
     for (const source of [
       'module.exports={a}/1;exports.b=2;',
-      'class A{};module.exports={a}/1;exports.b=2;',
-      'if(x){};require("x")/1;exports.b=2;',
-      'if(x){};Object.defineProperty(exports,"a",{value:1})/1;exports.b=2;'
+      'class A{};module.exports={a}/* comment *//1;exports.b=2;',
+      'if(x) require("x")/1;exports.b=2;',
+      'if(x){};Object.defineProperty(exports,"a",{value:1})/1;exports.b=2;',
+      'class A{}/* comment *//[}]/.test("}");exports.b=2;',
+      'if(x)/* comment *//[)]/.test(")");exports.b=2;'
     ]) {
-      assert.equal(parse(source).exports.at(-1), 'b');
+      for (const mode of ['default', 'extended']) {
+        assert.equal(parse(source, '@', { mode }).exports.at(-1), 'b');
+      }
     }
   });
 
@@ -1227,8 +1231,9 @@ suite('Lexer', () => {
     const rejected = ['\ud800', '\udbff', '\udc00', '\udfff', '\ud800A', '\udbff\ue000'];
     for (const value of [...accepted, ...rejected]) {
       let escaped = '';
-      for (let index = 0; index < value.length; index++)
+      for (let index = 0; index < value.length; index++) {
         escaped += '\\u' + value.charCodeAt(index).toString(16).padStart(4, '0');
+      }
       for (const quoted of [JSON.stringify(value), '"' + escaped + '"']) {
         const expected = accepted.includes(value) ? [value] : [];
         assert.deepStrictEqual(parse(`exports[${quoted}] = 1; module.exports = require(${quoted});`), {

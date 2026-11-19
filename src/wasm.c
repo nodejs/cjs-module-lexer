@@ -1,6 +1,22 @@
 #define CJS_LEXER_WASM
 #include "lexer-internal.h"
 
+typedef struct Slice {
+  Cursor start;
+  Cursor end;
+  struct Slice* next;
+} Slice;
+
+typedef struct {
+  Slice* first;
+  Slice* last;
+  Slice* read;
+} Candidates;
+
+struct cjs_lexer_result {
+  Candidates candidates[CandidateKindCount];
+};
+
 extern unsigned char __heap_base;
 static Parser parser;
 static cjs_lexer_result result;
@@ -21,14 +37,26 @@ void* cjs_lexer_allocate(cjs_lexer_result* unused, size_t size) {
   return allocation;
 }
 
-__attribute__((noinline)) void cjs_lexer_add(Parser* parser, Candidates* list, Cursor start, Cursor end) {
-  Slice* slice = cjs_lexer_allocate(parser->result, sizeof(Slice));
+static __attribute__((noinline)) void appendCandidate(Candidates* list, Cursor start, Cursor end) {
+  Slice* slice = cjs_lexer_allocate(NULL, sizeof(Slice));
   slice->start = start;
   slice->end = end;
   slice->next = NULL;
   if (list->last) list->last->next = slice;
   else list->first = slice;
   list->last = slice;
+}
+
+__attribute__((always_inline)) void cjs_lexer_add(Parser* parser, CandidateKind kind, Cursor start, Cursor end) {
+  appendCandidate(&parser->result->candidates[kind], start, end);
+}
+
+static __attribute__((noinline)) void clearCandidates(Candidates* list) {
+  *list = (Candidates){0};
+}
+
+void cjs_lexer_clear_reexports(cjs_lexer_result* result) {
+  clearCandidates(&result->candidates[ReexportCandidate]);
 }
 
 uint16_t* sa(uint32_t length) {
@@ -38,9 +66,8 @@ uint16_t* sa(uint32_t length) {
   analysis_head = ((uintptr_t)(source + length + 1) + _Alignof(Slice) - 1) &
     ~((uintptr_t)_Alignof(Slice) - 1);
   analysis_limit = (uint64_t)__builtin_wasm_memory_size(0) << 16;
-  clearCandidates(&result.exports);
-  clearCandidates(&result.reexports);
-  clearCandidates(&result.unsafe_getters);
+  for (size_t index = 0; index < CandidateKindCount; index++)
+    clearCandidates(&result.candidates[index]);
   return source;
 }
 
@@ -74,20 +101,20 @@ uint32_t parseCJS(uint16_t* source, uint32_t length, uint32_t unused1,
 }
 
 uint32_t e(void) { return parser.parse_error; }
-uint32_t es(void) { return result.exports.read->start - parser.input; }
-uint32_t ee(void) { return result.exports.read->end - parser.input; }
-uint32_t res(void) { return result.reexports.read->start - parser.input; }
-uint32_t ree(void) { return result.reexports.read->end - parser.input; }
-uint32_t us(void) { return result.unsafe_getters.read->start - parser.input; }
-uint32_t ue(void) { return result.unsafe_getters.read->end - parser.input; }
+uint32_t es(void) { return result.candidates[ExportCandidate].read->start - parser.input; }
+uint32_t ee(void) { return result.candidates[ExportCandidate].read->end - parser.input; }
+uint32_t res(void) { return result.candidates[ReexportCandidate].read->start - parser.input; }
+uint32_t ree(void) { return result.candidates[ReexportCandidate].read->end - parser.input; }
+uint32_t us(void) { return result.candidates[UnsafeGetterCandidate].read->start - parser.input; }
+uint32_t ue(void) { return result.candidates[UnsafeGetterCandidate].read->end - parser.input; }
 
 static bool readCandidate(Candidates* list) {
   list->read = list->read ? list->read->next : list->first;
   return list->read != NULL;
 }
 
-bool re(void) { return readCandidate(&result.exports); }
-bool rre(void) { return readCandidate(&result.reexports); }
-bool ru(void) { return readCandidate(&result.unsafe_getters); }
+bool re(void) { return readCandidate(&result.candidates[ExportCandidate]); }
+bool rre(void) { return readCandidate(&result.candidates[ReexportCandidate]); }
+bool ru(void) { return readCandidate(&result.candidates[UnsafeGetterCandidate]); }
 
 #include "lexer.c"

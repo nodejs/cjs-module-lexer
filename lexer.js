@@ -120,6 +120,7 @@ function parseSource (cjsSource) {
   pos = -1;
   end = source.length - 1;
   let ch = 0;
+  let lastClosedTokenPos = -1;
   let lastOpenTokenPos = -1;
   let lastOpenTokenType = 0;
 
@@ -141,9 +142,6 @@ function parseSource (cjsSource) {
     if (ch === 32 || ch < 14 && ch > 8)
       continue;
 
-    let closedTokenPos = -1;
-    let closedTokenType = 0;
-
     if (openTokenDepth === 0) {
       switch (ch) {
         case 105/*i*/:
@@ -151,8 +149,6 @@ function parseSource (cjsSource) {
             throwIfImportStatement();
           skipTokenRun();
           lastTokenPos = pos;
-          lastOpenTokenPos = -1;
-          lastOpenTokenType = 0;
           continue;
         case 114/*r*/:
           const startPos = pos;
@@ -160,8 +156,6 @@ function parseSource (cjsSource) {
             tryBacktrackAddStarExportBinding(startPos - 1);
           skipTokenRun();
           lastTokenPos = pos;
-          lastOpenTokenPos = -1;
-          lastOpenTokenType = 0;
           continue;
         case 95/*_*/:
           if (source.startsWith('interopRequireWildcard', pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46/*.*/)) {
@@ -189,8 +183,6 @@ function parseSource (cjsSource) {
           }
           skipTokenRun();
           lastTokenPos = pos;
-          lastOpenTokenPos = -1;
-          lastOpenTokenType = 0;
           continue;
       }
     }
@@ -243,7 +235,8 @@ function parseSource (cjsSource) {
         if (openTokenDepth === 0)
           throw new Error('Unexpected closing bracket.');
         openTokenDepth--;
-        closedTokenPos = openTokenPosStack[openTokenDepth];
+        lastClosedTokenPos = pos;
+        lastOpenTokenPos = openTokenPosStack[openTokenDepth];
         break;
       case 123/*{*/:
         pushOpenToken(lastTokenPos);
@@ -258,8 +251,9 @@ function parseSource (cjsSource) {
       case 125/*}*/:
         if (openTokenDepth === 0)
           throw new Error('Unexpected closing brace.');
-        closedTokenPos = openTokenPosStack[openTokenDepth - 1];
-        closedTokenType = openTokenTypeStack[openTokenDepth - 1];
+        lastClosedTokenPos = pos;
+        lastOpenTokenPos = openTokenPosStack[openTokenDepth - 1];
+        lastOpenTokenType = openTokenTypeStack[openTokenDepth - 1];
         if (openTokenDepth-- === templateDepth) {
           templateDepth = templateStack[--templateStackDepth];
           templateString();
@@ -297,10 +291,10 @@ function parseSource (cjsSource) {
           if (isExpressionPunctuator(lastToken) &&
               !(lastToken === 46/*.*/ && (source.charCodeAt(lastTokenPos - 1) >= 48/*0*/ && source.charCodeAt(lastTokenPos - 1) <= 57/*9*/)) &&
               !(lastToken === 43/*+*/ && source.charCodeAt(lastTokenPos - 1) === 43/*+*/) && !(lastToken === 45/*-*/ && source.charCodeAt(lastTokenPos - 1) === 45/*-*/) ||
-              lastToken === 41/*)*/ && isParenKeyword(lastOpenTokenPos) ||
+              lastTokenPos === lastClosedTokenPos && (lastToken === 41/*)*/ && isParenKeyword(lastOpenTokenPos) ||
               lastToken === 125/*}*/ && (isExpressionTerminator(lastOpenTokenPos) ||
               (lastOpenTokenType & ClassToken) ||
-              extended && isStatementBrace(lastOpenTokenPos, openTokenDepth)) ||
+              extended && isStatementBrace(lastOpenTokenPos, openTokenDepth))) ||
               lastToken === 47/*/*/ && lastSlashWasDivision ||
               isExpressionKeyword(lastTokenPos) ||
               !lastToken) {
@@ -321,8 +315,6 @@ function parseSource (cjsSource) {
           skipTokenRun();
     }
     lastTokenPos = pos;
-    lastOpenTokenPos = closedTokenPos;
-    lastOpenTokenType = closedTokenType;
   }
 
   if (templateDepth !== -1)

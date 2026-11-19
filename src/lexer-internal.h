@@ -8,6 +8,8 @@
 #include <string.h>
 
 #define STACK_DEPTH 2048
+#define CJS_LEXER_ERROR_ALLOCATION 13
+
 #ifdef CJS_LEXER_WASM
 #define CJS_INLINE inline __attribute__((always_inline))
 #else
@@ -17,11 +19,20 @@
 #ifdef CJS_LEXER_WASM
 typedef const uint16_t* Cursor;
 #define SOURCE_START parser->input
+#define scanInput(input, cursor) (*(cursor))
 #else
 typedef ptrdiff_t Cursor;
 #define SOURCE_START ((Cursor)0)
+#define scanInput(input, cursor) ((input)[cursor])
 #endif
 #define SOURCE_BEFORE (SOURCE_START - 1)
+
+typedef enum {
+  ExportCandidate,
+  ReexportCandidate,
+  UnsafeGetterCandidate,
+  CandidateKindCount
+} CandidateKind;
 
 typedef struct StarExportBinding {
   Cursor specifier_start;
@@ -30,60 +41,6 @@ typedef struct StarExportBinding {
   Cursor id_end;
   struct StarExportBinding* next;
 } StarExportBinding;
-
-#ifdef CJS_LEXER_WASM
-typedef struct Slice {
-  Cursor start;
-  Cursor end;
-  struct Slice* next;
-} Slice;
-
-typedef struct {
-  Slice* first;
-  Slice* last;
-  Slice* read;
-} Candidates;
-
-struct cjs_lexer_result {
-  Candidates exports;
-  Candidates reexports;
-  Candidates unsafe_getters;
-};
-
-#else
-typedef union {
-  uint16_t code;
-  StarExportBinding binding;
-} ArenaValue;
-
-typedef struct ArenaBlock {
-  struct ArenaBlock* next;
-  size_t used;
-  size_t capacity;
-  ArenaValue data[];
-} ArenaBlock;
-
-typedef struct {
-  Cursor start;
-  Cursor end;
-  cjs_lexer_string16 value;
-  uint32_t hash;
-} Candidate;
-
-typedef struct {
-  Candidate* data;
-  size_t count;
-  size_t capacity;
-} Candidates;
-
-struct cjs_lexer_result {
-  Candidates exports;
-  Candidates reexports;
-  Candidates unsafe_getters;
-  ArenaBlock* blocks;
-};
-
-#endif
 
 typedef struct {
   const uint16_t* input;
@@ -110,12 +67,6 @@ typedef struct {
   cjs_lexer_result* result;
 } Parser;
 
-#ifdef CJS_LEXER_WASM
-#define scanInput(input, cursor) (*(cursor))
-#else
-#define scanInput(input, cursor) ((input)[cursor])
-#endif
-
 enum RequireType { Import, ExportAssign, ExportStar };
 
 static inline ptrdiff_t sourceIndex(const Parser* parser, Cursor cursor) {
@@ -139,7 +90,7 @@ static inline bool hasChars(const Parser* parser, Cursor cursor, size_t length) 
 #ifdef CJS_LEXER_WASM
   return true;
 #else
-  return cursor >= 0 && (size_t)cursor <= parser->sourceLen &&
+  return (size_t)cursor <= parser->sourceLen &&
     length <= parser->sourceLen - (size_t)cursor;
 #endif
 }
@@ -147,36 +98,19 @@ static inline bool hasChars(const Parser* parser, Cursor cursor, size_t length) 
 #ifdef CJS_LEXER_WASM
 __attribute__((noinline))
 #endif
-
 static inline bool matches(const Parser* parser, Cursor left, Cursor right, size_t length) {
 #ifdef CJS_LEXER_WASM
   if (left > parser->end + 1 || length > (size_t)(parser->end + 1 - left)) return false;
   return memcmp(left, right, length * sizeof(uint16_t)) == 0;
 #else
-  ptrdiff_t leftIndex = sourceIndex(parser, left);
-  ptrdiff_t rightIndex = sourceIndex(parser, right);
-  return leftIndex >= 0 && rightIndex >= 0 && (size_t)leftIndex <= parser->sourceLen &&
-    (size_t)rightIndex <= parser->sourceLen && length <= parser->sourceLen - (size_t)leftIndex &&
-    length <= parser->sourceLen - (size_t)rightIndex &&
-    memcmp(parser->input + leftIndex, parser->input + rightIndex, length * sizeof(uint16_t)) == 0;
-#endif
-}
-
-#ifdef CJS_LEXER_WASM
-__attribute__((noinline))
-#endif
-static inline void clearCandidates(Candidates* list) {
-#ifdef CJS_LEXER_WASM
-  list->first = NULL;
-  list->last = NULL;
-  list->read = NULL;
-#else
-  list->count = 0;
+  return hasChars(parser, left, length) && hasChars(parser, right, length) &&
+    memcmp(parser->input + left, parser->input + right, length * sizeof(uint16_t)) == 0;
 #endif
 }
 
 void* cjs_lexer_allocate(cjs_lexer_result* result, size_t size);
-void cjs_lexer_add(Parser* parser, Candidates* list, Cursor start, Cursor end);
+void cjs_lexer_add(Parser* parser, CandidateKind kind, Cursor start, Cursor end);
+void cjs_lexer_clear_reexports(cjs_lexer_result* result);
 uint32_t cjs_lexer_scan(Parser* parser);
 
 #endif

@@ -30,10 +30,33 @@ int main(void) {
   uint16_t unit = 0;
   assert(cjs_lexer_parse_utf16(&unit, SIZE_MAX, 0, &result, &error) == CJS_LEXER_LIMIT);
   assert(!result && !error.has_offset);
+  const struct {
+    const char* text;
+    uint32_t flags;
+    uint32_t code;
+    size_t offset;
+  } syntax_errors[] = {
+    {"}", 0, CJS_LEXER_ERROR_UNEXPECTED_CLOSING_BRACE, 0},
+    {")", 0, CJS_LEXER_ERROR_UNBALANCED_DELIMITER, 0},
+    {"]", CJS_LEXER_EXTENDED, CJS_LEXER_ERROR_UNBALANCED_DELIMITER, 0},
+    {"`", 0, CJS_LEXER_ERROR_UNBALANCED_DELIMITER, 1},
+    {"/[\nexports.b=2;", 0, CJS_LEXER_ERROR_UNTERMINATED_REGEX_CLASS, 2},
+    {"import.meta", 0, CJS_LEXER_ERROR_UNEXPECTED_IMPORT_META, 6},
+    {"import x from 'package'", 0, CJS_LEXER_ERROR_UNEXPECTED_ESM_IMPORT, 7},
+    {"export const x = 1", 0, CJS_LEXER_ERROR_UNEXPECTED_ESM_EXPORT, 7}
+  };
+  for (size_t index = 0; index < sizeof(syntax_errors) / sizeof(*syntax_errors); index++) {
+    size_t count = strlen(syntax_errors[index].text);
+    uint16_t* source = copy(syntax_errors[index].text, count);
+    assert(cjs_lexer_parse_utf16(source, count, syntax_errors[index].flags, &result, &error) == CJS_LEXER_SYNTAX_ERROR);
+    assert(!result && error.code == syntax_errors[index].code && error.has_offset);
+    assert(error.offset == syntax_errors[index].offset);
+    free(source);
+  }
   const char* divisions[] = {
     "module.exports={a}/1;exports.b=2;",
     "class A{};module.exports={a}/1;exports.b=2;",
-    "if(x){};require('x')/1;exports.b=2;",
+    "if(x) require('x')/1;exports.b=2;",
     "if(x){};Object.defineProperty(exports,'a',{value:1})/1;exports.b=2;"
   };
   for (size_t index = 0; index < sizeof(divisions) / sizeof(*divisions); index++) {
@@ -110,7 +133,7 @@ int main(void) {
     }
     uint32_t status = cjs_lexer_parse_utf16(source, depth * 2, 0, &result, &error);
     assert(status == (depth <= 2048 ? CJS_LEXER_OK : CJS_LEXER_LIMIT));
-    if (depth > 2048) assert(error.has_offset && error.offset == 2048);
+    if (depth > 2048) assert(error.code == CJS_LEXER_ERROR_NESTING_LIMIT && error.has_offset && error.offset == 2048);
     cjs_lexer_result_free(result);
     free(source);
   }
