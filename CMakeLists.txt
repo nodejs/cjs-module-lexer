@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.15)
 project(cjs_module_lexer LANGUAGES C)
 
+if(CMAKE_C_COMPILER_ID STREQUAL "MSVC" AND
+   (CMAKE_VERSION VERSION_LESS 3.18.2 OR CMAKE_C_COMPILER_VERSION VERSION_LESS 19.28))
+  message(FATAL_ERROR "The native lexer requires CMake 3.18.2 and MSVC 19.28 or newer when building with MSVC.")
+endif()
+
 include(GNUInstallDirs)
 
 add_library(cjs_module_lexer STATIC src/lexer.c src/native.c)

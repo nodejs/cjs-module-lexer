@@ -498,6 +498,8 @@ test/samples/*.js (3635 KiB)
 
 The source distribution provides a C11 static library with no dependencies beyond the C library.
 JavaScript installation does not require a native compiler.
+The native build requires CMake 3.15 or later. With MSVC, use CMake 3.18.2 or later,
+Visual Studio 2019 version 16.8 or later, and Windows SDK 10.0.20348.0 or later.
 
 ```sh
 cmake -S . -B build/native -DBUILD_TESTING=OFF
