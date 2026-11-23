@@ -291,8 +291,6 @@ uint32_t cjs_lexer_scan (Parser* parser) {
         break;
       }
       case '`':
-        if (parser->templateDepth == UINT16_MAX - 1)
-          return syntaxError(parser, CJS_LEXER_ERROR_INVALID_TEMPLATE_DEPTH), parser->error;
         templateString(parser);
         break;
       default:
@@ -1473,7 +1471,7 @@ static void templateString(Parser* parser) {
     if (ch == '\\')
       parser->pos++;
   }
-  syntaxError(parser, CJS_LEXER_ERROR_UNBALANCED_DELIMITER);
+  syntaxError(parser, CJS_LEXER_ERROR_UNTERMINATED_TEMPLATE);
 }
 
 static void blockComment(Parser* parser) {

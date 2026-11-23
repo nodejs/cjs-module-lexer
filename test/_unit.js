@@ -1414,6 +1414,11 @@ function x() {
     });
   });
 
+  test('Reports the first syntax error offset', () => {
+    const offsetKey = process.env.NATIVE || process.env.WASM || process.env.WASM_SYNC ? 'idx' : 'loc';
+    assert.throws(() => parse('/[\nexports.b=2;'), { [offsetKey]: 2 });
+  });
+
   test('Bracket matching', () => {
     assert.ok(parse(`
       instance.extend('parseExprAtom', function (nextMethod) {

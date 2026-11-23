@@ -546,6 +546,8 @@ Every failure sets the result to null and initializes the optional error output.
 `error.code` is a `CJS_LEXER_ERROR_*` constant from the header, or `CJS_LEXER_ERROR_NONE` if there is no scanner error.
 `CJS_LEXER_ERROR_UNEXPECTED_IMPORT_META`, `CJS_LEXER_ERROR_UNEXPECTED_ESM_IMPORT`, and
 `CJS_LEXER_ERROR_UNEXPECTED_ESM_EXPORT` identify ESM syntax. Nesting is limited to 2048 tracked brackets or templates.
+Reaching the end of input while scanning template text reports `CJS_LEXER_ERROR_UNTERMINATED_TEMPLATE`.
+Diagnostic code `4` is reserved.
 Input lengths must fit `uint32_t`, `PTRDIFF_MAX - 32`, and the platform's UTF-16 allocation range.
 Output locations must not overlap each other or the source.
 

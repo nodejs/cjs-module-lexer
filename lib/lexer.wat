@@ -5766,18 +5766,6 @@
                                           i32.store
                                           br 15 (;@4;)
                                         end
-                                        i32.const 4216
-                                        i32.load16_u
-                                        i32.const 65534
-                                        i32.eq
-                                        if  ;; label = @19
-                                          i32.const 4224
-                                          i32.load
-                                          local.tee 1
-                                          br_if 8 (;@11;)
-                                          i32.const 4
-                                          br 7 (;@12;)
-                                        end
                                         call 12
                                         br 15 (;@3;)
                                       end
@@ -8577,7 +8565,7 @@
         i32.eqz
         if  ;; label = @3
           i32.const 4224
-          i32.const 8
+          i32.const 14
           i32.store
           i32.const 4228
           local.get 0
