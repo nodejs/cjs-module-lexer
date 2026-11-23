@@ -16,6 +16,9 @@ async function loadParser () {
   else {
     parse = require('../lexer.js').parse;
   }
+  const parseSource = parse;
+  parse = /** @param {string} source @param {string} [name] */ (source, name) =>
+    parseSource(source, name, { baseline: 'legacy' });
 }
 
 const files = fs.readdirSync('test/samples')
@@ -29,7 +32,7 @@ const files = fs.readdirSync('test/samples')
 		};
 	});
 
-suite('Samples', () => {
+suite('Legacy samples', () => {
   suiteSetup(async () => await loadParser());
 
   const selfSource = fs.readFileSync(process.cwd() + '/lexer.js').toString();
