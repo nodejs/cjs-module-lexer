@@ -133,14 +133,18 @@ static uint32_t readWebpackUnit (WebpackText* text) {
     uint32_t unit = *text->pos++;
     if (unit != '\\' || text->pos == text->end) return unit;
     unit = *text->pos++;
-    if (unit == '\n' || unit == '\r') {
+    if (unit == '\n' || unit == '\r' || unit == 0x2028 || unit == 0x2029) {
       if (unit == '\r' && text->pos < text->end && *text->pos == '\n') text->pos++;
       continue;
     }
     if (unit == 'u' || unit == 'x') {
       uint32_t count = unit == 'u' ? 4 : 2;
       bool braces = unit == 'u' && text->pos < text->end && *text->pos == '{';
-      if (braces) { text->pos++; count = 6; }
+      if (braces) {
+        text->pos++;
+        while (text->pos < text->end && *text->pos == '0') text->pos++;
+        count = 6;
+      }
       unit = 0;
       while (count-- && text->pos < text->end && *text->pos != '}') {
         uint16_t digit = *text->pos++;
@@ -199,6 +203,10 @@ static WebpackModule* findWebpackModule (const uint16_t* start, const uint16_t* 
   return NULL;
 }
 
+static inline void resetWebpackModule (WebpackModule* module) {
+  __builtin_memset_inline(module, 0, sizeof(*module));
+}
+
 static WebpackModule* createWebpackModule (const uint16_t* start, const uint16_t* end) {
   if (!webpackCapacity || webpackCount == webpackCapacity / 2) {
     if (webpackCapacity > UINT32_MAX / 2 / sizeof(WebpackModule*)) {
@@ -221,7 +229,10 @@ static WebpackModule* createWebpackModule (const uint16_t* start, const uint16_t
   ensureAnalysisCapacity(sizeof(WebpackModule));
   WebpackModule* module = (WebpackModule*)(uintptr_t)analysis_head;
   analysis_head += sizeof(WebpackModule);
-  *module = (WebpackModule){ .start = start, .end = end, .hash = webpackHash(start, end) };
+  resetWebpackModule(module);
+  module->start = start;
+  module->end = end;
+  module->hash = webpackHash(start, end);
   uint32_t bucket = module->hash & (webpackCapacity - 1);
   module->bucketNext = webpackBuckets[bucket];
   webpackBuckets[bucket] = module;
@@ -628,7 +639,6 @@ static __attribute__((always_inline)) uint32_t parseCJSMode (uint16_t* _source, 
   StarExportBinding* outerLastStarExport = NULL;
   nextBraceIsClass = false;
   exportObjectPos = 0;
-  webpackTablePos = NULL;
   if (extendedMode) {
     webpackTablePos = webpackFactoryPos = NULL;
     webpackEntryStart = webpackEntryEnd = NULL;
@@ -636,7 +646,7 @@ static __attribute__((always_inline)) uint32_t parseCJSMode (uint16_t* _source, 
     webpackBuckets = NULL;
     webpackCapacity = webpackCount = 0;
     webpackPublished = webpackInvalid = webpackInline = webpackAlias = false;
-    webpackInlineRoot = (WebpackModule){0};
+    resetWebpackModule(&webpackInlineRoot);
     webpackTrustedEnd = _source;
     webpackArrayPos = NULL;
     webpackAddExport = addExport;
@@ -881,7 +891,7 @@ static __attribute__((always_inline)) uint32_t parseCJSMode (uint16_t* _source, 
     return error;
   }
 
-  if (webpackTablePos) finishWebpack();
+  if (extendedMode && webpackTablePos) finishWebpack();
   // success
   return 0;
 }

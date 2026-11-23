@@ -46,6 +46,8 @@ suite('Webpack extended detection', () => {
 
   test('published jest-watcher@30.2.0 bundle excludes internal default exports', () => {
     const source = readFileSync(join(__dirname, 'fixtures/webpack/jest-watcher.cjs'), 'utf8');
+    const defaultExports = ['default', 'KEYS', 'printPatternCaret', 'printRestoredPatternCaret'];
+    assert.deepEqual(parse(source).exports, defaultExports);
     const result = parse(source, 'jest-watcher.cjs', options);
     assert.ok(!result.exports.includes('default'));
     assert.deepEqual(result.exports.sort(), [
@@ -53,9 +55,7 @@ suite('Webpack extended detection', () => {
       '__esModule', 'printPatternCaret', 'printRestoredPatternCaret'
     ].sort());
     assert.deepEqual(result.reexports, []);
-    assert.deepEqual(parse(source).exports, [
-      'default', 'KEYS', 'printPatternCaret', 'printRestoredPatternCaret'
-    ]);
+    assert.deepEqual(parse(source, 'jest-watcher.cjs', { mode: 'default' }).exports, defaultExports);
   });
 
   test('entry exports exclude unrelated factories', () => {
@@ -94,6 +94,17 @@ suite('Webpack extended detection', () => {
       assert.deepEqual(parse(source, 'bundle.cjs', options).exports, Object.keys(module.exports));
     });
   }
+
+  test('module.exports remains detectable when the factory parameter prefixes module', () => {
+    const source = bundle(`entry: (m) => {
+      const module = m;
+      Object.defineProperty(module.exports, 'literal', { enumerable: true, value: 1 });
+      Object.defineProperty(m.exports, 'alias', { enumerable: true, value: 2 });
+    }`);
+    const module = { exports: {} };
+    vm.runInNewContext(source, { module });
+    assert.deepEqual(parse(source, 'bundle.cjs', options).exports.sort(), Object.keys(module.exports).sort());
+  });
 
   test('Webpack getter maps use the factory export binding', () => {
     const source = bundle(`
@@ -302,6 +313,19 @@ suite('Webpack extended detection', () => {
     vm.runInNewContext(source, { module });
     assert.deepEqual(parse(source, 'bundle.cjs', options).exports, Object.keys(module.exports));
   });
+
+  for (const name of ['\\u{0000064}efault', 'de\\\u2028fault', '__es\\\u2029Module']) {
+    test(`internal star reexports exclude ${JSON.stringify(name)}`, () => {
+      const source = bundle(`
+        dependency: (m, exports) => { exports["${name}"] = 1; exports.visible = 2; },
+        entry: (m, exports) => { ${star('dependency')} }
+      `);
+      const module = { exports: {} };
+      vm.runInNewContext(source, { module });
+      assert.deepEqual(Object.keys(module.exports), ['visible']);
+      assert.deepEqual(parse(source, 'bundle.cjs', options), { exports: ['visible'], reexports: [] });
+    });
+  }
 
   const starBindings = [
     ['missing semicolon', 'const dep = __webpack_require__("dependency")', ['old', 'visible']],

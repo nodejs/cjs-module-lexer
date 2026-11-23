@@ -21,7 +21,7 @@
     "test": "npm run test-wasm && npm run test-wasm-sync && npm run test-js",
     "bench": "node --expose-gc bench/index.mjs",
     "build": "node build.js",
-    "build-wasm": "make lib/lexer.wasm ; node build.js",
+    "build-wasm": "make lib/lexer.wasm && node build.js",
     "build-wasm-local": "node build/wasm.js --local",
     "prepublishOnly": "make && npm run build",
     "footprint": "npm run build && cat dist/lexer.js | gzip -9f | wc -c"

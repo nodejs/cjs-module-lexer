@@ -61,6 +61,7 @@ jobs:
           cd "$PROJ_ROOT";
           rm lib/lexer.wasm;
           npm run build-wasm;
+          "../wabt-${WABT_VERSION}/bin/wasm-validate" --disable-mutable-globals --disable-saturating-float-to-int --disable-sign-extension --disable-multi-value lib/lexer.wasm;
           npm run build;
           # test
           npm run test;

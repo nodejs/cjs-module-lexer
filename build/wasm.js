@@ -35,6 +35,7 @@ if (process.argv[2] === '--docker') {
            --mount type=bind,source=${ROOT}/build/wasm.js,target=/home/node/build/wasm.js \
            --mount type=bind,source=${ROOT}/build/Makefile,target=/home/node/build/Makefile \
            --mount type=bind,source=${ROOT}/build.js,target=/home/node/build/build.js \
+           --mount type=bind,source=${ROOT}/lexer.js,target=/home/node/build/lexer.js \
            --mount type=bind,source=${ROOT}/package.json,target=/home/node/build/package.json \
            --mount type=bind,source=${ROOT}/include-wasm,target=/home/node/build/include-wasm \
            -t ${WASM_BUILDER_CONTAINER} node wasm.js`

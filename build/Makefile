@@ -5,7 +5,7 @@ WASM_LDFLAGS := -nostartfiles
 
 # These are project-specific and are expected to be kept intact
 WASM_TARGET := -target wasm32-unknown-wasi
-WASM_EXTRA_CFLAGS := -I include-wasm/ -Wno-logical-op-parentheses -Wno-parentheses -Oz
+WASM_EXTRA_CFLAGS := -I include-wasm/ -Wno-logical-op-parentheses -Wno-parentheses -Oz -mno-bulk-memory
 WASM_EXTRA_CFLAGS += -flto -mllvm -inline-threshold=150
 WASM_EXTRA_LDFLAGS := -Wl,-z,stack-size=13312,--no-entry,--compress-relocations,--strip-all
 WASM_EXTRA_LDFLAGS += -Wl,--mllvm=-inline-threshold=150
@@ -21,7 +21,7 @@ lib/lexer.wasm: include-wasm/cjs-module-lexer.h src/lexer.c
         $(WASM_LDFLAGS) $(WASM_EXTRA_LDFLAGS)
 
 optimize: lib/lexer.wasm
-	${WASM_OPT} -Oz --enable-bulk-memory lib/lexer.wasm -o lib/lexer.wasm
+	${WASM_OPT} -Oz --mvp-features lib/lexer.wasm -o lib/lexer.wasm
 
 clean:
 	rm lib/*
