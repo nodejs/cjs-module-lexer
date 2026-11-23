@@ -1,5 +1,5 @@
 let source, pos, end;
-let extended, exportObjectPos;
+let extended, conservative, exportObjectPos;
 const STACK_DEPTH = 2048;
 const ClassToken = 1;
 const ExportObjectToken = 2;
@@ -63,12 +63,14 @@ function pushTemplate () {
  */
 function parseCJS (source, name = '@', options) {
   const mode = options ? options.mode : undefined;
-  if (mode !== undefined && mode !== 'default' && mode !== 'extended')
-    throw new TypeError('Expected options.mode to be "default" or "extended".');
+  const modeFlags = mode === 'extended' ? 2 : mode === 'conservative' ? 4 : 0;
+  if (!modeFlags && mode !== undefined && mode !== 'default')
+    throw new TypeError('Invalid mode');
   const minifiedEnumerable = options ? options.allowMinifiedEnumerable === true : false;
   resetState();
   allowMinifiedEnumerable = minifiedEnumerable;
-  extended = mode === 'extended';
+  conservative = modeFlags === 4;
+  extended = modeFlags !== 0;
   exportObjectPos = -1;
   try {
     parseSource(source);
@@ -413,7 +415,7 @@ function tryParseObjectDefineOrKeys (keys) {
   if (ch === 46/*.*/) {
     pos++;
     ch = commentWhitespace();
-    if (extended && ch === 100/*d*/) {
+    if (extended && !conservative && ch === 100/*d*/) {
       readExportDefinition();
       pos = revertPos;
       return;
@@ -921,6 +923,7 @@ function tryParseObjectDefineOrKeys (keys) {
   pos = revertPos;
 }
 
+/** @param {number} ch */
 function readExportsOrModuleDotExports (ch) {
   const revertPos = pos;
   if (ch === 109/*m*/ && source.startsWith('odule', pos + 1)) {
@@ -999,12 +1002,12 @@ function tryParseExportsDotAssign (assign) {
     // module.exports =
     case 61/*=*/: {
       if (assign) {
-        if (!extended && reexports.size)
+        if ((!extended || conservative) && reexports.size)
           reexports = new Set();
         pos++;
         ch = commentWhitespace();
         if (extended) {
-          if (ch === 40/*(*/) ch = readExportExpressionStart();
+          if (!conservative && ch === 40/*(*/) ch = readExportExpressionStart();
           if (ch === 123/*{*/) exportObjectPos = pos;
           else if (ch === 114/*r*/) tryParseRequire(ExportAssign);
           pos = revertPos;
@@ -1131,6 +1134,7 @@ function readExportProperty () {
     pos++;
     ch = commentWhitespace();
   }
+  let accessor = false;
   let computed = ch === 91/*[*/;
   if (computed) {
     pos++;
@@ -1149,6 +1153,7 @@ function readExportProperty () {
          source.startsWith('set', nameStart) && nameEnd - nameStart === 3 ||
          source.startsWith('async', nameStart) && nameEnd - nameStart === 5) &&
         ch !== 58/*:*/ && ch !== 40/*(*/ && ch !== 44/*,*/ && ch !== 125/*}*/) {
+      accessor = nameEnd - nameStart === 3;
       if (ch === 42/***/) {
         pos++;
         ch = commentWhitespace();
@@ -1177,7 +1182,7 @@ function readExportProperty () {
   }
   if (nameEnd !== undefined && (ch === 58/*:*/ || ch === 40/*(*/ ||
       !computed && (ch === 44/*,*/ || ch === 125/*}*/)))
-    _exports.add(decode(source.slice(nameStart, nameEnd)));
+    (conservative && accessor ? unsafeGetters : _exports).add(decode(source.slice(nameStart, nameEnd)));
   pos = revertPos;
 }
 
