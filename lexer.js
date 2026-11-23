@@ -133,7 +133,7 @@ function parseSource (cjsSource) {
   pos = -1;
   end = source.length - 1;
   let ch = 0;
-  let targetFirst = -1, moduleFirst = -1;
+  let targetFirst = -1, moduleFirst = -1, factoryDepth = -1;
 
   // Handle #!
   if (source.charCodeAt(0) === 35/*#*/ && source.charCodeAt(1) === 33/*!*/) {
@@ -153,13 +153,14 @@ function parseSource (cjsSource) {
     if (ch === 32 || ch < 14 && ch > 8)
       continue;
 
-    if (extendedMode && (ch === 95 || ch === targetFirst || ch === moduleFirst) && keywordStart(pos) && readWebpackToken(ch)) {
+    if (extendedMode && (ch === 95 || ch === targetFirst || ch === moduleFirst) &&
+        keywordStart(pos) && readWebpackToken(ch, factoryDepth)) {
       skipTokenRun();
       lastTokenPos = pos;
       continue;
     }
 
-    if (openTokenDepth === 0 || extendedMode && webpack?.current?.depth === openTokenDepth) {
+    if (openTokenDepth === 0 || extendedMode && factoryDepth === openTokenDepth) {
       switch (ch) {
         case 105/*i*/:
           if (source.startsWith('mport', pos + 1) && keywordStart(pos))
@@ -234,7 +235,7 @@ function parseSource (cjsSource) {
       case 79/*O*/:
         if (source.startsWith('bject', pos + 1) && keywordStart(pos))
           tryParseObjectDefineOrKeys(openTokenDepth === 0 || extendedMode &&
-            (webpack?.current ? webpack.current.depth === openTokenDepth : webpack?.inline));
+            (webpack?.current ? factoryDepth === openTokenDepth : webpack?.inline));
         skipTokenRun();
         break;
       case 40/*(*/:
@@ -285,7 +286,7 @@ function parseSource (cjsSource) {
           webpack.current = webpack.pending;
           targetFirst = webpack.current.target?.charCodeAt(0) ?? -1;
           moduleFirst = webpack.current.module?.charCodeAt(0) ?? -1;
-          webpack.current.depth = openTokenDepth;
+          factoryDepth = openTokenDepth;
           _exports = webpack.current.exports ??= new Set();
           reexports = webpack.current.reexports ??= new Set();
           starExportMap = Object.create(null);
@@ -294,9 +295,9 @@ function parseSource (cjsSource) {
       case 125/*}*/:
         if (openTokenDepth === 0)
           throw new Error('Unexpected closing brace.');
-        if (extendedMode && webpack?.current?.depth === openTokenDepth) {
+        if (extendedMode && factoryDepth === openTokenDepth) {
           webpack.current = undefined;
-          targetFirst = moduleFirst = -1;
+          targetFirst = moduleFirst = factoryDepth = -1;
           _exports = webpack.exports;
           reexports = webpack.reexports;
           starExportMap = webpack.starExportMap;
@@ -371,8 +372,11 @@ function parseSource (cjsSource) {
     throw new Error('Unterminated braces.');
 }
 
-/** @param {number} ch */
-function readWebpackToken (ch) {
+/**
+ * @param {number} ch
+ * @param {number} factoryDepth
+ */
+function readWebpackToken (ch, factoryDepth) {
   const current = webpack?.current;
   const start = pos;
   const target = current?.target;
@@ -431,7 +435,7 @@ function readWebpackToken (ch) {
   }
   if (!source.startsWith('__webpack_require__', pos) ||
       isIdentifierChar(source.codePointAt(pos + 19), true)) return false;
-  if (current ? openTokenDepth === current.depth : webpack?.inline) {
+  if (current ? openTokenDepth === factoryDepth : webpack?.inline) {
     const id = readWebpackCall(false);
     if (id !== undefined) {
       const complete = isWebpackCallExpression();

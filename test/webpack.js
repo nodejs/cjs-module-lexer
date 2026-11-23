@@ -76,6 +76,7 @@ suite('Webpack extended detection', () => {
     'entry: (module, exports) => { exports.visible = 1; }',
     'entry: function(module, exports) { exports.visible = 1; }',
     'entry: (m, e) => { e.visible = 1; }',
+    'entry: (_module, _exports) => { _module.exports.first = 1; _exports.second = 2; }',
     `entry: (record, output) => {
       const outputOther = {};
       outputOther.hidden = 1;
