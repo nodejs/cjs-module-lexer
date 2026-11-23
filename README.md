@@ -100,6 +100,7 @@ Both modes use the existing lexer and assume valid JavaScript input.
 They do not execute the source or validate the complete JavaScript grammar.
 
 Extended mode detects literal names in `Object.defineProperty` calls regardless of the descriptor expression or getter body.
+This includes TypeScript default reexports whose getters call `__importDefault`.
 It also detects names in object literals passed to `Object.defineProperties(exports, ...)` or assigned to `module.exports`.
 Object values can contain arbitrary expressions.
 Methods, accessors, and computed string literal keys contribute their names.
