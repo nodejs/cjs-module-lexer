@@ -122,6 +122,18 @@ suite('Webpack extended detection', () => {
       [...Object.getOwnPropertyNames(module.exports), 'hidden'].sort());
   });
 
+  for (const fixture of ['ts-direct', 'dynamic-star']) {
+    test(`Webpack 5.112 ${fixture} retains candidates for unsupported root uses`, () => {
+      const filename = `webpack-5.112-${fixture}.cjs`;
+      const source = readFileSync(join(__dirname, 'fixtures/webpack', filename), 'utf8');
+      const module = { exports: {} };
+      vm.runInNewContext(source, { module });
+      const result = parse(source, filename, options);
+      assert.deepEqual(result.exports.sort(), Object.getOwnPropertyNames(module.exports).sort());
+      assert.deepEqual(result.reexports, []);
+    });
+  }
+
   test('Webpack getter arrays distinguish keys, getters, and values', () => {
     const source = bundle(`
       unused: (m, e) => { e.hidden = 1; },
@@ -188,6 +200,41 @@ suite('Webpack extended detection', () => {
     const module = { exports: {} };
     vm.runInNewContext(source, { module });
     assert.deepEqual(parse(source, 'bundle.cjs', options).exports, Object.keys(module.exports));
+  });
+
+  for (const body of [
+    'Object.assign(__webpack_exports__, __webpack_require__("dependency"));',
+    'var exports = __webpack_exports__; Object.assign(exports, __webpack_require__("dependency"));',
+    'Object.defineProperties(__webpack_exports__, { ...__webpack_require__("dependency") });',
+    '__webpack_require__.d(__webpack_exports__, { [key]: () => 1 });',
+    '__webpack_require__.d(__webpack_exports__, [key, () => 1]);',
+  ]) {
+    test(`inlined entry retains candidates for ${body}`, () => {
+      const source = bundle('dependency: (module, exports) => { exports.depA = 1; }')
+        .replace("const __webpack_exports__ = __webpack_require__('entry');", `
+          const __webpack_exports__ = {};
+          __webpack_exports__.own = 1;
+          ${body}`);
+      const result = parse(source, 'bundle.cjs', options);
+      assert.deepEqual(result.exports.sort(), ['depA', 'own']);
+      assert.deepEqual(result.reexports, []);
+    });
+  }
+
+  test('recognized inlined descriptors and writes do not invalidate projection', () => {
+    const source = bundle('unused: (module, exports) => { exports.hidden = 1; }')
+      .replace("const __webpack_exports__ = __webpack_require__('entry');", `
+        const __webpack_exports__ = {};
+        __webpack_require__.r(__webpack_exports__);
+        __webpack_require__.d(__webpack_exports__, { getter: () => 1 });
+        __webpack_require__.d(__webpack_exports__, ["arrayGetter", () => 2]);
+        Object.defineProperty(__webpack_exports__, "single", { value: 3 });
+        Object.defineProperties(__webpack_exports__, { multiple: { value: 4 } });
+        let exports = __webpack_exports__;
+        exports.written = 5;`);
+    assert.deepEqual(parse(source, 'bundle.cjs', options), {
+      exports: ['getter', 'arrayGetter', 'single', 'multiple', 'written'], reexports: []
+    });
   });
 
   test('inlined entry star reexports follow internal dependencies', () => {
@@ -258,7 +305,10 @@ suite('Webpack extended detection', () => {
   const starBindings = [
     ['missing semicolon', 'const dep = __webpack_require__("dependency")', ['old', 'visible']],
     ['wrapped require', 'const dep = identity(__webpack_require__("dependency"));', ['old', 'visible']],
-    ['redeclared variable', 'var dep = __webpack_require__("old"); var dep = __webpack_require__("dependency");', ['visible']]
+    ['redeclared variable', 'var dep = __webpack_require__("old"); var dep = __webpack_require__("dependency");', ['visible']],
+    ['reassigned variable', 'var dep = __webpack_require__("old"); dep = __webpack_require__("dependency");', ['old', 'visible']],
+    ['reassignment without semicolon', 'var dep = __webpack_require__("old"); dep = __webpack_require__("dependency")', ['old', 'visible']],
+    ['member assignment', 'var dep = __webpack_require__("dependency"); const holder = {}; holder.dep = __webpack_require__("old");', ['visible']]
   ];
   for (const [binding, declaration, expected] of starBindings) {
     for (const inline of [false, true]) {

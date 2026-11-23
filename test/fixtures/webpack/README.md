@@ -1,8 +1,11 @@
 # Webpack 5.112.0 fixtures
 
-Both bundles use `target: 'node'`, `devtool: false`, `library.type: 'commonjs2'`,
-and `optimization: { minimize: false, concatenateModules: false, usedExports: false }`.
+All bundles use `target: 'node'`, `devtool: false`, `library.type: 'commonjs2'`,
+and `optimization.minimize: false`.
 Trailing horizontal whitespace is removed from the output.
+
+The harmony and ts-star bundles also set `optimization.concatenateModules` and
+`optimization.usedExports` to `false`.
 
 `webpack-5.112-harmony.cjs` uses production mode with these inputs:
 
@@ -30,4 +33,29 @@ export const depA = 42;
 
 // unused.ts
 export const hidden = 1;
+```
+
+`webpack-5.112-ts-direct.cjs` uses production mode with `direct-entry.js` as its
+entry. Run `tsc --module commonjs --target es2018 direct-entry.ts` first.
+
+```ts
+// direct-entry.ts
+export const helper = () => 1;
+export const own = helper();
+```
+
+`webpack-5.112-dynamic-star.cjs` uses production mode with `dynamic-entry.mjs` as
+its entry. Run `tsc --module commonjs --target es2018 dynamic-barrel.ts dynamic-dep.ts`
+first.
+
+```js
+// dynamic-entry.mjs
+export * from "./dynamic-barrel.js";
+export const mine = 1;
+
+// dynamic-barrel.ts
+export * from "./dynamic-dep";
+
+// dynamic-dep.ts
+export const depA = 42;
 ```

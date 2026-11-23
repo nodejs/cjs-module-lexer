@@ -47,6 +47,10 @@ const Import = 0;
 const ExportAssign = 1;
 const ExportStar = 2;
 
+const RequireBinding = 0;
+const WebpackImport = 1;
+const WebpackImportPrefix = 2;
+
 /** @param {number} tokenPos */
 function pushOpenToken (tokenPos) {
   if (openTokenDepth === STACK_DEPTH)
@@ -203,8 +207,14 @@ function parseSource (cjsSource) {
     switch (ch) {
       case 101/*e*/:
         if (source.startsWith('xport', pos + 1) && keywordStart(pos)) {
-          if (source.charCodeAt(pos + 6) === 115/*s*/)
-            tryParseExportsDotAssign(false);
+          if (source.charCodeAt(pos + 6) === 115/*s*/) {
+            const start = pos;
+            if (!tryParseExportsDotAssign(false) && extendedMode && webpack?.inline && !webpack.current &&
+                start >= webpackTrustedEnd && !isIdentifierChar(source.codePointAt(start + 7), true)) {
+              if (readWebpackExportsAlias(start)) webpack.alias = true;
+              else if (webpack.alias) webpack.invalid = true;
+            }
+          }
           else if (openTokenDepth === 0)
             throwIfExportStatement();
         }
@@ -398,32 +408,37 @@ function readWebpackToken (ch) {
     pos = start;
     return false;
   }
-  if (source.startsWith('__webpack_exports__', pos) &&
-      !isIdentifierChar(source.codePointAt(pos + 19), true)) {
-    const start = pos;
-    if (webpack && !current) {
-      pos += 19;
+  if (matchesWebpackExports()) {
+    if (!tryParseExportsDotAssign(false, 19) && webpack && !current && start >= webpackTrustedEnd) {
+      const revert = pos++;
       if (commentWhitespace() === 61/*=*/) {
         pos++;
         const ch = commentWhitespace();
-        webpack.inline = ch === 123;
-        webpack.entry = undefined;
-        const entry = readWebpackCall();
-        if (entry !== undefined) webpack.entry = entry;
-      }
+        webpack.inline = false;
+        if (ch === 123) {
+          pos++;
+          if (commentWhitespace() === 125) {
+            pos++;
+            webpack.inline = readWebpackExpressionEnd();
+          }
+        }
+        webpack.entry = ch === 95 ? readWebpackCall() : undefined;
+        if (!webpack.inline && webpack.entry === undefined) webpack.invalid = true;
+      } else webpack.invalid = true;
+      pos = revert;
     }
-    pos = start;
-    tryParseExportsDotAssign(false, 19);
     return true;
   }
   if (!source.startsWith('__webpack_require__', pos) ||
       isIdentifierChar(source.codePointAt(pos + 19), true)) return false;
   if (current ? openTokenDepth === current.depth : webpack?.inline) {
-    const id = readWebpackCall();
+    const id = readWebpackCall(false);
     if (id !== undefined) {
-      lastStarExportSpecifier = { webpack: id };
-      tryBacktrackAddStarExportBinding(start - 1);
-      return true;
+      const complete = isWebpackCallExpression();
+      if (complete) lastStarExportSpecifier = { webpack: id };
+      tryBacktrackAddStarExportBinding(start - 1, complete ? WebpackImport : WebpackImportPrefix);
+      if (complete) return true;
+      pos = start;
     }
   }
   pos = start + 19;
@@ -459,7 +474,36 @@ function readWebpackToken (ch) {
 
 /** @param {number} finish */
 function trustWebpackExports (finish) {
-  if (webpack?.current && finish > webpackTrustedEnd) webpackTrustedEnd = finish;
+  if (webpack && finish > webpackTrustedEnd) webpackTrustedEnd = finish;
+}
+
+function markWebpackExportsUncertain () {
+  if (webpack?.current) webpack.current.uncertain = true;
+  else if (webpack?.inline) webpack.invalid = true;
+}
+
+function matchesWebpackExports () {
+  return source.startsWith('__webpack_exports__', pos) && !isIdentifierChar(source.codePointAt(pos + 19), true);
+}
+
+/** @param {number} start */
+function readWebpackExportsAlias (start) {
+  if (!readPrecedingKeyword(lastTokenPos, 'var') && !readPrecedingKeyword(lastTokenPos, 'let') &&
+      !readPrecedingKeyword(lastTokenPos, 'const')) return false;
+  const revert = pos;
+  pos = start + 7;
+  let alias = false;
+  if (commentWhitespace() === 61) {
+    pos++;
+    commentWhitespace();
+    if (matchesWebpackExports()) {
+      pos += 19;
+      alias = readWebpackExpressionEnd();
+      if (alias) trustWebpackExports(pos);
+    }
+  }
+  pos = revert;
+  return alias;
 }
 
 /** @param {number} token */
@@ -478,10 +522,7 @@ function readWebpackArrayElement (token) {
         next = WebpackArrayBindingToken;
       }
     }
-    if (!next && ch !== 93) {
-      if (webpack?.current) webpack.current.uncertain = true;
-      else if (webpack?.inline) webpack.invalid = true;
-    }
+    if (!next && ch !== 93) markWebpackExportsUncertain();
   } else if (token === WebpackArrayBindingToken && ch === 48) {
     pos++;
     if (commentWhitespace() === 44) next = WebpackArrayValueToken;
@@ -504,7 +545,8 @@ function readWebpackId () {
   if (identifier()) return source.slice(start, pos);
 }
 
-function readWebpackCall () {
+/** @param {boolean} [requireExpressionEnd] */
+function readWebpackCall (requireExpressionEnd = true) {
   const start = pos;
   if (source.startsWith('__webpack_require__', pos)) {
     pos += 19;
@@ -512,17 +554,23 @@ function readWebpackCall () {
       pos++;
       const ch = commentWhitespace();
       const id = ch === 34 || ch === 39 || ch >= 48 && ch <= 57 ? readWebpackId() : undefined;
-      if (id !== undefined && commentWhitespace() === 41/*)*/) {
-        const callEnd = pos++;
-        const ch = commentWhitespace();
-        if (pos > end || ch === 59 || ch === 44 || ch === 41 || ch === 125) {
-          pos = callEnd;
-          return id;
-        }
-      }
+      if (id !== undefined && commentWhitespace() === 41/*)*/ &&
+          (!requireExpressionEnd || isWebpackCallExpression())) return id;
     }
   }
   pos = start;
+}
+
+function isWebpackCallExpression () {
+  const callEnd = pos++;
+  const complete = readWebpackExpressionEnd();
+  pos = callEnd;
+  return complete;
+}
+
+function readWebpackExpressionEnd () {
+  const ch = commentWhitespace();
+  return pos > end || ch === 59 || ch === 44 || ch === 41 || ch === 125;
 }
 
 function readWebpackFactory () {
@@ -573,6 +621,7 @@ function readWebpackFactory () {
         } else if (arrow) ch = 0;
         if (ch === 123) {
           webpack.factoryPos = pos;
+          trustWebpackExports(pos);
           const existing = webpack.modules.get(id);
           if (existing) {
             webpack.invalid = true;
@@ -625,8 +674,11 @@ function finishWebpack () {
   reexports = dependencies;
 }
 
-/** @param {number} bPos */
-function tryBacktrackAddStarExportBinding (bPos) {
+/**
+ * @param {number} bPos
+ * @param {number} [bindingMode]
+ */
+function tryBacktrackAddStarExportBinding (bPos, bindingMode = RequireBinding) {
   while (source.charCodeAt(bPos) === 32/* */ && bPos >= 0)
     bPos--;
   if (source.charCodeAt(bPos) === 61/*=*/) {
@@ -644,23 +696,20 @@ function tryBacktrackAddStarExportBinding (bPos) {
       identifierStart = isIdentifierStart(codePoint, true);
       bPos -= codePointLen(codePoint);
     }
-    if (identifierStart && source.charCodeAt(bPos) === 32/* */) {
-      const starExportId = source.slice(bPos + 1, id_end + 1);
+    const idStart = bPos + 1;
+    if (!identifierStart) return;
+    if (bindingMode !== WebpackImportPrefix && source.charCodeAt(bPos) === 32/* */) {
       while (source.charCodeAt(bPos) === 32/* */ && bPos >= 0)
         bPos--;
-      switch (source.charCodeAt(bPos)) {
-        case 114/*r*/:
-          if (!source.startsWith('va', bPos - 2))
-            return;
-          break;
-        case 116/*t*/:
-          if (!source.startsWith('le', bPos - 2) && !source.startsWith('cons', bPos - 4))
-            return;
-          break;
-        default: return;
+      const ch = source.charCodeAt(bPos);
+      if (ch === 114/*r*/ && source.startsWith('va', bPos - 2) ||
+          ch === 116/*t*/ && (source.startsWith('le', bPos - 2) || source.startsWith('cons', bPos - 4))) {
+        starExportMap[source.slice(idStart, id_end + 1)] = lastStarExportSpecifier;
+        return;
       }
-      starExportMap[starExportId] = lastStarExportSpecifier;
     }
+    if (bindingMode !== RequireBinding && keywordStart(idStart) && starExportMap[source.slice(idStart, id_end + 1)] !== undefined)
+      markWebpackExportsUncertain();
   }
 }
 
@@ -1229,8 +1278,7 @@ function tryParseObjectDefineOrKeys (keys) {
           pos = revertPos;
           return;
         }
-        if (webpack?.current) webpack.current.uncertain = true;
-        else if (webpack?.inline) webpack.invalid = true;
+        markWebpackExportsUncertain();
         return;
       }
     }
@@ -1344,14 +1392,14 @@ function tryParseExportsDotAssign (assign, length = 7) {
               else { webpack.entry = id; webpack.published = true; }
             }
             pos = start;
-            if (webpack && !webpack.current && source.startsWith('__webpack_exports__', pos) &&
-                !isIdentifierChar(source.codePointAt(pos + 19), true)) {
+            if (webpack && !webpack.current && matchesWebpackExports()) {
               pos += 19;
-              const next = commentWhitespace();
-              if (pos > end || next === 59 || next === 44 || next === 41 || next === 125)
+              if (readWebpackExpressionEnd()) {
+                trustWebpackExports(pos);
                 webpack.published = true;
-              else
+              } else {
                 webpack.invalid = true;
+              }
             }
           }
           if (ch === 40/*(*/) ch = readExportExpressionStart();
@@ -1485,8 +1533,7 @@ function readExportProperty () {
   if (ch === 46/*.*/ && source.startsWith('..', pos + 1)) {
     pos += 3;
     ch = commentWhitespace();
-    if (!(ch === 114/*r*/ && tryParseRequire(ExportAssign)) && webpack?.current)
-      webpack.current.uncertain = true;
+    if (!(ch === 114/*r*/ && tryParseRequire(ExportAssign))) markWebpackExportsUncertain();
     pos = revertPos;
     return;
   }
@@ -1541,8 +1588,8 @@ function readExportProperty () {
   if (nameEnd !== undefined && (ch === 58/*:*/ || ch === 40/*(*/ ||
       !computed && (ch === 44/*,*/ || ch === 125/*}*/)))
     _exports.add(decode(source.slice(nameStart, nameEnd)));
-  else if (propertyStart !== 125 && webpack?.current)
-    webpack.current.uncertain = true;
+  else if (propertyStart !== 125)
+    markWebpackExportsUncertain();
   pos = revertPos;
 }
 
