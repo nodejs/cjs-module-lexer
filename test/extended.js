@@ -5,6 +5,10 @@ const options = { mode: 'extended' };
 
 suite('Extended parsing', () => {
   suiteSetup(async () => {
+    if (process.env.NATIVE) {
+      parse = require('./native/parser.js').parse;
+      return;
+    }
     if (process.env.WASM) {
       const lexer = await import('../dist/lexer.mjs');
       await lexer.init();
@@ -50,6 +54,35 @@ suite('Extended parsing', () => {
       assert.deepEqual(result, { exports: ['first', 'second'], reexports: [] });
     });
   }
+
+  test('empty export objects do not add names', () => {
+    for (const source of [
+      'module.exports = {};', 'module.exports = ({ /* empty */ });',
+      'Object.defineProperties(exports, {});', 'Object.defineProperties(module.exports, {});',
+      'Object.defineProperties(exports, ({ /* empty */ }));'
+    ]) {
+      assert.deepEqual(parse(source, 'fixture.cjs', options), { exports: [], reexports: [] });
+    }
+  });
+
+  test('trailing commas do not add empty names', () => {
+    for (const source of [
+      'module.exports = { first: 1, };', 'module.exports = ({ first: 1, /* trailing */ });',
+      'Object.defineProperties(exports, { first: { value: 1 }, });',
+      'Object.defineProperties(module.exports, ({ first: { value: 1 }, /* trailing */ }));'
+    ]) {
+      assert.deepEqual(parse(source, 'fixture.cjs', options), { exports: ['first'], reexports: [] });
+    }
+  });
+
+  test('empty string property names remain exports', () => {
+    for (const source of [
+      "module.exports = { '': 1 };", "module.exports = { ['']: 1, };",
+      "Object.defineProperties(exports, { '': { value: 1 } });"
+    ]) {
+      assert.deepEqual(parse(source, 'fixture.cjs', options), { exports: [''], reexports: [] });
+    }
+  });
 
   test('descriptors with computed constant names', () => {
     const result = parse(`Object.defineProperties(module.exports, {

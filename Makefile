@@ -6,14 +6,14 @@ WASM_OPT ?= ../binaryen/bin/wasm-opt
 lib/lexer.wat: lib/lexer.wasm
 	$(WASM2WAT) lib/lexer.wasm -o lib/lexer.wat
 
-lib/lexer.wasm: include-wasm/cjs-module-lexer.h src/lexer.c | lib/
+lib/lexer.wasm: include/cjs-module-lexer.h src/lexer-internal.h src/lexer.c src/wasm.c | lib/
 	node build/wasm.js --docker
 
 lib/:
 	@mkdir -p $@
 
 optimize: lib/lexer.wasm
-	$(WASM_OPT) -Oz --enable-bulk-memory --strip-debug lib/lexer.wasm -o lib/lexer.wasm
+	$(WASM_OPT) -Oz --strip-debug lib/lexer.wasm -o lib/lexer.wasm
 
 clean:
 	$(RM) lib/*

@@ -91,7 +91,7 @@ function decode (str) {
       // Filter to exclude non-matching UTF-16 surrogate strings
       for (let i = 0; i < decoded.length; i++) {
         const surrogatePrefix = decoded.charCodeAt(i) & 0xFC00;
-        if (surrogatePrefix < 0xD800) {
+        if (surrogatePrefix < 0xD800 || surrogatePrefix >= 0xE000) {
           // Not a surrogate
           continue;
         }
@@ -101,7 +101,7 @@ function decode (str) {
             return;
         }
         else {
-          // Out-of-range surrogate code (above 0xD800)
+          // Unpaired low surrogate
           return;
         }
       }
@@ -120,6 +120,9 @@ function parseSource (cjsSource) {
   pos = -1;
   end = source.length - 1;
   let ch = 0;
+  let lastClosedTokenPos = -1;
+  let lastOpenTokenPos = -1;
+  let lastOpenTokenType = 0;
 
   // Handle #!
   if (source.charCodeAt(0) === 35/*#*/ && source.charCodeAt(1) === 33/*!*/) {
@@ -232,6 +235,8 @@ function parseSource (cjsSource) {
         if (openTokenDepth === 0)
           throw new Error('Unexpected closing bracket.');
         openTokenDepth--;
+        lastClosedTokenPos = pos;
+        lastOpenTokenPos = openTokenPosStack[openTokenDepth];
         break;
       case 123/*{*/:
         pushOpenToken(lastTokenPos);
@@ -246,6 +251,9 @@ function parseSource (cjsSource) {
       case 125/*}*/:
         if (openTokenDepth === 0)
           throw new Error('Unexpected closing brace.');
+        lastClosedTokenPos = pos;
+        lastOpenTokenPos = openTokenPosStack[openTokenDepth - 1];
+        lastOpenTokenType = openTokenTypeStack[openTokenDepth - 1];
         if (openTokenDepth-- === templateDepth) {
           templateDepth = templateStack[--templateStackDepth];
           templateString();
@@ -283,10 +291,10 @@ function parseSource (cjsSource) {
           if (isExpressionPunctuator(lastToken) &&
               !(lastToken === 46/*.*/ && (source.charCodeAt(lastTokenPos - 1) >= 48/*0*/ && source.charCodeAt(lastTokenPos - 1) <= 57/*9*/)) &&
               !(lastToken === 43/*+*/ && source.charCodeAt(lastTokenPos - 1) === 43/*+*/) && !(lastToken === 45/*-*/ && source.charCodeAt(lastTokenPos - 1) === 45/*-*/) ||
-              lastToken === 41/*)*/ && isParenKeyword(openTokenPosStack[openTokenDepth]) ||
-              lastToken === 125/*}*/ && (isExpressionTerminator(openTokenPosStack[openTokenDepth]) ||
-              (openTokenTypeStack[openTokenDepth] & ClassToken) ||
-              extended && isStatementBrace(openTokenPosStack[openTokenDepth], openTokenDepth)) ||
+              lastTokenPos === lastClosedTokenPos && (lastToken === 41/*)*/ && isParenKeyword(lastOpenTokenPos) ||
+              lastToken === 125/*}*/ && (isExpressionTerminator(lastOpenTokenPos) ||
+              (lastOpenTokenType & ClassToken) ||
+              extended && isStatementBrace(lastOpenTokenPos, openTokenDepth))) ||
               lastToken === 47/*/*/ && lastSlashWasDivision ||
               isExpressionKeyword(lastTokenPos) ||
               !lastToken) {
