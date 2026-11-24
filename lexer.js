@@ -1,8 +1,13 @@
 let source, pos, end;
 let extended, exportObjectPos;
+let webpack, webpackTrustedEnd, webpackArrayPos;
 const STACK_DEPTH = 2048;
 const ClassToken = 1;
 const ExportObjectToken = 2;
+const WebpackTableToken = 4;
+const WebpackArrayKeyToken = 8;
+const WebpackArrayBindingToken = 16;
+const WebpackArrayValueToken = 32;
 const templateStack = new Array(1024);
 const openTokenPosStack = new Array(1024);
 const openTokenTypeStack = new Array(1024);
@@ -27,6 +32,8 @@ function resetState () {
   templateStackDepth = 0;
   nextBraceIsClass = false;
   allowMinifiedEnumerable = false;
+  webpack = undefined;
+  webpackTrustedEnd = webpackArrayPos = -1;
   starExportMap = Object.create(null);
   lastStarExportSpecifier = null;
 
@@ -39,6 +46,10 @@ function resetState () {
 const Import = 0;
 const ExportAssign = 1;
 const ExportStar = 2;
+
+const RequireBinding = 0;
+const WebpackImport = 1;
+const WebpackImportPrefix = 2;
 
 /** @param {number} tokenPos */
 function pushOpenToken (tokenPos) {
@@ -71,13 +82,15 @@ function parseCJS (source, name = '@', options) {
   extended = mode === 'extended';
   exportObjectPos = -1;
   try {
-    parseSource(source);
+    if (extended) parseExtendedSource(source);
+    else parseDefaultSource(source);
   }
   catch (error) {
     error.message += `\n  at ${name}:${source.slice(0, pos).split('\n').length}:${pos - source.lastIndexOf('\n', pos - 1)}`;
     error.loc = pos;
     throw error;
   }
+  if (webpack) finishWebpack();
   const result = { exports: [..._exports].filter(expt => expt !== undefined && !unsafeGetters.has(expt)), reexports: [...reexports].filter(reexpt => reexpt !== undefined) };
   resetState();
   return result;
@@ -114,209 +127,666 @@ function decode (str) {
   }
 }
 
-/** @param {string} cjsSource */
-function parseSource (cjsSource) {
+/* Generated from src/lexer-scan.js. */
+function parseDefaultSource(cjsSource) {
   source = cjsSource;
   pos = -1;
   end = source.length - 1;
   let ch = 0;
-
-  // Handle #!
-  if (source.charCodeAt(0) === 35/*#*/ && source.charCodeAt(1) === 33/*!*/) {
-    if (source.length === 2)
-      return true;
+  if (source.charCodeAt(0) === 35 && source.charCodeAt(1) === 33 /*!*/) {
+    if (source.length === 2) return true;
     pos += 2;
     while (pos++ < end) {
       ch = source.charCodeAt(pos);
-      if (ch === 10/*\n*/ || ch === 13/*\r*/)
-        break;
+      if (ch === 10 || ch === 13) break;
     }
   }
-
   while (pos++ < end) {
     ch = source.charCodeAt(pos);
-
-    if (ch === 32 || ch < 14 && ch > 8)
+    if (ch === 32 || ch < 14 && ch > 8) continue;
+    if (openTokenDepth === 0 || false) switch (ch) {
+     case 105:
+      source.startsWith("mport", pos + 1) && keywordStart(pos) && throwIfImportStatement();
+      skipTokenRun();
+      lastTokenPos = pos;
       continue;
 
-    if (openTokenDepth === 0) {
-      switch (ch) {
-        case 105/*i*/:
-          if (source.startsWith('mport', pos + 1) && keywordStart(pos))
-            throwIfImportStatement();
-          skipTokenRun();
-          lastTokenPos = pos;
-          continue;
-        case 114/*r*/:
-          const startPos = pos;
-          if (tryParseRequire(Import) && keywordStart(startPos))
-            tryBacktrackAddStarExportBinding(startPos - 1);
-          skipTokenRun();
-          lastTokenPos = pos;
-          continue;
-        case 95/*_*/:
-          if (source.startsWith('interopRequireWildcard', pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46/*.*/)) {
-            const startPos = pos;
-            pos += 23;
-            if (source.charCodeAt(pos) === 40/*(*/) {
-              pos++;
-              pushOpenToken(lastTokenPos);
-              if (tryParseRequire(Import) && keywordStart(startPos)) {
-                tryBacktrackAddStarExportBinding(startPos - 1);
-              }
-            }
-          }
-          else if (source.startsWith('_export', pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46/*.*/)) {
-            pos += 8;
-            if (source.startsWith('Star', pos))
-              pos += 4;
-            if (source.charCodeAt(pos) === 40/*(*/) {
-              pushOpenToken(lastTokenPos);
-              if (source.charCodeAt(pos + 1) === 114/*r*/) {
-                pos++;
-                tryParseRequire(ExportStar);
-              }
-            }
-          }
-          skipTokenRun();
-          lastTokenPos = pos;
-          continue;
-      }
-    }
+     case 114:
+      const startPos = pos;
+      tryParseRequire(Import) && keywordStart(startPos) && tryBacktrackAddStarExportBinding(startPos - 1);
+      skipTokenRun();
+      lastTokenPos = pos;
+      continue;
 
-    switch (ch) {
-      case 101/*e*/:
-        if (source.startsWith('xport', pos + 1) && keywordStart(pos)) {
-          if (source.charCodeAt(pos + 6) === 115/*s*/)
-            tryParseExportsDotAssign(false);
-          else if (openTokenDepth === 0)
-            throwIfExportStatement();
-        }
-        skipTokenRun();
-        break;
-      case 99/*c*/:
-        if (source.charCodeAt(pos + 1) === 108/*l*/ && keywordStart(pos) &&
-            source.startsWith('ass', pos + 2) && isBrOrWs(source.charCodeAt(pos + 5)))
-          nextBraceIsClass = true;
-        skipTokenRun();
-        break;
-      case 109/*m*/:
-        if (source.startsWith('odule', pos + 1) && keywordStart(pos))
-          tryParseModuleExportsDotAssign();
-        skipTokenRun();
-        break;
-      case 79/*O*/:
-        if (source.startsWith('bject', pos + 1) && keywordStart(pos))
-          tryParseObjectDefineOrKeys(openTokenDepth === 0);
-        skipTokenRun();
-        break;
-      case 40/*(*/:
-        pushOpenToken(lastTokenPos);
-        break;
-      case 91/*[*/:
-        if (extended) {
+     case 95:
+      if (source.startsWith("interopRequireWildcard", pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46)) {
+        const startPos = pos;
+        pos += 23;
+        if (source.charCodeAt(pos) === 40) {
+          pos++;
           pushOpenToken(lastTokenPos);
+          tryParseRequire(Import) && keywordStart(startPos) && tryBacktrackAddStarExportBinding(startPos - 1);
         }
-        break;
-      case 93/*]*/:
-        if (extended) {
-          if (openTokenDepth === 0) throw new Error('Unexpected closing bracket.');
-          openTokenDepth--;
+      } else if (source.startsWith("_export", pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46)) {
+        pos += 8;
+        source.startsWith("Star", pos) && (pos += 4);
+        if (source.charCodeAt(pos) === 40) {
+          pushOpenToken(lastTokenPos);
+          if (source.charCodeAt(pos + 1) === 114) {
+            pos++;
+            tryParseRequire(ExportStar);
+          }
         }
-        break;
-      case 44/*,*/:
-        if (extended && openTokenDepth && (openTokenTypeStack[openTokenDepth - 1] & ExportObjectToken))
-          readExportProperty();
-        break;
-      case 41/*)*/:
-        if (openTokenDepth === 0)
-          throw new Error('Unexpected closing bracket.');
-        openTokenDepth--;
-        break;
-      case 123/*{*/:
-        pushOpenToken(lastTokenPos);
-        openTokenTypeStack[openTokenDepth - 1] = nextBraceIsClass ? ClassToken : 0;
-        nextBraceIsClass = false;
-        if (extended && pos === exportObjectPos) {
-          openTokenTypeStack[openTokenDepth - 1] |= ExportObjectToken;
-          exportObjectPos = -1;
-          readExportProperty();
-        }
-        break;
-      case 125/*}*/:
-        if (openTokenDepth === 0)
-          throw new Error('Unexpected closing brace.');
-        if (openTokenDepth-- === templateDepth) {
-          templateDepth = templateStack[--templateStackDepth];
-          templateString();
-        }
-        else {
-          if (templateDepth !== -1 && openTokenDepth < templateDepth)
-            throw new Error('Unexpected closing brace.');
-        }
-        break;
-      case 60/*>*/:
-        // TODO: <!-- XML comment support
-        break;
-      case 39/*'*/:
-      case 34/*"*/:
-        stringLiteral(ch);
-        break;
-      case 47/*/*/: {
+      }
+      skipTokenRun();
+      lastTokenPos = pos;
+      continue;
+    }
+    switch (ch) {
+     case 101:
+      if (source.startsWith("xport", pos + 1) && keywordStart(pos)) if (source.charCodeAt(pos + 6) === 115) {
+        pos;
+        tryParseExportsDotAssign(false);
+      } else openTokenDepth === 0 && throwIfExportStatement();
+      skipTokenRun();
+      break;
+
+     case 99:
+      source.charCodeAt(pos + 1) === 108 && keywordStart(pos) && source.startsWith("ass", pos + 2) && isBrOrWs(source.charCodeAt(pos + 5)) && (nextBraceIsClass = true);
+      skipTokenRun();
+      break;
+
+     case 109:
+      source.startsWith("odule", pos + 1) && keywordStart(pos) && tryParseModuleExportsDotAssign();
+      skipTokenRun();
+      break;
+
+     case 79:
+      source.startsWith("bject", pos + 1) && keywordStart(pos) && tryParseObjectDefineOrKeys(openTokenDepth === 0 || false);
+      skipTokenRun();
+      break;
+
+     case 40:
+      pushOpenToken(lastTokenPos);
+      break;
+
+     case 91:
+      break;
+
+     case 93:
+      break;
+
+     case 44:
+      break;
+
+     case 41:
+      if (openTokenDepth === 0) throw new Error("Unexpected closing bracket.");
+      openTokenDepth--;
+      break;
+
+     case 123:
+      pushOpenToken(lastTokenPos);
+      openTokenTypeStack[openTokenDepth - 1] = nextBraceIsClass ? ClassToken : 0;
+      nextBraceIsClass = false;
+      break;
+
+     case 125:
+      if (openTokenDepth === 0) throw new Error("Unexpected closing brace.");
+      if (openTokenDepth-- === templateDepth) {
+        templateDepth = templateStack[--templateStackDepth];
+        templateString();
+      } else if (templateDepth !== -1 && openTokenDepth < templateDepth) throw new Error("Unexpected closing brace.");
+      break;
+
+     case 60:
+      break;
+
+     case 39:
+     case 34:
+      stringLiteral(ch);
+      break;
+
+     case 47:
+      {
         const next_ch = source.charCodeAt(pos + 1);
-        if (next_ch === 47/*/*/) {
+        if (next_ch === 47) {
           lineComment();
-          // dont update lastToken
           continue;
         }
-        else if (next_ch === 42/***/) {
+        if (next_ch === 42) {
           blockComment();
-          // dont update lastToken
           continue;
         }
-        else {
-          // Division / regex ambiguity handling based on checking backtrack analysis of:
-          // - what token came previously (lastToken)
-          // - if a closing brace or paren, what token came before the corresponding
-          //   opening brace or paren (lastOpenTokenIndex)
+        {
           const lastToken = source.charCodeAt(lastTokenPos);
-          if (isExpressionPunctuator(lastToken) &&
-              !(lastToken === 46/*.*/ && (source.charCodeAt(lastTokenPos - 1) >= 48/*0*/ && source.charCodeAt(lastTokenPos - 1) <= 57/*9*/)) &&
-              !(lastToken === 43/*+*/ && source.charCodeAt(lastTokenPos - 1) === 43/*+*/) && !(lastToken === 45/*-*/ && source.charCodeAt(lastTokenPos - 1) === 45/*-*/) ||
-              lastToken === 41/*)*/ && isParenKeyword(openTokenPosStack[openTokenDepth]) ||
-              lastToken === 125/*}*/ && (isExpressionTerminator(openTokenPosStack[openTokenDepth]) ||
-              (openTokenTypeStack[openTokenDepth] & ClassToken) ||
-              extended && isStatementBrace(openTokenPosStack[openTokenDepth], openTokenDepth)) ||
-              lastToken === 47/*/*/ && lastSlashWasDivision ||
-              isExpressionKeyword(lastTokenPos) ||
-              !lastToken) {
+          if (isExpressionPunctuator(lastToken) && !(lastToken === 46 && source.charCodeAt(lastTokenPos - 1) >= 48 && source.charCodeAt(lastTokenPos - 1) <= 57) && !(lastToken === 43 && source.charCodeAt(lastTokenPos - 1) === 43) && !(lastToken === 45 && source.charCodeAt(lastTokenPos - 1) === 45) || lastToken === 41 && isParenKeyword(openTokenPosStack[openTokenDepth]) || lastToken === 125 && (isExpressionTerminator(openTokenPosStack[openTokenDepth]) || openTokenTypeStack[openTokenDepth] & ClassToken || false) || lastToken === 47 && lastSlashWasDivision || isExpressionKeyword(lastTokenPos) || !lastToken) {
             regularExpression();
             lastSlashWasDivision = false;
-          }
-          else {
-            lastSlashWasDivision = true;
-          }
+          } else lastSlashWasDivision = true;
         }
         break;
       }
-      case 96/*`*/:
-        templateString();
-        break;
-      default:
-        if (isTokenRunChar(ch))
-          skipTokenRun();
+
+     case 96:
+      templateString();
+      break;
+
+     default:
+      isTokenRunChar(ch) && skipTokenRun();
     }
     lastTokenPos = pos;
   }
-
-  if (templateDepth !== -1)
-    throw new Error('Unterminated template.');
-
-  if (openTokenDepth)
-    throw new Error('Unterminated braces.');
+  if (templateDepth !== -1) throw new Error("Unterminated template.");
+  if (openTokenDepth) throw new Error("Unterminated braces.");
 }
 
-function tryBacktrackAddStarExportBinding (bPos) {
+function parseExtendedSource(cjsSource) {
+  source = cjsSource;
+  pos = -1;
+  end = source.length - 1;
+  let ch = 0;
+  let targetFirst = -1, moduleFirst = -1, factoryDepth = -1;
+  if (source.charCodeAt(0) === 35 && source.charCodeAt(1) === 33 /*!*/) {
+    if (source.length === 2) return true;
+    pos += 2;
+    while (pos++ < end) {
+      ch = source.charCodeAt(pos);
+      if (ch === 10 || ch === 13) break;
+    }
+  }
+  while (pos++ < end) {
+    ch = source.charCodeAt(pos);
+    if (ch === 32 || ch < 14 && ch > 8) continue;
+    if ((ch === 95 || ch === targetFirst || ch === moduleFirst) && keywordStart(pos) && readWebpackToken(ch, factoryDepth)) {
+      skipTokenRun();
+      lastTokenPos = pos;
+      continue;
+    }
+    if (openTokenDepth === 0 || factoryDepth === openTokenDepth) switch (ch) {
+     case 105:
+      source.startsWith("mport", pos + 1) && keywordStart(pos) && throwIfImportStatement();
+      skipTokenRun();
+      lastTokenPos = pos;
+      continue;
+
+     case 114:
+      const startPos = pos;
+      tryParseRequire(Import) && keywordStart(startPos) && tryBacktrackAddStarExportBinding(startPos - 1);
+      skipTokenRun();
+      lastTokenPos = pos;
+      continue;
+
+     case 95:
+      if (source.startsWith("interopRequireWildcard", pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46)) {
+        const startPos = pos;
+        pos += 23;
+        if (source.charCodeAt(pos) === 40) {
+          pos++;
+          pushOpenToken(lastTokenPos);
+          tryParseRequire(Import) && keywordStart(startPos) && tryBacktrackAddStarExportBinding(startPos - 1);
+        }
+      } else if (source.startsWith("_export", pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46)) {
+        pos += 8;
+        source.startsWith("Star", pos) && (pos += 4);
+        if (source.charCodeAt(pos) === 40) {
+          pushOpenToken(lastTokenPos);
+          if (source.charCodeAt(pos + 1) === 114) {
+            pos++;
+            tryParseRequire(ExportStar);
+          }
+        }
+      }
+      skipTokenRun();
+      lastTokenPos = pos;
+      continue;
+    }
+    switch (ch) {
+     case 101:
+      if (source.startsWith("xport", pos + 1) && keywordStart(pos)) if (source.charCodeAt(pos + 6) === 115) {
+        const start = pos;
+        !tryParseExportsDotAssign(false) && webpack?.inline && !webpack.current && start >= webpackTrustedEnd && !isIdentifierChar(source.codePointAt(start + 7), true) && (readWebpackExportsAlias(start) ? webpack.alias = true : webpack.alias && (webpack.invalid = true));
+      } else openTokenDepth === 0 && throwIfExportStatement();
+      skipTokenRun();
+      break;
+
+     case 99:
+      source.charCodeAt(pos + 1) === 108 && keywordStart(pos) && source.startsWith("ass", pos + 2) && isBrOrWs(source.charCodeAt(pos + 5)) && (nextBraceIsClass = true);
+      skipTokenRun();
+      break;
+
+     case 109:
+      source.startsWith("odule", pos + 1) && keywordStart(pos) && tryParseModuleExportsDotAssign();
+      skipTokenRun();
+      break;
+
+     case 79:
+      source.startsWith("bject", pos + 1) && keywordStart(pos) && tryParseObjectDefineOrKeys(openTokenDepth === 0 || (webpack?.current ? factoryDepth === openTokenDepth : webpack?.inline));
+      skipTokenRun();
+      break;
+
+     case 40:
+      pushOpenToken(lastTokenPos);
+      break;
+
+     case 91:
+      pushOpenToken(lastTokenPos);
+      if (pos === webpackArrayPos) {
+        webpackArrayPos = -1;
+        readWebpackArrayElement(WebpackArrayKeyToken);
+      }
+      break;
+
+     case 93:
+      if (openTokenDepth === 0) throw new Error("Unexpected closing bracket.");
+      openTokenDepth--;
+      break;
+
+     case 44:
+      if (openTokenDepth) {
+        const token = openTokenTypeStack[openTokenDepth - 1];
+        token & WebpackTableToken && readWebpackFactory();
+        token & ExportObjectToken && readExportProperty();
+        token >= WebpackArrayKeyToken && readWebpackArrayElement(token);
+      }
+      break;
+
+     case 41:
+      if (openTokenDepth === 0) throw new Error("Unexpected closing bracket.");
+      openTokenDepth--;
+      break;
+
+     case 123:
+      pushOpenToken(lastTokenPos);
+      openTokenTypeStack[openTokenDepth - 1] = nextBraceIsClass ? ClassToken : 0;
+      nextBraceIsClass = false;
+      if (pos === exportObjectPos) {
+        openTokenTypeStack[openTokenDepth - 1] |= ExportObjectToken;
+        exportObjectPos = -1;
+        readExportProperty();
+      }
+      if (pos === webpack?.tablePos) {
+        openTokenTypeStack[openTokenDepth - 1] |= WebpackTableToken;
+        readWebpackFactory();
+      } else if (pos === webpack?.factoryPos) {
+        webpack.current = webpack.pending;
+        targetFirst = webpack.current.target?.charCodeAt(0) ?? -1;
+        moduleFirst = webpack.current.module?.charCodeAt(0) ?? -1;
+        factoryDepth = openTokenDepth;
+        _exports = webpack.current.exports ??= new Set;
+        reexports = webpack.current.reexports ??= new Set;
+        starExportMap = Object.create(null);
+      }
+      break;
+
+     case 125:
+      if (openTokenDepth === 0) throw new Error("Unexpected closing brace.");
+      if (factoryDepth === openTokenDepth) {
+        webpack.current = void 0;
+        targetFirst = moduleFirst = factoryDepth = -1;
+        _exports = webpack.exports;
+        reexports = webpack.reexports;
+        starExportMap = webpack.starExportMap;
+      }
+      if (openTokenDepth-- === templateDepth) {
+        templateDepth = templateStack[--templateStackDepth];
+        templateString();
+      } else if (templateDepth !== -1 && openTokenDepth < templateDepth) throw new Error("Unexpected closing brace.");
+      break;
+
+     case 60:
+      break;
+
+     case 39:
+     case 34:
+      stringLiteral(ch);
+      break;
+
+     case 47:
+      {
+        const next_ch = source.charCodeAt(pos + 1);
+        if (next_ch === 47) {
+          lineComment();
+          continue;
+        }
+        if (next_ch === 42) {
+          blockComment();
+          continue;
+        }
+        {
+          const lastToken = source.charCodeAt(lastTokenPos);
+          if (isExpressionPunctuator(lastToken) && !(lastToken === 46 && source.charCodeAt(lastTokenPos - 1) >= 48 && source.charCodeAt(lastTokenPos - 1) <= 57) && !(lastToken === 43 && source.charCodeAt(lastTokenPos - 1) === 43) && !(lastToken === 45 && source.charCodeAt(lastTokenPos - 1) === 45) || lastToken === 41 && isParenKeyword(openTokenPosStack[openTokenDepth]) || lastToken === 125 && (isExpressionTerminator(openTokenPosStack[openTokenDepth]) || openTokenTypeStack[openTokenDepth] & ClassToken || isStatementBrace(openTokenPosStack[openTokenDepth], openTokenDepth)) || lastToken === 47 && lastSlashWasDivision || isExpressionKeyword(lastTokenPos) || !lastToken) {
+            regularExpression();
+            lastSlashWasDivision = false;
+          } else lastSlashWasDivision = true;
+        }
+        break;
+      }
+
+     case 96:
+      templateString();
+      break;
+
+     default:
+      isTokenRunChar(ch) && skipTokenRun();
+    }
+    lastTokenPos = pos;
+  }
+  if (templateDepth !== -1) throw new Error("Unterminated template.");
+  if (openTokenDepth) throw new Error("Unterminated braces.");
+}
+/* End generated scanners. */
+
+/**
+ * @param {number} ch
+ * @param {number} factoryDepth
+ */
+function readWebpackToken (ch, factoryDepth) {
+  const current = webpack?.current;
+  const start = pos;
+  const target = current?.target;
+  if (target && source.startsWith(target, pos) && !isIdentifierChar(source.codePointAt(pos + target.length), true)) {
+    if (!tryParseExportsDotAssign(false, target.length) && start >= webpackTrustedEnd)
+      current.uncertain = true;
+    return true;
+  }
+  if (current?.module && source.startsWith(current.module, pos) &&
+      !isIdentifierChar(source.codePointAt(pos + current.module.length), true)) {
+    if (!tryParseModuleExportsDotAssign(current.module.length) && start >= webpackTrustedEnd)
+      current.uncertain = true;
+    return true;
+  }
+  if (ch !== 95/*_*/) return false;
+  if (source.startsWith('__webpack_modules__', pos) &&
+      !isIdentifierChar(source.codePointAt(pos + 19), true)) {
+    const start = pos;
+    pos += 19;
+    if (commentWhitespace() === 61/*=*/) {
+      pos++;
+      let next = commentWhitespace();
+      if (next === 40/*(*/) next = readExportExpressionStart();
+      if (next === 123/*{*/) {
+        if (!webpack) {
+          webpack = { modules: new Map(), exports: _exports, reexports,
+            starExportMap, inlineDependencies: [], tablePos: pos, factoryPos: -1, published: false };
+        } else {
+          webpack.invalid = true;
+        }
+      }
+    }
+    pos = start;
+    return false;
+  }
+  if (matchesWebpackExports()) {
+    if (!tryParseExportsDotAssign(false, 19) && webpack && !current && start >= webpackTrustedEnd) {
+      const revert = pos++;
+      if (commentWhitespace() === 61/*=*/) {
+        pos++;
+        const ch = commentWhitespace();
+        webpack.inline = false;
+        if (ch === 123) {
+          pos++;
+          if (commentWhitespace() === 125) {
+            pos++;
+            webpack.inline = readWebpackExpressionEnd();
+          }
+        }
+        webpack.entry = ch === 95 ? readWebpackCall() : undefined;
+        if (!webpack.inline && webpack.entry === undefined) webpack.invalid = true;
+      } else webpack.invalid = true;
+      pos = revert;
+    }
+    return true;
+  }
+  if (!source.startsWith('__webpack_require__', pos) ||
+      isIdentifierChar(source.codePointAt(pos + 19), true)) return false;
+  if (current ? openTokenDepth === factoryDepth : webpack?.inline) {
+    const id = readWebpackCall(false);
+    if (id !== undefined) {
+      const complete = isWebpackCallExpression();
+      if (complete) lastStarExportSpecifier = { webpack: id };
+      tryBacktrackAddStarExportBinding(start - 1, complete ? WebpackImport : WebpackImportPrefix);
+      if (complete) return true;
+      pos = start;
+    }
+  }
+  pos = start + 19;
+  if (commentWhitespace() === 46/*.*/) {
+    pos++;
+    const method = commentWhitespace();
+    if (method === 100/*d*/ || method === 114/*r*/) {
+      pos++;
+      if (commentWhitespace() === 40/*(*/) {
+        pos++;
+        if (readExportsOrModuleDotExports(commentWhitespace())) {
+          const argEnd = pos;
+          const next = commentWhitespace();
+          if (method === 114 && next === 41) trustWebpackExports(argEnd);
+          if (method === 100 && next === 44) {
+            pos++;
+            const definition = commentWhitespace();
+            if (definition === 123) {
+              exportObjectPos = pos;
+              trustWebpackExports(argEnd);
+            } else if (definition === 91) {
+              webpackArrayPos = pos;
+              trustWebpackExports(argEnd);
+            }
+          }
+        }
+      }
+    }
+  }
+  pos = start;
+  return false;
+}
+
+/** @param {number} finish */
+function trustWebpackExports (finish) {
+  if (webpack && finish > webpackTrustedEnd) webpackTrustedEnd = finish;
+}
+
+function markWebpackExportsUncertain () {
+  if (webpack?.current) webpack.current.uncertain = true;
+  else if (webpack?.inline) webpack.invalid = true;
+}
+
+function matchesWebpackExports () {
+  return source.startsWith('__webpack_exports__', pos) && !isIdentifierChar(source.codePointAt(pos + 19), true);
+}
+
+/** @param {number} start */
+function readWebpackExportsAlias (start) {
+  if (!readPrecedingKeyword(lastTokenPos, 'var') && !readPrecedingKeyword(lastTokenPos, 'let') &&
+      !readPrecedingKeyword(lastTokenPos, 'const')) return false;
+  const revert = pos;
+  pos = start + 7;
+  let alias = false;
+  if (commentWhitespace() === 61) {
+    pos++;
+    commentWhitespace();
+    if (matchesWebpackExports()) {
+      pos += 19;
+      alias = readWebpackExpressionEnd();
+      if (alias) trustWebpackExports(pos);
+    }
+  }
+  pos = revert;
+  return alias;
+}
+
+/** @param {number} token */
+function readWebpackArrayElement (token) {
+  const start = pos++;
+  const ch = commentWhitespace();
+  let next = WebpackArrayKeyToken;
+  if (token === WebpackArrayKeyToken) {
+    next = 0;
+    if (ch === 34 || ch === 39) {
+      const name = pos;
+      stringLiteral(ch);
+      const nameEnd = ++pos;
+      if (commentWhitespace() === 44) {
+        _exports.add(decode(source.slice(name, nameEnd)));
+        next = WebpackArrayBindingToken;
+      }
+    }
+    if (!next && ch !== 93) markWebpackExportsUncertain();
+  } else if (token === WebpackArrayBindingToken && ch === 48) {
+    pos++;
+    if (commentWhitespace() === 44) next = WebpackArrayValueToken;
+  }
+  openTokenTypeStack[openTokenDepth - 1] = next;
+  pos = start;
+}
+
+function readWebpackId () {
+  const ch = commentWhitespace();
+  const start = pos;
+  if (ch === 34/*"*/ || ch === 39/*'*/) {
+    stringLiteral(ch);
+    return decode(source.slice(start, ++pos));
+  }
+  if (ch >= 48 && ch <= 57) {
+    while (source.charCodeAt(pos) >= 48 && source.charCodeAt(pos) <= 57) pos++;
+    return source.slice(start, pos);
+  }
+  if (identifier()) return source.slice(start, pos);
+}
+
+/** @param {boolean} [requireExpressionEnd] */
+function readWebpackCall (requireExpressionEnd = true) {
+  const start = pos;
+  if (source.startsWith('__webpack_require__', pos)) {
+    pos += 19;
+    if (commentWhitespace() === 40/*(*/) {
+      pos++;
+      const ch = commentWhitespace();
+      const id = ch === 34 || ch === 39 || ch >= 48 && ch <= 57 ? readWebpackId() : undefined;
+      if (id !== undefined && commentWhitespace() === 41/*)*/ &&
+          (!requireExpressionEnd || isWebpackCallExpression())) return id;
+    }
+  }
+  pos = start;
+}
+
+function isWebpackCallExpression () {
+  const callEnd = pos++;
+  const complete = readWebpackExpressionEnd();
+  pos = callEnd;
+  return complete;
+}
+
+function readWebpackExpressionEnd () {
+  const ch = commentWhitespace();
+  return pos > end || ch === 59 || ch === 44 || ch === 41 || ch === 125;
+}
+
+function readWebpackFactory () {
+  const start = pos;
+  pos++;
+  const id = readWebpackId();
+  const separator = commentWhitespace();
+  if (id !== undefined && (separator === 58 || separator === 40)) {
+    if (separator === 58) pos++;
+    let ch = commentWhitespace();
+    if (separator === 58 && ch === 40/*(*/) {
+      const opening = pos;
+      pos++;
+      ch = commentWhitespace();
+      if (ch !== 40/*(*/ && !(ch === 102 && source.startsWith('function', pos))) {
+        pos = opening;
+        ch = 40;
+      }
+    }
+    const fn = ch === 102/*f*/ && source.startsWith('function', pos);
+    if (fn) {
+      pos += 8;
+      ch = commentWhitespace();
+    }
+    if (ch === 40/*(*/) {
+      pos++;
+      let module, target;
+      ch = commentWhitespace();
+      if (ch !== 41) module = readWebpackId();
+      ch = commentWhitespace();
+      if (ch === 44) {
+        pos++;
+        target = readWebpackId();
+        ch = commentWhitespace();
+        if (ch === 44) {
+          pos++;
+          readWebpackId();
+          ch = commentWhitespace();
+        }
+      }
+      if (ch === 41) {
+        pos++;
+        ch = commentWhitespace();
+        const arrow = !fn && separator === 58;
+        if (arrow && ch === 61 && source.charCodeAt(pos + 1) === 62) {
+          pos += 2;
+          ch = commentWhitespace();
+        } else if (arrow) ch = 0;
+        if (ch === 123) {
+          webpack.factoryPos = pos;
+          trustWebpackExports(pos);
+          const existing = webpack.modules.get(id);
+          if (existing) {
+            webpack.invalid = true;
+            existing.target = target;
+            existing.module = module;
+            webpack.pending = existing;
+          } else {
+            webpack.pending = { target, module, dependencies: [] };
+            webpack.modules.set(id, webpack.pending);
+          }
+        }
+      }
+    }
+  }
+  if (id !== undefined && webpack.factoryPos <= start) webpack.invalid = true;
+  pos = start;
+}
+
+function finishWebpack () {
+  const names = new Set(_exports);
+  const dependencies = new Set(reexports);
+  const queue = [];
+  const recognized = webpack.published && (webpack.entry !== undefined || webpack.inline) && !webpack.invalid;
+  if (recognized) {
+    if (webpack.entry !== undefined) queue.push({ id: webpack.entry, star: false });
+    else for (const dependency of webpack.inlineDependencies) queue.push(dependency);
+    const visited = new Map();
+    for (let i = 0; i < queue.length; i++) {
+      const { id, star } = queue[i];
+      const module = webpack.modules.get(id);
+      if (!module || module.uncertain) { webpack.invalid = true; break; }
+      const flag = star ? 1 : 2;
+      if ((visited.get(id) ?? 0) & flag) continue;
+      visited.set(id, (visited.get(id) ?? 0) | flag);
+      for (const name of module.exports) {
+        if (!star || name !== 'default' && name !== '__esModule') names.add(name);
+      }
+      for (const dependency of module.reexports) dependencies.add(dependency);
+      for (const dependency of module.dependencies)
+        queue.push({ id: dependency.id, star: star || dependency.star });
+    }
+  }
+  if (!recognized || webpack.invalid) {
+    for (const module of webpack.modules.values()) {
+      for (const name of module.exports ?? []) names.add(name);
+      for (const dependency of module.reexports ?? []) dependencies.add(dependency);
+    }
+  }
+  _exports = names;
+  reexports = dependencies;
+}
+
+/**
+ * @param {number} bPos
+ * @param {number} [bindingMode]
+ */
+function tryBacktrackAddStarExportBinding (bPos, bindingMode = RequireBinding) {
   while (source.charCodeAt(bPos) === 32/* */ && bPos >= 0)
     bPos--;
   if (source.charCodeAt(bPos) === 61/*=*/) {
@@ -334,23 +804,20 @@ function tryBacktrackAddStarExportBinding (bPos) {
       identifierStart = isIdentifierStart(codePoint, true);
       bPos -= codePointLen(codePoint);
     }
-    if (identifierStart && source.charCodeAt(bPos) === 32/* */) {
-      const starExportId = source.slice(bPos + 1, id_end + 1);
+    const idStart = bPos + 1;
+    if (!identifierStart) return;
+    if (bindingMode !== WebpackImportPrefix && source.charCodeAt(bPos) === 32/* */) {
       while (source.charCodeAt(bPos) === 32/* */ && bPos >= 0)
         bPos--;
-      switch (source.charCodeAt(bPos)) {
-        case 114/*r*/:
-          if (!source.startsWith('va', bPos - 2))
-            return;
-          break;
-        case 116/*t*/:
-          if (!source.startsWith('le', bPos - 2) && !source.startsWith('cons', bPos - 4))
-            return;
-          break;
-        default: return;
+      const ch = source.charCodeAt(bPos);
+      if (ch === 114/*r*/ && source.startsWith('va', bPos - 2) ||
+          ch === 116/*t*/ && (source.startsWith('le', bPos - 2) || source.startsWith('cons', bPos - 4))) {
+        starExportMap[source.slice(idStart, id_end + 1)] = lastStarExportSpecifier;
+        return;
       }
-      starExportMap[starExportId] = lastStarExportSpecifier;
     }
+    if (bindingMode !== RequireBinding && keywordStart(idStart) && starExportMap[source.slice(idStart, id_end + 1)] !== undefined)
+      markWebpackExportsUncertain();
   }
 }
 
@@ -910,10 +1377,16 @@ function tryParseObjectDefineOrKeys (keys) {
 
         const starExportSpecifier = starExportMap[id];
         if (starExportSpecifier) {
-          reexports.add(decode(starExportSpecifier));
+          if (extended) trustWebpackExports(pos);
+          if (typeof starExportSpecifier === 'object')
+            (webpack.current?.dependencies ?? webpack.inlineDependencies)
+              .push({ id: starExportSpecifier.webpack, star: true });
+          else
+            reexports.add(decode(starExportSpecifier));
           pos = revertPos;
           return;
         }
+        markWebpackExportsUncertain();
         return;
       }
     }
@@ -923,8 +1396,16 @@ function tryParseObjectDefineOrKeys (keys) {
 
 function readExportsOrModuleDotExports (ch) {
   const revertPos = pos;
-  if (ch === 109/*m*/ && source.startsWith('odule', pos + 1)) {
-    pos += 6;
+  const target = extended && (webpack?.current ? webpack.current.target : '__webpack_exports__');
+  if (target && source.startsWith(target, pos) && !isIdentifierChar(source.codePointAt(pos + target.length), true)) {
+    pos += target.length;
+    return true;
+  }
+  const module = extended && webpack?.current?.module;
+  const moduleAlias = module && source.startsWith(module, pos) &&
+    !isIdentifierChar(source.codePointAt(pos + module.length), true);
+  if (moduleAlias || ch === 109/*m*/ && source.startsWith('odule', pos + 1)) {
+    pos += moduleAlias ? module.length : 6;
     ch = commentWhitespace();
     if (ch !== 46/*.*/) {
       pos = revertPos;
@@ -943,24 +1424,28 @@ function readExportsOrModuleDotExports (ch) {
   }
 }
 
-function tryParseModuleExportsDotAssign () {
-  pos += 6;
+/** @param {number} [length] */
+function tryParseModuleExportsDotAssign (length = 6) {
+  pos += length;
   const revertPos = pos - 1;
   let ch = commentWhitespace();
   if (ch === 46/*.*/) {
     pos++;
     ch = commentWhitespace();
     if (ch === 101/*e*/ && source.startsWith('xports', pos + 1)) {
-      tryParseExportsDotAssign(true);
-      return;
+      return tryParseExportsDotAssign(true);
     }
   }
   pos = revertPos;
+  return false;
 }
 
-/** @param {boolean} assign */
-function tryParseExportsDotAssign (assign) {
-  pos += 7;
+/**
+ * @param {boolean} assign
+ * @param {number} [length]
+ */
+function tryParseExportsDotAssign (assign, length = 7) {
+  pos += length;
   const revertPos = pos - 1;
   let ch = commentWhitespace();
   switch (ch) {
@@ -974,7 +1459,7 @@ function tryParseExportsDotAssign (assign) {
         ch = commentWhitespace();
         if (ch === 61/*=*/) {
           _exports.add(decode(source.slice(startPos, endPos)));
-          return;
+          return true;
         }
       }
       break;
@@ -993,6 +1478,8 @@ function tryParseExportsDotAssign (assign) {
         ch = commentWhitespace();
         if (ch !== 61/*=*/) break;
         _exports.add(decode(source.slice(startPos, endPos)));
+        pos = revertPos;
+        return true;
       }
       break;
     }
@@ -1004,11 +1491,35 @@ function tryParseExportsDotAssign (assign) {
         pos++;
         ch = commentWhitespace();
         if (extended) {
+          let recognized = false;
+          if (ch === 95/*_*/) {
+            const start = pos;
+            const id = readWebpackCall();
+            if (webpack && id !== undefined) {
+              recognized = true;
+              if (webpack.current) webpack.current.dependencies.push({ id, star: false });
+              else { webpack.entry = id; webpack.published = true; }
+            }
+            pos = start;
+            if (webpack && !webpack.current && matchesWebpackExports()) {
+              pos += 19;
+              if (readWebpackExpressionEnd()) {
+                trustWebpackExports(pos);
+                webpack.published = true;
+              } else {
+                webpack.invalid = true;
+              }
+            }
+          }
           if (ch === 40/*(*/) ch = readExportExpressionStart();
-          if (ch === 123/*{*/) exportObjectPos = pos;
-          else if (ch === 114/*r*/) tryParseRequire(ExportAssign);
+          if (ch === 123/*{*/) {
+            exportObjectPos = pos;
+            recognized = true;
+          } else if (ch === 114/*r*/) {
+            recognized = tryParseRequire(ExportAssign);
+          }
           pos = revertPos;
-          return;
+          return recognized;
         }
         // { ... }
         if (ch === 123/*{*/) {
@@ -1023,6 +1534,7 @@ function tryParseExportsDotAssign (assign) {
     }
   }
   pos = revertPos;
+  return false;
 }
 
 function tryParseRequire (requireType) {
@@ -1099,19 +1611,25 @@ function readExportDefinition () {
   pos++;
   ch = commentWhitespace();
   if (!readExportsOrModuleDotExports(ch)) return;
+  const argEnd = pos;
   if (commentWhitespace() !== 44/*,*/) return;
   pos++;
   ch = commentWhitespace();
   if (properties) {
     if (ch === 40/*(*/) ch = readExportExpressionStart();
-    if (ch === 123/*{*/) exportObjectPos = pos;
+    if (ch === 123/*{*/) {
+      exportObjectPos = pos;
+      trustWebpackExports(argEnd);
+    }
   }
   else if (ch === 39/*'*/ || ch === 34/*"*/) {
     const nameStart = pos;
     stringLiteral(ch);
     const nameEnd = ++pos;
-    if (commentWhitespace() === 44/*,*/)
+    if (commentWhitespace() === 44/*,*/) {
       _exports.add(decode(source.slice(nameStart, nameEnd)));
+      trustWebpackExports(argEnd);
+    }
   }
   pos = start;
 }
@@ -1120,10 +1638,11 @@ function readExportProperty () {
   const revertPos = pos;
   pos++;
   let ch = commentWhitespace();
+  const propertyStart = ch;
   if (ch === 46/*.*/ && source.startsWith('..', pos + 1)) {
     pos += 3;
     ch = commentWhitespace();
-    if (ch === 114/*r*/) tryParseRequire(ExportAssign);
+    if (!(ch === 114/*r*/ && tryParseRequire(ExportAssign))) markWebpackExportsUncertain();
     pos = revertPos;
     return;
   }
@@ -1178,6 +1697,8 @@ function readExportProperty () {
   if (nameEnd !== undefined && (ch === 58/*:*/ || ch === 40/*(*/ ||
       !computed && (ch === 44/*,*/ || ch === 125/*}*/)))
     _exports.add(decode(source.slice(nameStart, nameEnd)));
+  else if (propertyStart !== 125)
+    markWebpackExportsUncertain();
   pos = revertPos;
 }
 

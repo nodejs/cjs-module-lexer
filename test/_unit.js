@@ -1206,6 +1206,12 @@ suite('Lexer', () => {
     });
   });
 
+  test('Unicode export identifiers with BMP and astral continuation characters', () => {
+    const source = 'exports.\u00aa = 1; exports.a\u0300 = 2; exports.\u{10400}\u{e0100} = 3;';
+    const { exports } = parse(source);
+    assert.deepStrictEqual(exports.sort(), ['a\u0300', '\u00aa', '\u{10400}\u{e0100}']);
+  });
+
   test('browser UTF-16 source copy', async () => {
     const originalBuffer = global.Buffer;
     global.Buffer = undefined;

@@ -59,8 +59,10 @@ jobs:
           PROJ_ROOT: ${{ steps.preparation.outputs.PROJ_ROOT }}
         run: |
           cd "$PROJ_ROOT";
+          node build/identifier-data.js --check;
           rm lib/lexer.wasm;
           npm run build-wasm;
+          "../wabt-${WABT_VERSION}/bin/wasm-validate" --disable-mutable-globals --disable-saturating-float-to-int --disable-sign-extension --disable-multi-value lib/lexer.wasm;
           npm run build;
           # test
           npm run test;
